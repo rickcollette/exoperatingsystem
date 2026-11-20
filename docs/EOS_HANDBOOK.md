@@ -4119,7 +4119,8 @@ message and what was on the screen before it help most.
 
 # EOSFS: the EOS File System {#eosfs-format}
 
-Version 1 specification. The EOSFS specification is public domain (CC0).
+Version 1 specification. The EOSFS specification is covered by the project's
+MIT License.
 
 EOSFS is an optional disk format, chosen when a disk is formatted (FORMAT's
 Mode: Sparta, Atari, EOS). EOS continues to read and write SpartaDOS (SDFS

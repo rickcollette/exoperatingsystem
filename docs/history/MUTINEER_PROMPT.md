@@ -1,7 +1,7 @@
 # Autopilot: EOS runs Atari Mutineer BBS everywhere SDX does
 
-You are continuing EOS (Extendable Operating System), the public domain
-(CC0) replacement for the SpartaDOS X 4.5 cartridge (AtariMax 1 MB, CAR
+You are continuing EOS (Extendable Operating System), the MIT-licensed
+replacement for the SpartaDOS X 4.5 cartridge (AtariMax 1 MB, CAR
 type 42), in /home/megalith/AtariProjects/BW-DOS/1.5. Work autonomously
 until the goal below is met. Do not stop to ask unless a decision is
 genuinely the user's (then ask once, briefly, and carry on with other work).

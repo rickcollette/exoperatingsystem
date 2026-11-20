@@ -1,6 +1,6 @@
 # EOS: Extendable Operating System
 
-EOS is a public-domain DOS for the Atari 8-bit on an AtariMax cartridge,
+EOS is an MIT-licensed DOS for the Atari 8-bit on an AtariMax cartridge,
 a drop-in for SpartaDOS X 4.5. It runs SpartaDOS X and BW-DOS programs and
 disks, reads and writes Atari DOS 2.0S/2.5 disks, and has a native file
 system of its own (EOSFS, `docs/EOSFS.md`). See `docs/WHY.md`,
@@ -68,6 +68,10 @@ The Atari800 tests use Atari800, `xvfb-run`, ImageMagick, and Tesseract.
 What the hardware emulator tests verify is in
 [EOS Compatibility](docs/EOS_COMPATABILITY.md). No image has been tested on
 real hardware yet ([Hardware Test](docs/HARDWARE_TEST.md)).
+
+## License
+
+EOS is released under the [MIT License](LICENSE).
 
 ## Test media
 

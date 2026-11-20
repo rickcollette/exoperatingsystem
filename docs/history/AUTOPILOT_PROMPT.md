@@ -1,7 +1,7 @@
 # Autopilot: finish EOS (Extendable Operating System)
 
-You are working in `/home/megalith/AtariProjects/BW-DOS/1.5`. EOS is a public
-domain (CC0) cartridge OS that replaces the SpartaDOS X 4.5 cartridge
+You are working in `/home/megalith/AtariProjects/BW-DOS/1.5`. EOS is an
+MIT-licensed cartridge OS that replaces the SpartaDOS X 4.5 cartridge
 (AtariMax 1 MB, CAR type 42), so that SDX programs, drivers, batch files and
 disks work unchanged, plus EOS's own native file system. Phases A-C are done
 (C5 apart from the items below); the RAM disk is done.
@@ -101,8 +101,7 @@ EOS's native file system, built, tested and committed.
     check.
 - **Assembler:** MADS 2.1.7 (`mads`). MADS labels are case-insensitive. Don't
   use `end` or `rts` as labels.
-- **License:** EOS is public domain (CC0), see `LICENSE.md` and
-  `CONTRIBUTING.md`. Everything written for EOS is CC0 too.
+- **License:** EOS is released under the MIT License; see `LICENSE`.
 - **User requests (PROGRESS.md):**
   - CIO `D:` stays D1:. A name with no device at all means the current
     drive and its current directory, then $PATH (B0b).
