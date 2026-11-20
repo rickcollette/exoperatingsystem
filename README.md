@@ -17,7 +17,7 @@ can start with its programming section; source builds and maintenance are in
 
 You need MADS (`mads` on the path, or `MADS=...`), Python 3, and the
 [`atr` image tool](https://github.com/rickcollette/mkatrgo) (`atr` on the
-path, or `ATR=...`).
+path, `ATR=...`, or a built sibling checkout at `../mkatrgo/atr`).
 
     make            # every image, the test programs, the EOS Toolkit, the
                     # maintenance disk

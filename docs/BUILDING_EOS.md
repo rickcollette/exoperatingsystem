@@ -9,8 +9,8 @@ Building requires MADS, Python 3, and mkatrgo:
 
 - `mads` on `PATH`, or set `MADS=/path/to/mads`.
 - `python3` on `PATH`, or set `PYTHON=/path/to/python3`.
-- mkatrgo's `atr` on `PATH`, or set `ATR=/path/to/atr`. See
-  <https://github.com/rickcollette/mkatrgo>.
+- mkatrgo's `atr` on `PATH`, set `ATR=/path/to/atr`, or build it in a sibling
+  `../mkatrgo` checkout. See <https://github.com/rickcollette/mkatrgo>.
 
 The Altirra tests run under Wine with Xvfb. They require Wine,
 `xvfb-run`, `xdotool`, ImageMagick's `import`, an Altirra executable, and an

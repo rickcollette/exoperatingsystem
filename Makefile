@@ -32,7 +32,7 @@
 
 MADS    ?= mads
 PYTHON  ?= python3
-ATR     ?= atr
+ATR     ?= $(if $(wildcard ../mkatrgo/atr),$(abspath ../mkatrgo/atr),atr)
 export ATR
 MFLAGS  := -s
 B       := build

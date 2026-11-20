@@ -5,11 +5,34 @@ The build and emulator tools stage the exact files they want in a directory.
 directory because atr imports directories recursively.
 """
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
-ATR = os.environ.get('ATR', 'atr')
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _executable():
+    configured = os.environ.get('ATR')
+    if configured:
+        return configured
+    installed = shutil.which('atr')
+    if installed:
+        return installed
+    sibling = ROOT.parent / 'mkatrgo' / 'atr'
+    return str(sibling) if sibling.is_file() else 'atr'
+
+
+ATR = _executable()
+
+
+def _run(args, **kwargs):
+    try:
+        return subprocess.run(args, **kwargs)
+    except FileNotFoundError:
+        sys.exit('atrtool: atr not found; build/install mkatrgo or set ATR=/path/to/atr')
 
 
 def _inputs(tree, files):
@@ -42,7 +65,7 @@ def create(path, tree, files, *, size=None, sectors=None, sector_size=None,
     if volume is not None:
         args += ['--volume', volume]
     args += [str(Path(path).resolve()), *_inputs(tree, files)]
-    subprocess.run(args, cwd=tree, check=True, capture_output=True)
+    _run(args, cwd=tree, check=True, capture_output=True)
     Path(path).chmod(0o644)
 
 
@@ -50,7 +73,7 @@ def get(path, name, destination):
     """Extract one ATR file, returning False when it does not exist."""
     destination = Path(destination).resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
+    result = _run(
         [ATR, 'get', str(Path(path).resolve()), name, str(destination)],
         capture_output=True)
     return result.returncode == 0
