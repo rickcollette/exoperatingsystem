@@ -73,6 +73,11 @@ real hardware yet ([Hardware Test](docs/HARDWARE_TEST.md)).
 
 EOS is released under the [MIT License](LICENSE).
 
+## Contributing
+
+Do what you like with it. If you have an idea or make a useful change, send
+it back if you can. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Test media
 
 Disk images and vendor files the tests use live in `media/`, which is not in
