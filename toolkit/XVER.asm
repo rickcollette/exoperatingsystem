@@ -3,7 +3,7 @@
 ; Two lines: EOS's version, the SpartaDOS X version it stands in for, and
 ; the date and time of CAR:COMMAND.COM (the build's); then the cartridge
 ; the kernel names and whether it passes another cartridge through:
-;   EOS 0.1 (SDX 4.50)  3-11-26 12:00:00
+;   EOS <VERSION> (SDX 4.50)  3-11-26 12:00:00
 ;   Build: EOS, not pass-through
 ; The date is day-month-year, month-day-year when DAYTIME is 1.
 FOPEN    smb 'FOPEN'
@@ -55,7 +55,9 @@ start   lda version            ; 4.50: 4 and 5, then the revision
         sta pdate+3
         stx pdate+1
 dmy     jsr PRINTF
-        dta c'EOS 0.1 (SDX %b.%b%b) %2b-%02b-%02b %2b:%02b:%02b',b(EOL),0
+        dta c'EOS '
+        icl 'version.icl'
+        dta c' (SDX %b.%b%b) %2b-%02b-%02b %2b:%02b:%02b',b(EOL),0
         dta a(vmaj,vmin,revision)
 pdate   dta a(fdate,fdate+1,fdate+2,fdate+3,fdate+4,fdate+5)
         ldx #4

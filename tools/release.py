@@ -5,11 +5,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+from eosversion import next_version, read_version
+
 ROOT = Path(__file__).resolve().parents[1]
 ACCOUNT = 'rickcollette'
 EMAIL = 'rcollet@gmail.com'
 REPOSITORY = 'rickcollette/exoperatingsystem'
 REMOTE = 'https://github.com/rickcollette/exoperatingsystem.git'
+VERSION_FILE = ROOT / 'VERSION'
 
 
 class ReleaseError(Exception):
@@ -29,8 +32,6 @@ def out(*args):
 
 
 def tag_for(version):
-    if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,2}(?:[-._][0-9A-Za-z]+)*', version):
-        raise ReleaseError('bad release version: ' + version)
     return 'v' + version
 
 
@@ -78,17 +79,34 @@ def check_release(version):
     return tag
 
 
-def check_all(version):
+def check_all():
+    try:
+        version = read_version(VERSION_FILE)
+    except (OSError, ValueError) as error:
+        raise ReleaseError(str(error)) from error
     check_identity()
     check_tree()
     tag = check_release(version)
     print('release check: %s, %s <%s>, github.com/%s' %
           (tag, ACCOUNT, EMAIL, REPOSITORY))
-    return tag
+    return version, tag
 
 
-def publish(version, names):
-    tag = check_all(version)
+def advance_version(version):
+    if read_version(VERSION_FILE) != version:
+        raise ReleaseError('VERSION changed during the release')
+    if out('git', 'status', '--porcelain', '--untracked-files=normal'):
+        raise ReleaseError('worktree changed during the release')
+    following = next_version(version)
+    VERSION_FILE.write_text(following + '\n')
+    run('git', 'add', 'VERSION')
+    run('git', 'commit', '-m', 'Start EOS ' + following)
+    run('git', 'push', 'origin', 'main')
+    return following
+
+
+def publish(names):
+    version, tag = check_all()
     assets = [Path(n) for n in names]
     missing = [str(p) for p in assets if not (ROOT / p).is_file()]
     if missing:
@@ -109,21 +127,22 @@ def publish(version, names):
         '--repo', REPOSITORY, '--verify-tag', '--title', 'EOS ' + version,
         '--generate-notes')
     print('release: https://github.com/%s/releases/tag/%s' % (REPOSITORY, tag))
+    print('next version: ' + advance_version(version))
 
 
 def main():
     try:
-        if len(sys.argv) < 3 or sys.argv[1] not in ('check', 'publish'):
-            raise ReleaseError('usage: release.py check VERSION | publish VERSION FILE...')
+        if len(sys.argv) < 2 or sys.argv[1] not in ('check', 'publish'):
+            raise ReleaseError('usage: release.py check | publish FILE...')
         if sys.argv[1] == 'check':
-            if len(sys.argv) != 3:
-                raise ReleaseError('usage: release.py check VERSION')
-            check_all(sys.argv[2])
+            if len(sys.argv) != 2:
+                raise ReleaseError('usage: release.py check')
+            check_all()
         else:
-            if len(sys.argv) < 4:
+            if len(sys.argv) < 3:
                 raise ReleaseError('no release files')
-            publish(sys.argv[2], sys.argv[3:])
-    except ReleaseError as e:
+            publish(sys.argv[2:])
+    except (OSError, ValueError, ReleaseError) as e:
         sys.exit('release: ' + str(e))
 
 

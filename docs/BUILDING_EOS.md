@@ -73,18 +73,17 @@ sectors.
 
 ### Release
 
+Every build gets the EOS version from the repository's `VERSION` file.
 `make release` accepts a clean commit on `main`. It checks the Git author,
 committer and GitHub login, rebuilds everything, replaces `DISTRIBUTE/`, writes
-SHA-256 checksums, pushes `main` and tag `v0.1`, then creates the release at
-`rickcollette/exoperatingsystem`. Git must use
+SHA-256 checksums, pushes `main` and the matching `vX.Y` tag, then creates the
+release at `rickcollette/exoperatingsystem`. Git must use
 `rickcollette <rcollet@gmail.com>` and `gh` must be logged in as
 `rickcollette`.
 
-For another version:
-
-```sh
-make release RELEASE_VERSION=0.2
-```
+After the release succeeds, the command advances `VERSION` and commits it for
+the next build. The minor version runs through 99 before rolling over: `0.98`
+to `0.99`, `0.99` to `1.0`, and `1.99` to `2.0`.
 
 `python3 tools/combo_test.py` runs the U1MB + IDE2.0PLUS machine (EOS from
 the U1MB slot, U1MB clock and RAM disk, IDE storage); it needs

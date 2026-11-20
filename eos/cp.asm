@@ -1032,7 +1032,9 @@ cd2     lda nmbatch,x
 cd3     rts
 nmboot  dta c'BOOT=A:>',b(EOL)
 cpbanner dta b(EOL)
-        dta c'EOS 0.1 Extendable Operating System',b(EOL)
+        dta c'EOS '
+        icl 'version.icl'
+        dta c' Extendable Operating System',b(EOL)
 cpbanner_end equ *
 
 * cfgline: the next line of EOSSYS.SYS

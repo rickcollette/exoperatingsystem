@@ -4016,8 +4016,9 @@ In the U1MB setup: SDX off (so the cartridge port is used), memory 1 MB,
 flash writes allowed. Insert the Maxflash cartridge with `EOS.car`, put
 `EOSMAINT.atr` in D1:, switch on.
 
-Expected: `EOS 0.1 Extendable Operating System`, the README, and the `D1:`
-prompt; no `X Disk O` RAM disk (`DIR O:` gives an error).
+Expected: `EOS <VERSION> Extendable Operating System`, using the value in the
+repository's `VERSION` file, followed by the README and the `D1:` prompt; no
+`X Disk O` RAM disk (`DIR O:` gives an error).
 
 ## 3. Check the image and the flasher (read only)
 

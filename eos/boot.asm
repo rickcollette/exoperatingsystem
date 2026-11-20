@@ -436,7 +436,9 @@ defenv  dta c'PATH=CAR:',b(EOL)
 defenv_end equ *
 
 banner  dta b(EOL)
-        dta c'EOS 0.1 Extendable Operating System',b(EOL)
+        dta c'EOS '
+        icl 'version.icl'
+        dta c' Extendable Operating System',b(EOL)
 banner_end equ *
 
 * D: in the OS handler table: replace an entry for D, else take a free one

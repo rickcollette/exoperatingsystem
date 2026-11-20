@@ -25,8 +25,7 @@
 #   make toolkit    EOS's own Toolkit (toolkit/): build/etk/*.COM and the
 #                   disk build/EOSTK.atr
 #   make tktest     each of them against the SDX Toolkit's (make tkx first)
-#   make release    clean build, DISTRIBUTE/, tag and GitHub release (v0.1;
-#                   RELEASE_VERSION=0.2 for another version)
+#   make release    clean build and GitHub release for VERSION, then advance it
 #
 # The emulator tests need wine, xvfb, xdotool, ImageMagick's import, Altirra
 # (ALTIRRA_EXE) and the SDX 4.50 cartridge (SDX_CART): see tools/emu.py.
@@ -35,6 +34,8 @@ MADS    ?= mads
 PYTHON  ?= python3
 MFLAGS  := -s
 B       := build
+VERSION_FILE := VERSION
+VERSION_ICL  := $(B)/version.icl
 
 .PHONY: all eos eosfsboot eosfsboottest u1mb sic flash sidetest carttest maint mainttest handbook handbook-pdf u1mbtest u1mbemu ideplusemu ideplustest helpemu apttest atari800test tkx toolkit tktest eostest xbtest eostest-eosfs cartest fmttest mutineer quick eosall release release-dist clean
 .SECONDARY:
@@ -114,8 +115,12 @@ $(XB)/kernel.bin: $(XD)/kernel.asm $(wildcard $(XD)/*.icl) tools/mads2icl.py
 	cd $(XD) && $(MADS) kernel.asm $(MFLAGS) -o:$(abspath $@) -t:$(abspath $(XB))/kernel.lab
 	$(PYTHON) tools/mads2icl.py $(XB)/kernel.lab $(XB)/kernel.icl $(XD)/equ.icl
 
-$(XB)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(XB)/kernel.bin $(wildcard $(XD)/*.icl)
-	cd $(XD) && $(MADS) $*.asm $(MFLAGS) -i:$(abspath $(XB)) -o:$(abspath $@) -t:$(abspath $(XB))/$*.lab
+$(VERSION_ICL): $(VERSION_FILE) tools/eosversion.py
+	@mkdir -p $(B)
+	$(PYTHON) tools/eosversion.py asm $< $@
+
+$(XB)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(XB)/kernel.bin $(wildcard $(XD)/*.icl) $(VERSION_ICL)
+	cd $(XD) && $(MADS) $*.asm $(MFLAGS) -i:$(abspath $(XB)) -i:$(abspath $(B)) -o:$(abspath $@) -t:$(abspath $(XB))/$*.lab
 
 # the loader's symbol table needs the addresses of the other modules
 $(XB)/symtab.icl: $(XD)/symbols.txt tools/mksymtab.py $(XB)/kernel.bin $(XB)/lib.bin
@@ -163,8 +168,8 @@ $(UB)/kernel.bin: $(XD)/kernel.asm $(wildcard $(XD)/*.icl) tools/mads2icl.py
 	cd $(XD) && $(MADS) kernel.asm $(MFLAGS) -D:U1MB=1 -o:$(abspath $(UB))/kernel.bin -t:$(abspath $(UB))/kernel.lab
 	$(PYTHON) tools/mads2icl.py $(UB)/kernel.lab $(UB)/kernel.icl $(XD)/equ.icl
 
-$(UB)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(UB)/kernel.bin $(wildcard $(XD)/*.icl)
-	cd $(XD) && $(MADS) $*.asm $(MFLAGS) -D:U1MB=1 -i:$(abspath $(UB)) -o:$(abspath $@) -t:$(abspath $(UB))/$*.lab
+$(UB)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(UB)/kernel.bin $(wildcard $(XD)/*.icl) $(VERSION_ICL)
+	cd $(XD) && $(MADS) $*.asm $(MFLAGS) -D:U1MB=1 -i:$(abspath $(UB)) -i:$(abspath $(B)) -o:$(abspath $@) -t:$(abspath $(UB))/$*.lab
 
 $(UB)/symtab.icl: $(XD)/symbols.txt tools/mksymtab.py $(UB)/kernel.bin $(UB)/lib.bin
 	$(PYTHON) tools/mksymtab.py $< $(UB) $@
@@ -189,8 +194,8 @@ $(SB)/kernel.bin: $(XD)/kernel.asm $(wildcard $(XD)/*.icl) tools/mads2icl.py
 	cd $(XD) && $(MADS) kernel.asm $(MFLAGS) -D:SIC=1 -o:$(abspath $(SB))/kernel.bin -t:$(abspath $(SB))/kernel.lab
 	$(PYTHON) tools/mads2icl.py $(SB)/kernel.lab $(SB)/kernel.icl $(XD)/equ.icl
 
-$(SB)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(SB)/kernel.bin $(wildcard $(XD)/*.icl)
-	cd $(XD) && $(MADS) $*.asm $(MFLAGS) -D:SIC=1 -i:$(abspath $(SB)) -o:$(abspath $@) -t:$(abspath $(SB))/$*.lab
+$(SB)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(SB)/kernel.bin $(wildcard $(XD)/*.icl) $(VERSION_ICL)
+	cd $(XD) && $(MADS) $*.asm $(MFLAGS) -D:SIC=1 -i:$(abspath $(SB)) -i:$(abspath $(B)) -o:$(abspath $@) -t:$(abspath $(SB))/$*.lab
 
 $(SB)/symtab.icl: $(XD)/symbols.txt tools/mksymtab.py $(SB)/kernel.bin $(SB)/lib.bin
 	$(PYTHON) tools/mksymtab.py $< $(SB) $@
@@ -221,8 +226,8 @@ $(B)/$(1)/kernel.bin: $(XD)/kernel.asm $(wildcard $(XD)/*.icl) tools/mads2icl.py
 	@mkdir -p $(B)/$(1)
 	cd $(XD) && $(MADS) kernel.asm $(MFLAGS) $(FLASH_$(1)) -o:$(abspath $(B))/$(1)/kernel.bin -t:$(abspath $(B))/$(1)/kernel.lab
 	$(PYTHON) tools/mads2icl.py $(B)/$(1)/kernel.lab $(B)/$(1)/kernel.icl $(XD)/equ.icl
-$(B)/$(1)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(B)/$(1)/kernel.bin $(wildcard $(XD)/*.icl)
-	cd $(XD) && $(MADS) $$*.asm $(MFLAGS) $(FLASH_$(1)) -i:$(abspath $(B))/$(1) -o:$$(abspath $$@) -t:$(abspath $(B))/$(1)/$$*.lab
+$(B)/$(1)/%.bin: $(XD)/%.asm $(XD)/equ.icl $(XD)/tail.icl $(B)/$(1)/kernel.bin $(wildcard $(XD)/*.icl) $(VERSION_ICL)
+	cd $(XD) && $(MADS) $$*.asm $(MFLAGS) $(FLASH_$(1)) -i:$(abspath $(B))/$(1) -i:$(abspath $(B)) -o:$$(abspath $$@) -t:$(abspath $(B))/$(1)/$$*.lab
 $(B)/$(1)/symtab.icl: $(XD)/symbols.txt tools/mksymtab.py $(B)/$(1)/kernel.bin $(B)/$(1)/lib.bin
 	$(PYTHON) tools/mksymtab.py $$< $(B)/$(1) $$@
 $(B)/$(1)/ld.bin: $(B)/$(1)/symtab.icl
@@ -309,25 +314,25 @@ $(B)/EOSTK.atr: $(ETK) $(wildcard toolkit/man/*.txt) tools/mketk.py
 	$(PYTHON) tools/mketk.py $@
 $(B)/etk/%.COM: toolkit/%.asm $(wildcard toolkit/*.icl)
 	@mkdir -p $(B)/etk
-	cd toolkit && $(MADS) $(notdir $<) $(MFLAGS) -o:$(abspath $@)
+	cd toolkit && $(MADS) $(notdir $<) $(MFLAGS) -i:$(abspath $(B)) -o:$(abspath $@)
+$(B)/etk/XVER.COM: $(VERSION_ICL)
 tktest: $(XCAR) $(ETK)
 	$(PYTHON) tools/prun.py -j $(JOBS) tk
 
 tkx:
 	$(PYTHON) tools/tkunpack.py media/toolkit.atr $(B)
 
-RELEASE_VERSION ?= 0.1
 RELEASE_FILES := EOS.car EOS_U1MB.rom EOS_SIC.car EOS_SICP.car EOS_SIDE.rom \
                  EOS_SIDE2.rom EOS_SIDE3.rom EOS_MYIDE2.rom EOSTK.atr \
                  EOSMAINT.atr EOS_HANDBOOK.pdf EOSFSBOOT.bin
 RELEASE_ASSETS := $(addprefix DISTRIBUTE/,$(RELEASE_FILES)) DISTRIBUTE/SHA256SUMS.txt
 
 release:
-	$(PYTHON) tools/release.py check $(RELEASE_VERSION)
+	$(PYTHON) tools/release.py check
 	$(MAKE) clean
 	$(MAKE) all handbook-pdf
 	$(MAKE) release-dist
-	$(PYTHON) tools/release.py publish $(RELEASE_VERSION) $(RELEASE_ASSETS)
+	$(PYTHON) tools/release.py publish $(RELEASE_ASSETS)
 
 release-dist:
 	rm -rf DISTRIBUTE

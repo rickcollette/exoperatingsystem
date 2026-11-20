@@ -25,7 +25,7 @@ You need MADS (`mads` on the path, or `MADS=...`) and Python 3.
                     # and EOS_SIDE3.rom (8 MiB): raw flash images
     make maint      # build/EOSMAINT.atr, the SDX-free maintenance disk
     make eosfsboot  # build/EOSFSBOOT.bin, the native EOSFS disk boot loader
-    make release    # clean build, DISTRIBUTE/, v0.1 GitHub release
+    make release    # clean build and GitHub release for VERSION
     make handbook-pdf # docs/EOS_HANDBOOK.md and build/EOS_HANDBOOK.pdf
 
 Bootable EOSFS image from a directory tree:
@@ -35,12 +35,15 @@ Bootable EOSFS image from a directory tree:
 The `--boot` path is relative to `tree`. Boot images may use 128 or 256 byte
 sectors; the stock OS cannot boot 512 byte sectors.
 
-`make release` requires a clean commit on `main`, the
+Every build reads its EOS version from `VERSION`. `make release` requires a
+clean commit on `main`, the
 `rickcollette/exoperatingsystem` origin, Git identity
 `rickcollette <rcollet@gmail.com>`, and a `gh` login for `rickcollette`. It
 rebuilds everything, replaces `DISTRIBUTE/`, writes `SHA256SUMS.txt`, pushes
-`main` and tag `v0.1`, and creates the GitHub release. Set another version
-with `make release RELEASE_VERSION=0.2`.
+`main` and the matching `vX.Y` tag, and creates the GitHub release. After the
+release succeeds it advances `VERSION` for the next build and commits that
+change. Versions run from `0.0` through `0.99`, then `1.0` through `1.99`,
+and so on.
 
 ## Testing
 

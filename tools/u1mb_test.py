@@ -46,6 +46,9 @@ ALTIRRA_SRC = Path(os.environ.get('ALTIRRA_SRC', emu.ROOT.parent / 'ALTIRRA_ORIG
 MADS = os.environ.get('MADS', 'mads')
 LABELS = emu.BUILD / 'u1mb'
 PAYLOAD = b'U1MB SLOT WRITE OK\x9bwritten by EOS from the U1MB SDX slot\x9b'
+EOS_VERSION = (emu.ROOT / 'VERSION').read_text().strip()
+BANNER = ('EOS %s Extendable' % EOS_VERSION).encode()
+FLASH_BANNER = ('EOS %sF Extendable' % EOS_VERSION[:-1]).encode()
 
 
 def label(name):
@@ -172,13 +175,13 @@ def t_flash(chip, mode='write'):
         fw0[0:0x50000] = b'\xff' * 0x50000    # the slot; EOS.car starts
     fwp = OUT / (name + '-before.rom')
     fwp.write_bytes(fw0)
-    new = bytearray(old)                      # "EOS 0.F": the new image
-    at = new.find(b'EOS 0.1 Extendable')
+    new = bytearray(old)                      # make the version visibly different
+    at = new.find(BANNER)
     if at < 0:
         return ['no banner in %s' % ROM], ''
     while at >= 0:
-        new[at + 6] = ord('F')
-        at = new.find(b'EOS 0.1 Extendable', at + 1)
+        new[at:at + len(BANNER)] = FLASH_BANNER
+        at = new.find(BANNER, at + len(BANNER))
     flsh = emu.BUILD / 'etk' / 'U1MBFLSH.COM'
     if not flsh.exists():
         return ['no %s (make toolkit)' % flsh], ''
@@ -239,7 +242,7 @@ def t_flash(chip, mode='write'):
         emu.screenshot(OUT / (name + '.png'))
     lines = T.screen(m)
     if mode not in ('write', 'cart'):         # nothing written, the old EOS
-        T.check(any('EOS 0.1 Extendable' in s for s in lines), 'old EOS not running: %r'
+        T.check(any(BANNER.decode() in s for s in lines), 'old EOS not running: %r'
                 % lines[:4], e)
         if mode == 'refuse':
             r1 = emu.text(emu.extract(atr, 'R1.TXT', OUT / 'x') or b'')
@@ -254,7 +257,7 @@ def t_flash(chip, mode='write'):
                    'the RAM disk installed; flash unchanged' if mode == 'refuse' else
                    'U1MBFLSH with flash writes protected: stopped before erasing; after RESET '
                    'the old EOS starts and the flash is unchanged')
-    T.check(any('EOS 0.F Extendable' in s for s in lines), 'not restarted into the new image: %r'
+    T.check(any(FLASH_BANNER.decode() in s for s in lines), 'not restarted into the new image: %r'
             % lines[:4], e)
     if not after.exists():
         e.append('flash not saved')
