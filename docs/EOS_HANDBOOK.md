@@ -4264,11 +4264,13 @@ byte 22 becomes 0).
 * The dirty flag (3.1): `eos/dos2.asm` `hd_hook` (called by the FMS's
   `wr_buf` before every sector write) and `mn_chk` (the quick check at
   mount); `flush_drv` writes the header last.
-* `tools/sdfs.py` reads and checks EOSFS images; `tools/eosfs.py` builds them.
+* `tools/sdfs.py` reads and checks EOSFS images; mkatrgo's `atr` builds them
+  (and `tools/eosfs.py` remains the reference builder for unusual geometries).
 * FORMAT in EOS mode writes the EOSFS boot loader. `BOOT file` records the
-  file's first extent list in sector 1. Host images use `make eosfsboot` and
-  `tools/eosfs.py build ... --boot file`. The loader supports 128 and 256 byte
-  sectors; the stock OS cannot boot 512 byte sectors.
+  file's first extent list in sector 1. Host images use
+  `atr create --profile eos ... --boot file`; the loader is embedded in `atr`.
+  It supports 128 and 256 byte sectors; the stock OS cannot boot 512 byte
+  sectors.
 
 Version 1 does not write into a gap of a sparse file (166: a write that
 would split a gap); reading gaps and writing past the end (which makes a

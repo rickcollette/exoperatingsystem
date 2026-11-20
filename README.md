@@ -15,7 +15,9 @@ can start with its programming section; source builds and maintenance are in
 
 ## Building
 
-You need MADS (`mads` on the path, or `MADS=...`) and Python 3.
+You need MADS (`mads` on the path, or `MADS=...`), Python 3, and the
+[`atr` image tool](https://github.com/rickcollette/mkatrgo) (`atr` on the
+path, or `ATR=...`).
 
     make            # every image, the test programs, the EOS Toolkit, the
                     # maintenance disk
@@ -28,9 +30,11 @@ You need MADS (`mads` on the path, or `MADS=...`) and Python 3.
     make release    # clean build and GitHub release for VERSION
     make handbook-pdf # docs/EOS_HANDBOOK.md and build/EOS_HANDBOOK.pdf
 
-Bootable EOSFS image from a directory tree:
+Bootable EOSFS image from a directory tree (the EOS loader is embedded in
+`atr`):
 
-    python3 tools/eosfs.py build build/MYBOOT.atr 720 256 tree EOS --boot DOS/EOS.SYS
+    atr create --profile eos --sectors 720 --sector-size 256 --volume EOS \
+      --boot DOS/EOS.SYS build/MYBOOT.atr tree/*
 
 The `--boot` path is relative to `tree`. Boot images may use 128 or 256 byte
 sectors; the stock OS cannot boot 512 byte sectors.
@@ -115,7 +119,8 @@ A test whose media is missing fails with the file's name.
   xbtest); `tests/carref/`: SDX's output for the CAR: command probes;
   `tests/u1mb/`: the U1MB boot stub.
 - `tools/`: build tools, the emulator test suites, and host tools
-  (`sdfs.py`, `eosfs.py`, `dos2.py`, `apt.py`: disk images on the PC;
+  (`atrtool.py` calls mkatrgo for ATR creation/extraction; `sdfs.py`,
+  `eosfs.py`, `dos2.py`, `apt.py` inspect or make specialized disk images;
   `dis6502.py`, `basic_list.py`: an SDX binary's disassembly, a BASIC
   program's listing).
 - `docs/`: the user's documents (the handbook is made from them).

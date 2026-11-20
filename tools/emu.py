@@ -13,6 +13,8 @@ import sys
 import time
 from pathlib import Path
 
+import atrtool
+
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / 'build'
 # local test media, not in git (.gitignore): disk images, the SDX Toolkit,
@@ -28,8 +30,6 @@ ALTIRRA = Path(os.environ.get(
     Path.home() / 'AtariMutineer/Privateer/tools/altirra/4.40/Altirra64.exe'))
 SDX_CART = Path(os.environ.get(
     'SDX_CART', Path.home() / 'AtariMutineer/Privateer/third_party/SDX450_maxflash8.car'))
-MKATR = os.environ.get('MKATR', str(Path.home() / 'AtariProjects/mkatr/mkatr'))
-LSATR = os.environ.get('LSATR', str(Path.home() / 'AtariProjects/mkatr/lsatr'))
 EOL = b'\x9b'
 
 
@@ -64,13 +64,14 @@ def text(data):
 
 
 def extract(atr, name, dest):
-    """Extract one file (path relative to MAIN, '/' separated) via lsatr."""
+    """Extract one file (path relative to MAIN, '/' separated) via atr."""
     out = Path(dest) / 'x'
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
-    subprocess.run([LSATR, '-X', str(out), str(atr)], capture_output=True)
-    f = out / name
-    return f.read_bytes() if f.exists() else None
+    f = out / name.lstrip('/\\')
+    if not atrtool.get(atr, name, f):
+        return None
+    return f.read_bytes()
 
 
 def blank_atr(path, sectors, seclen):
@@ -82,13 +83,8 @@ def blank_atr(path, sectors, seclen):
 
 
 def mkatr(path, tree, files, size, boot=None):
-    """Build an SDFS image with mkatr from paths relative to tree."""
-    args = [MKATR, '-s', str(size), str(path)]
-    for f in files:
-        if f == boot:
-            args.append('-b')
-        args.append(f)
-    subprocess.run(args, cwd=tree, check=True, capture_output=True)
+    """Build an SDFS image with mkatrgo from paths relative to tree."""
+    atrtool.create(path, tree, files, size=size, boot=boot)
 
 
 def ini_str(s):

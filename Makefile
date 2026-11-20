@@ -32,6 +32,8 @@
 
 MADS    ?= mads
 PYTHON  ?= python3
+ATR     ?= atr
+export ATR
 MFLAGS  := -s
 B       := build
 VERSION_FILE := VERSION
@@ -244,7 +246,8 @@ flash: $(FLASHROMS)
 # and tools, EOS's startup files without a RAM disk (tools/mkmaint.py)
 MAINT   := $(B)/EOSMAINT.atr
 maint: $(MAINT)
-$(MAINT): $(U1MBROM) $(XCAR) $(ETK) tools/mkmaint.py
+$(MAINT): $(U1MBROM) $(XCAR) $(ETK) tools/mkmaint.py tools/emu.py \
+          tools/atrtool.py
 	$(PYTHON) tools/mkmaint.py $@
 mainttest: $(MAINT)
 	$(PYTHON) tools/maint_test.py
@@ -310,7 +313,8 @@ xbtest: $(XCAR)
 # programs like the CAR: commands
 ETK     := $(patsubst toolkit/%.asm,$(B)/etk/%.COM,$(wildcard toolkit/[A-Z]*.asm))
 toolkit: $(B)/EOSTK.atr
-$(B)/EOSTK.atr: $(ETK) $(wildcard toolkit/man/*.txt) tools/mketk.py
+$(B)/EOSTK.atr: $(ETK) $(wildcard toolkit/man/*.txt) tools/mketk.py \
+                 tools/atrtool.py
 	$(PYTHON) tools/mketk.py $@
 $(B)/etk/%.COM: toolkit/%.asm $(wildcard toolkit/*.icl)
 	@mkdir -p $(B)/etk

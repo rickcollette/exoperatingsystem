@@ -5,10 +5,12 @@ For installing and using a built cartridge, see the [EOS User Manual](USER_MANUA
 
 ## Requirements
 
-Building requires MADS and Python 3:
+Building requires MADS, Python 3, and mkatrgo:
 
 - `mads` on `PATH`, or set `MADS=/path/to/mads`.
 - `python3` on `PATH`, or set `PYTHON=/path/to/python3`.
+- mkatrgo's `atr` on `PATH`, or set `ATR=/path/to/atr`. See
+  <https://github.com/rickcollette/mkatrgo>.
 
 The Altirra tests run under Wine with Xvfb. They require Wine,
 `xvfb-run`, `xdotool`, ImageMagick's `import`, an Altirra executable, and an
@@ -60,16 +62,17 @@ make tkx        # unpack the local SDX Toolkit test disk into build/
 make clean      # remove generated build files
 ```
 
-Bootable EOSFS image:
+Bootable EOSFS image (`atr` has the EOS loader embedded):
 
 ```sh
-python3 tools/eosfs.py build build/MYBOOT.atr 720 256 tree EOS --boot DOS/EOS.SYS
+atr create --profile eos --sectors 720 --sector-size 256 --volume EOS \
+  --boot DOS/EOS.SYS build/MYBOOT.atr tree/*
 ```
 
-`DOS/EOS.SYS` is relative to `tree`. The builder writes `EOSFSBOOT.bin` to
-sectors 1-3 and records the file's first extent list in the boot field. Boot
-images may use 128 or 256 byte sectors. The stock OS cannot boot 512 byte
-sectors.
+`DOS/EOS.SYS` is relative to `tree`. The builder writes its embedded EOS
+loader to sectors 1-3 and records the file's first extent list in the boot
+field. Boot images may use 128 or 256 byte sectors. The stock OS cannot boot
+512 byte sectors.
 
 ### Release
 
@@ -170,10 +173,12 @@ contains the authoritative dependencies and bank list. Edit the relevant
 source and use `make` to rebuild; avoid editing generated files under
 `build/`.
 
-The Toolkit is assembled as relocatable SDX-style programs and packed with
-its manual pages into `build/EOSTK.atr`. Command help source text is kept in
-the corresponding `man/` directories. Update the source documentation and
-the generated CAR: resource if the build flow for that resource requires it.
+The Toolkit is assembled as relocatable SDX-style programs and packed by
+mkatrgo with its manual pages into `build/EOSTK.atr`. The same tool builds
+`build/EOSMAINT.atr` and the emulator test disks. Command help source text is
+kept in the corresponding `man/` directories. Update the source documentation
+and the generated CAR: resource if the build flow for that resource requires
+it.
 New EOS-authored hardware image validation or flashing utilities belong in
 `toolkit/` with a matching `toolkit/man/` page; the existing Makefile pattern
 automatically includes them on the Toolkit ATR. `U1MBCHK` validates the raw
