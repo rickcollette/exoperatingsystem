@@ -1,0 +1,8 @@
+U1MBCHK - validate the raw EOS U1MB slot image
+
+Syntax:
+ U1MBCHK [d:][path]EOS_U1MB.ROM
+
+Checks that the file is exactly 320 KiB and that all forty 8 KiB banks have
+the common reset tail required by the EOS U1MB build. The input is read only.
+U1MBCHK does not program or erase flash.

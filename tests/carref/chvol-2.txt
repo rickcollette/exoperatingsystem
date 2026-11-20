@@ -1,0 +1,14 @@
+# chvol-2: CHVOL / CHVOL A: / CHVOL A.BCD / DIR NONE.X / CHVOL >SUB>NAME / DIR NONE.X / CHVOL D9:X
+## screen
+156 Bad parameter
+Volume Name changed to
+Volume Name changed to A.BCD
+Volume:    A.BCD
+Directory: MAIN
+710 FREE SECTORS
+Volume Name changed to NAME
+Volume:    NAME
+Directory: MAIN
+710 FREE SECTORS
+138 Device does not respond
+## files on D1:

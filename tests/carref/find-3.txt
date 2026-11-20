@@ -1,0 +1,35 @@
+# find-3: FIND / FIND NONE / FIND CAR:D*.COM / FIND D9:X / FIND NONE>X
+## screen
+156 Bad parameter
+No match found!
+CAR:>DATE.COM
+CAR:>DELTREE.COM
+CAR:>DEV.COM
+CAR:>DF.COM
+CAR:>DIR.COM
+CAR:>DIRS.COM
+CAR:>DUMP.COM
+7 matches found!
+No match found!
+No match found!
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

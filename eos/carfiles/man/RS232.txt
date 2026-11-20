@@ -1,0 +1,15 @@
+RS232 - load the R: serial driver
+
+Syntax:
+ RS232 [/R|F|E]
+
+Loads the R: handler from an Atari 850 or P:R: Connection interface; a beep tells it has loaded. Use it before a program that does not load the handler itself, and only once (each load raises MEMLO). The 850 sends it only once after power on. Also gives the COM: device.
+
+Options:
+ /R  also reset the 850's poll, so it can load again after a restart
+ /F  load even if R: is already there
+ /E  use the R: already installed (for COM: only)
+
+Example:
+ RS232
+ TYPE COM:

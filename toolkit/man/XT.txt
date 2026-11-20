@@ -1,0 +1,16 @@
+XT - time a command
+
+Syntax:
+ XT command [parameters]
+
+Runs the command line and prints how
+long it took:
+ Time: h:mm:ss.hh
+The time is counted in video frames,
+so it includes loading a program,
+and is wrong for a command that
+stops the frame counter.
+
+Examples:
+ XT COPY *.* D2:
+ XT ECHO

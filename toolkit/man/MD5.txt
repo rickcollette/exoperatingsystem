@@ -1,0 +1,26 @@
+MD5 - MD5 hashes of files
+
+Syntax:
+ MD5 [/H] file [file ...]
+ MD5 [/H] /C hashfile
+
+Prints a line for each file:
+ MD5 (NAME) = hash
+with the 128-bit hash in hex. Save
+the lines to a file with >>NAME.
+
+/C reads a file of such lines, or of
+lines as md5sum writes them ("hash
+name" or "hash *name"). Each file
+named is hashed again and shown with
+OK when its hash matches or BAD when
+it does not. Other lines are passed
+over. Lines may end with EOL, LF or
+CR LF.
+
+/H turns the screen off while
+hashing, which is somewhat faster.
+
+Examples:
+ MD5 DATA.BIN >>DATA.MD5
+ MD5 /C DATA.MD5

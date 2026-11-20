@@ -1,0 +1,17 @@
+# deltree-2: DELTREE /YV SUB
+## screen
+A:SUB>X.DAT
+A:SUB>DEEP.D>
+A:SUB>DEEP.D>Y.TXT
+A:SUB
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+

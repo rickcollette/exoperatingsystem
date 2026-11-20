@@ -1,0 +1,22 @@
+CAR - enter the plugged-in cartridge
+
+Syntax:
+ CAR [/F|N|I] [/L mode] [d:][path]
+     [file] [params]
+
+Starts the cartridge plugged in on top of the DOS cartridge. With a file name the file is loaded and run with that cartridge enabled (e.g. compiled ACTION! programs).
+
+Options:
+ /N  return to the cartridge, not to DOS, after the program
+ /I  start cold, skipping the memory-save file
+ /F  run the file even when no ROM is seen at $A000
+ /L  loading mode: S (0, SDX), A (64, Atari DOS, the default), N (128, no run), I (192, init only) or a number
+
+Memory save: when $CAR names a file, the cartridge's memory is saved there on leaving with DOS and loaded again on entry, as BASIC does with $BASIC.
+
+Examples:
+ SET CAR=D8:CAR.SAV
+ CAR
+ CAR /N PROG.COM
+
+See also: BASIC, LOAD, SET

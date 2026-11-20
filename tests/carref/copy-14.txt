@@ -1,0 +1,30 @@
+# copy-14: COPY +A *.* SUB> / COPY -H *.DAT SUB>Q*.*
+## screen
+File *.*
+170 File not found
+A.DAT
+B.DAT
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/Q.DAT status $00
+bbbbbb
+
+### /SUB/X.DAT status $00
+xxx
+

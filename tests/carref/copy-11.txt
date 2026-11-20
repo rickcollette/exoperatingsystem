@@ -1,0 +1,35 @@
+# copy-11: ATR +H B.DAT / COPY *.DAT SUB> / COPY +H *.* SUB> / ATR +P SUB>A.DAT / COPY A.DAT SUB> / COPY -A *.DAT SUB>
+## screen
+A.DAT
+B.DAT
+A.DAT
+151 File exists
+A.DAT
+151 File exists
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $02
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/A.DAT status $01
+aaa
+
+### /SUB/B.DAT status $00
+bbbbbb
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

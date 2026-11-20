@@ -1,0 +1,8 @@
+# mdump-1: POKE $600 65 / POKE 1537 $9B / POKE $602 28 / POKE $603 $7D / POKE $604 255 / MDUMP $600 12 / MDUMP $600 8 /R / MDUMP 02:$600 3
+## screen
+0600- 41 9B 1C 7D FF B9 EC 06 A..}.9l.
+0608- 91 32 88 10             .2..
+0000- 41 9B 1C 7D FF B9 EC 06 A..}.9l.
+$02:
+0600- 41 9B 1C                A..
+## files on D1:

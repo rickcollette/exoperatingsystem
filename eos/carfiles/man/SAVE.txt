@@ -1,0 +1,12 @@
+SAVE - save memory to a file
+
+Syntax:
+ SAVE [d:][path]file[.ext]
+      [$]start [$]end
+
+Writes the memory from start to end (both included) to a binary load file. With LOAD, it turns a file with many segments into one, or saves a memory snapshot. Numbers are decimal; $ means hex.
+
+Example:
+ SAVE TEST.DAT $4000 $4007
+
+See also: LOAD, BLOAD

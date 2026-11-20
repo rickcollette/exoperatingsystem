@@ -1,0 +1,1 @@
+MORE - show text a screen at a time››Syntax:› MORE [<<][path]file[.ext]››Same as TYPE file /P: shows the file›and waits for a key after every 23›lines. Mostly used at the end of a›pipe. Without a file it reads from the›keyboard; CTRL-3 ends.››Examples:› MORE README.TXT› ARC | MORE››See also: LESS, TYPE, MAN›

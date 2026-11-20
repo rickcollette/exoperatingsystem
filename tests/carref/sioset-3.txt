@@ -1,0 +1,23 @@
+# sioset-3: SIOSET 0 / SIOSET 1 NORMAL 5 / SIOSET 1 US / SIOSET 1 RESET
+## screen
+5  -
+6  -
+7  -
+8  -
+9  -
+10  -
+11  -
+12  -
+13  -
+14  -
+15  -
+Unit Type   USidx
+---- ------ -----
+1  NORMAL
+Unit Type   USidx
+---- ------ -----
+1  US     $28
+Unit Type   USidx
+---- ------ -----
+1  -
+## files on D1:

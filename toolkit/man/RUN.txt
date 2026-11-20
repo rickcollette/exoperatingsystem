@@ -1,0 +1,17 @@
+RUN - call machine code
+
+Syntax:
+ RUN symbol
+ RUN [[$]index:][$]address
+
+Asks "Jump to $ii:$aaaa (i:a)?" and
+on Y calls the address with JSR; the
+code ends with RTS. Any other key
+cancels. A symbol stands for its
+address; an index selects a bank of
+extended memory. Addresses above
+$FFFF need a 65816 (error 184).
+
+Examples:
+ RUN $600
+ RUN 4:$4000

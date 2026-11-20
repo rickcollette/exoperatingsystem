@@ -1,0 +1,1 @@
+CHVOL - change the volume name››Syntax:› CHVOL [d:]name››Renames the volume of a SpartaDOS›disk. Up to 8 characters; spaces and›inverse characters are allowed but not›as the first character. Atari DOS 2›disks have no volume name.››Example:› CHVOL D2:WORK› Volume Name changed to WORK››See also: CHKDSK, FORMAT, DIR›

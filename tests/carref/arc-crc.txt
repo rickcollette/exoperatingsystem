@@ -1,0 +1,28 @@
+# arc-crc: ARC AGPW G A.TXT / MD X / ARC X G X> / ARC D NONE A.TXT / ARC F NEW A.TXT / ARC L NEW
+## screen
+Creating new archive: A:G.ARC
+Adding:   A.TXT        Store:   Done.
+Extracting file: A.TXT        WARNING:
+A.TXT fails CRC Done.
+Creating new archive: A:NONE.ARC
+Creating new archive: A:NEW.ARC
+Filename     Length   Date     Time
+============ ======== ======== ======
+==== ========
+Total      0        0
+## files on D1:
+### /A.TXT status $00
+hello world
+the second line
+ARC test ===
+
+### /G.ARC status $00
+hex 1a02412e545854000000000000000029000000215a006043ff2900000038323c3b3f772738223b34cc243f3577233233383e33703b393935cc1105137724322323706a6d6acb1a00
+### /NEW.ARC status $00
+hex 1a00
+### /NONE.ARC status $00
+hex 1a00
+### /X status $20
+<directory>
+### /X/A.TXT status $00
+hex 38323c3b3f772738223b34cc243f3577233233383e33703b393935cc1105137724322323706a6d6acb

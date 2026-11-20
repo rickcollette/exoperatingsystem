@@ -1,0 +1,16 @@
+RPM - a floppy drive's speed
+
+Syntax:
+ RPM [d:]
+
+Shows how many times a minute the
+disk in the drive turns, until a key
+is pressed. Most Atari drives turn
+at 288, the XF551 and PC drives at
+300.
+
+RPM reads one sector over and over:
+on a drive that keeps whole tracks
+in memory, a hard disk or a RAM disk
+the number only tells how fast the
+reads are.

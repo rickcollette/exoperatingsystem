@@ -1,0 +1,12 @@
+CON64 - 64-column screen driver
+
+Syntax:
+ DEVICE CON64          (CONFIG.SYS)
+
+CON64.SYS installs a console with 64 columns and 24 lines, drawn in software on the 320x192 graphics screen. It needs extended memory (Port B or Axlon). After loading the screen still has 40 columns; type CON 64 to switch over and CON 40 to switch back.
+
+The screen takes nearly 8K of main memory, and some programs do not work with it. In BASIC: GRAPHICS 0 is the 64x24 text mode, GRAPHICS 8 and 24 are bitmap modes; there is no text window.
+
+In CONFIG.SYS, load CON64 before RAMDISK.
+
+See also: CON

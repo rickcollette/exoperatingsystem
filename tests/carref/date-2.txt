@@ -1,0 +1,13 @@
+# date-2: DATE 1-1-21 / DATE 31-02-21 / DATE /T / DATE 29-02-00 / DATE /T / DATE 29-02-01 / DATE 1-13-21 / DATE 0-1-21 / DATE 1-1-2021 / DATE X / DATE /X / DATE /T /T / DATE /T
+## screen
+<Invalid Date>
+1-01-21
+29-02-00
+<Invalid Date>
+<Invalid Date>
+<Invalid Date>
+<Invalid Date>
+156 Bad parameter
+1-01-00
+1-01-00
+## files on D1:

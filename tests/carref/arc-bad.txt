@@ -1,0 +1,14 @@
+# arc-bad: ARC L A.TXT / ARC X A.TXT
+## screen
+Filename     Length   Date     Time
+============ ======== ======== ======
+Bad header in A:A.TXT
+A:A.TXT is not an archive
+Bad header in A:A.TXT
+A:A.TXT is not an archive
+## files on D1:
+### /A.TXT status $00
+hello world
+the second line
+ARC test ===
+

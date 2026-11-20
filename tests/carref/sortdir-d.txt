@@ -1,0 +1,38 @@
+# sortdir-d: COPY NUL: NEW.DAT / SORTDIR D1: /D / DIR
+## screen
+Sort completed!
+Volume:    EOS
+Directory: MAIN
+SUB          <DIR>   1-01-25 12:00
+NEW      DAT      0  6-06-23 23:51
+2X       COM     41  1-01-25 12:00
+A1       TXT    301  1-01-25 12:00
+AUTOEXEC BAT     50  1-01-25 12:00
+B        DAT      7  1-01-25 12:00
+M        ABC      2  1-01-25 12:00
+SDXPROBE COM     74  1-01-25 12:00
+ZED      TXT      3  1-01-25 12:00
+694 FREE SECTORS
+## files on D1:
+### /2X.COM status $00
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+### /A1.TXT status $00
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /M.ABC status $00
+m
+
+### /NEW.DAT status $00
+
+### /SUB status $20
+<directory>
+### /SUB/X.DAT status $00
+xxx
+
+### /ZED.TXT status $00
+zz
+

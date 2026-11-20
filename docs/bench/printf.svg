@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="458" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<rect width="100%" height="100%" fill="white"/>
+<text x="10" y="24" font-size="16" font-weight="bold">PRINTF (the Toolkit's PFTEST)</text>
+<text x="10" y="44" fill="#555">time against SDX's for the same job (SDX = 100%, shorter is faster); PFTEST's own count at each bar</text>
+<rect x="10" y="56" width="12" height="12" fill="#c0392b"/>
+<text x="26" y="67">SDX 4.50</text>
+<rect x="96" y="56" width="12" height="12" fill="#2471a3"/>
+<text x="112" y="67">EOS</text>
+<line x1="660.0" y1="80" x2="660.0" y2="440" stroke="#999" stroke-dasharray="4 3"/>
+<text x="660.0" y="454" fill="#777" text-anchor="middle">100%</text>
+<text x="222" y="108" text-anchor="end">Simple text</text>
+<rect x="230" y="88" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="100" fill="#222">777 (100%)</text>
+<rect x="230" y="106" width="222.5" height="15" fill="#2471a3"/>
+<text x="457.5" y="118" fill="#222">402 (52%)</text>
+<text x="222" y="158" text-anchor="end">Substring s</text>
+<rect x="230" y="138" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="150" fill="#222">799 (100%)</text>
+<rect x="230" y="156" width="214.2" height="15" fill="#2471a3"/>
+<text x="449.2" y="168" fill="#222">398 (50%)</text>
+<text x="222" y="208" text-anchor="end">Substring p</text>
+<rect x="230" y="188" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="200" fill="#222">800 (100%)</text>
+<rect x="230" y="206" width="213.9" height="15" fill="#2471a3"/>
+<text x="448.9" y="218" fill="#222">398 (50%)</text>
+<text x="222" y="258" text-anchor="end">8/16/24-bit</text>
+<rect x="230" y="238" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="250" fill="#222">1203 (100%)</text>
+<rect x="230" y="256" width="331.0" height="15" fill="#2471a3"/>
+<text x="566.0" y="268" fill="#222">926 (77%)</text>
+<text x="222" y="308" text-anchor="end">32-bit long</text>
+<rect x="230" y="288" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="300" fill="#222">1356 (100%)</text>
+<rect x="230" y="306" width="294.3" height="15" fill="#2471a3"/>
+<text x="529.3" y="318" fill="#222">928 (68%)</text>
+<text x="222" y="358" text-anchor="end">Hex strings</text>
+<rect x="230" y="338" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="350" fill="#222">856 (100%)</text>
+<rect x="230" y="356" width="226.1" height="15" fill="#2471a3"/>
+<text x="461.1" y="368" fill="#222">450 (53%)</text>
+<text x="222" y="408" text-anchor="end">Average</text>
+<rect x="230" y="388" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="400" fill="#222">965 (100%)</text>
+<rect x="230" y="406" width="260.0" height="15" fill="#2471a3"/>
+<text x="495.0" y="418" fill="#222">584 (60%)</text>
+</svg>

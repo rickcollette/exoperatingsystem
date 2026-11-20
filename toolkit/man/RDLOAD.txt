@@ -1,0 +1,27 @@
+RDLOAD - a RAM disk back from a file
+
+Syntax:
+ RDLOAD [d:][path]file [d:]
+
+Puts the sectors RDDUMP saved back on
+the RAM disk in drive d:. Without a
+drive, the one in the variable
+RAMDISK (set when the RAM disk is
+installed).
+
+The drive must be a RAM disk of the
+same size as the dump. Only the
+sectors in use on the dumped disk
+are written, which is quick when the
+disk was not full.
+
+To restore it at each start, put in
+AUTOEXEC.BAT:
+
+ IF RAMDISK
+   IF NOT EXISTS $RAMDISK>*.*
+     RDLOAD C:>SYS>RAMDISK.DMP
+   FI
+ FI
+
+See also: RDDUMP

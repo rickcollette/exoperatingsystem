@@ -1,0 +1,14 @@
+# mem-x: MEM /X >>MX.TXT
+## screen
+## files on D1:
+### /MX.TXT status $00
+
+Main: $18FF,$18FF,$0000
+ Ext: $FF69,$FF69,$0000
+ Use: OSRAM, PORTB $FE
+ Top: $9C1F ($BC1F),$FFBF
+Free: 33568 (41760),86
+
+0 Ext banks total (0 KB)
+0 Ext banks free  (0 KB)
+

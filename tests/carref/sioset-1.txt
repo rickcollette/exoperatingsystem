@@ -1,0 +1,25 @@
+# sioset-1: SIOSET / SIOSET 1 / SIOSET D1: / SIOSET A / SIOSET 16 / SIOSET X
+## screen
+11  -
+12  -
+13  -
+14  -
+15  -
+Unit Type   USidx
+---- ------ -----
+1  XF
+2  -
+3  -
+4  -
+5  -
+6  -
+7  -
+8  -
+9  -
+10  -
+11  -
+12  -
+13  -
+14  -
+15  -
+## files on D1:

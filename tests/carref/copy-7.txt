@@ -1,0 +1,52 @@
+# copy-7: COPY /R SUB NEW> / MD NEW / COPY /R SUB NEW> / COPY /R SUB> NEW>
+## screen
+SUB>
+150 Path not found
+SUB>
+SUB>X.DAT
+SUB>DEEP.D>
+SUB>DEEP.D>Y.TXT
+SUB>X.DAT
+SUB>DEEP.D>
+SUB>DEEP.D>Y.TXT
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /NEW status $20
+<directory>
+### /NEW/DEEP.D status $20
+<directory>
+### /NEW/DEEP.D/Y.TXT status $00
+yyy
+
+### /NEW/SUB status $20
+<directory>
+### /NEW/SUB/DEEP.D status $20
+<directory>
+### /NEW/SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /NEW/SUB/X.DAT status $00
+xxx
+
+### /NEW/X.DAT status $00
+xxx
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

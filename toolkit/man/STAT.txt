@@ -1,0 +1,23 @@
+STAT - all about one directory entry
+
+Syntax:
+ STAT [+AHP] [d:][path]name
+
+Shows for a file, directory or link:
+ Name  in 8.3 form
+ Type  regular file, directory or
+       symbolic link
+ Attr  L link, S directory,
+       A archived, H hidden,
+       P protected, - when not set
+ Node  the first sector, in hex and
+       decimal, and the device
+ Size  in bytes and in sectors
+ Date  and time of the last change
+A link also shows where it leads.
+
+Wildcards show the first entry that
+matches. Attributes choose which.
+
+Example:
+ STAT SUB>README.TXT

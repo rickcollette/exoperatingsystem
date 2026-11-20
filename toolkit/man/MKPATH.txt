@@ -1,0 +1,18 @@
+MKPATH - make several directories
+
+Syntax:
+ MKPATH [/FV] [d:][path]
+
+Makes each directory along the path
+that is not there yet. MKPATH A>B>C
+makes A, A>B and A>B>C; A>..>B makes
+A and B side by side.
+
+/F  go on past directories that are
+    already there
+/V  show the path being made
+/VV show each directory as it is
+    made
+
+Example:
+ MKPATH /V D2:>SRC>LIB>OLD

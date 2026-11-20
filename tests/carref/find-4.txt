@@ -1,0 +1,33 @@
+# find-4: ATR +H A.DAT / FIND A.DAT / FIND *.*
+## screen
+A:>A.DAT
+1 match found!
+A:>A.DAT
+A:>B.DAT
+A:>C.TXT
+A:>AUTOEXEC.BAT
+A:>SDXPROBE.COM
+A:>SUB>X.DAT
+A:>SUB>DEEP.D>Y.TXT
+7 matches found!
+## files on D1:
+### /A.DAT status $02
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

@@ -1,0 +1,12 @@
+XVER - DOS version and build
+
+Syntax:
+ XVER
+
+Shows the EOS version, the SpartaDOS
+X version it stands in for, the date
+and time the cartridge was built,
+the cartridge's name and whether it
+passes another cartridge through.
+With DAYTIME=1 the date is shown
+month first.

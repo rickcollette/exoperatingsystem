@@ -1,0 +1,27 @@
+SL - list or add system symbols
+
+Syntax:
+ SL [name [[$]address]]
+
+Without a parameter, lists every
+symbol: its name, its address and
+its level. The symbols added in
+memory come first, then the system's
+own.
+
+With a name, lists only the symbols
+whose names start with it.
+
+With a name and an address, adds the
+symbol first. The address is 0 to
+65535. SL then stays in memory, so
+that the symbol is kept.
+
+Adding symbols with wrong addresses
+can make programs that use them
+crash: use it for testing.
+
+Examples:
+ SL
+ SL U_
+ SL COVOX $D600

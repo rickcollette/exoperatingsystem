@@ -1,0 +1,10 @@
+VERIFY - check disk writes
+
+Syntax:
+ VERIFY [ON|OFF]
+
+With VERIFY ON each disk write is read back to make sure it can be read. This is slower, mostly on floppy drives. The default is OFF. VERIFY shows the state, also after a change.
+
+Example:
+ VERIFY ON
+ VERIFY is ON

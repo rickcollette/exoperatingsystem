@@ -1,0 +1,37 @@
+FT - find text in files
+
+Syntax:
+ FT [d:][path][name] [/C][/I][/V]
+    [pattern]
+
+Searches the files for the pattern,
+which is the rest of the line,
+blanks too, or is asked for. Each
+line that has it is shown as
+ NAME,line:text
+lines counted from 0. For one file
+given without wildcards the name is
+left out.
+
+ /C  the number of lines found in
+     each file instead
+ /I  upper and lower case alike
+ /V  each file's name first
+
+In the pattern:
+ \?   any character
+ \s   blank (a blank also matches
+      a tab or the end of the line)
+ \n   EOL       \t  tab
+ \e   escape    \a  bell ($FD)
+ \b   $7E       \0  \z  zero
+ \xHH the code HH
+ \cX  X's low 5 bits
+ \\   backslash
+
+Lines longer than 255 characters end
+the search in that file.
+
+Examples:
+ FT *.TXT /I hello
+ FT D2:SRC>*.ASM jsr\sPRINTF

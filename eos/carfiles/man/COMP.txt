@@ -1,0 +1,12 @@
+COMP - compare two files
+
+Syntax:
+ COMP [d:][path]file1 [d:][path]file2
+      [offset1 [offset2]]
+
+Compares two files byte by byte and reports the positions and values that differ, and which file ends first. The optional offsets (from 0, up to 24 bits) are where the comparison starts in each file; default 0.
+
+Example:
+ COMP A.DAT B.DAT
+ ?dif at 00000A:0A & 00000A:9B
+ B.DAT EOF

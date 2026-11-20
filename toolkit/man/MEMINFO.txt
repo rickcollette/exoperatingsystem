@@ -1,0 +1,20 @@
+MEMINFO - the extended memory banks
+
+Syntax:
+ MEMINFO
+
+Shows the type of the extended
+memory (PORTB or Axlon), how many
+banks there are and how many are
+free. Then lists the free banks and
+the ones in use, each as its memory
+index and the value written to the
+bank register to select it.
+
+Use the list to pick banks for
+programs that let you choose their
+banks, so that they do not take one
+the system uses.
+
+Example:
+ MEMINFO

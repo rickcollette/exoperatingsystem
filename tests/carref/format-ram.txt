@@ -1,0 +1,42 @@
+# format-ram: FORMAT /QQ O: RAMVOL >>F1.TXT / CHKDSK O: >>C1.TXT / DIR O: >>D1.TXT / FORMAT /QQ O: >>F2.TXT / CHKDSK O: >>C2.TXT / FORMAT /QQ O: lower >>F3.TXT / CHKDSK O: >>C3.TXT
+## screen
+## files on D1:
+### /C1.TXT status $00
+
+     Volume: RAMVOL   00 D0
+Sector size: 256 bytes
+   Capacity: 64 KB
+ Free space: 63 KB
+
+### /C2.TXT status $00
+
+     Volume: RAMVOL   00 D5
+Sector size: 256 bytes
+   Capacity: 64 KB
+ Free space: 63 KB
+
+### /C3.TXT status $00
+
+     Volume: lower    00 53
+Sector size: 256 bytes
+   Capacity: 64 KB
+ Free space: 63 KB
+
+### /CONFIG.SYS status $00
+DEVICE SPARTA
+DEVICE SIO
+DEVICE RAMDISK O,4
+
+### /D1.TXT status $00
+
+Volume:    RAMVOL  
+Directory: MAIN    
+
+     250 FREE SECTORS
+
+### /F1.TXT status $00
+
+### /F2.TXT status $00
+
+### /F3.TXT status $00
+

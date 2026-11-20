@@ -1,0 +1,15 @@
+CRC32 - CRC-32 checksums of files
+
+Syntax:
+ CRC32 [/H] file [file ...]
+
+For each file prints its CRC-32, its
+size in bytes and its name. The CRC
+is the one zlib, PKZIP and "cksum -o
+3" use. It is shown in decimal, or in
+hex with /H. A parameter starting
+with / ends the list.
+
+Examples:
+ CRC32 GAME.COM
+ CRC32 /H D2:*.DAT >>SUMS.TXT

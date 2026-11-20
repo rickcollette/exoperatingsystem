@@ -1,0 +1,14 @@
+INVERSE - inverse video filter
+
+Syntax:
+ INVERSE
+
+Copies standard input to standard
+output with every character in
+inverse video. Without redirected
+input it reads the keyboard until
+CTRL-3.
+
+Examples:
+ INVERSE <<README.TXT
+ INVERSE <<A.TXT >>B.TXT

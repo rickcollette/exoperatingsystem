@@ -1,0 +1,23 @@
+TAIL - the last lines of a file
+
+Syntax:
+ TAIL [-n count | -count] [filename]
+
+Copies the last count lines (10 when
+none is given) to standard output.
+Without a name standard input is
+read, so TAIL works with << and >>.
+
+ -n count  the number of lines, 0 to
+           65535 (also -ncount and
+           -count)
+
+The input is kept in the free memory.
+When it is full, only the last count
+lines are kept; when these alone fill
+it, the lines in its first half go,
+so fewer lines are shown.
+
+Examples:
+ TAIL LOG.TXT
+ TAIL -n 3 <<LIST.TXT >>END.TXT

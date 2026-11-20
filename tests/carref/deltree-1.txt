@@ -1,0 +1,23 @@
+# deltree-1: DELTREE /Y SUB / DIR
+## screen
+A:SUB>DEEP.D>
+A:SUB
+Volume:    EOS
+Directory: MAIN
+A        DAT      4  1-01-25 12:00
+B        DAT      7  1-01-25 12:00
+C        TXT      7  1-01-25 12:00
+AUTOEXEC BAT     32  1-01-25 12:00
+SDXPROBE COM     74  1-01-25 12:00
+704 FREE SECTORS
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+

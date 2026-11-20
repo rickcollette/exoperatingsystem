@@ -1,0 +1,43 @@
+LS - list the files of a directory
+
+Syntax:
+ LS [-clwa] [+|-AHPS] [d:][path][name]
+
+Without switches each file is shown
+on a line of its own with its device
+and path (no device for the current
+drive), for programs that read a list
+of files. Hidden files and
+directories are left out unless -a
+or attributes are given. A directory
+ends with >.
+
+Switches come first. Each can be
+written -x or /X, several letters
+after one sign: -la, /L/A. A - group
+of other letters is attributes (-H,
+-S, -AH).
+
+ -c  Atari DOS names: D: or Dn:
+     before each name
+ -a  all entries, hidden ones and
+     directories too
+ -l  long list, one line each: name,
+     size, date, time, attributes
+ -w  names only, in columns
+
+The long list:
+ NAME.EXT      size dd-mm-yy hh:mm HPA
+size is in bytes, in K from 100000
+bytes, in M from 10000K; <DIR> for a
+directory. H hidden, P protected, A
+archived, - when not set.
+
+-l wins over -w. -c counts only for
+the plain list. The order is the
+directory's.
+
+Examples:
+ LS /C
+ LS -la SUB>
+ LS -w *.COM

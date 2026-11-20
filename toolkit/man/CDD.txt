@@ -1,0 +1,12 @@
+CDD - change drive and directory
+
+Syntax:
+ CDD [d:path]
+
+Works like CD, but the drive given
+also becomes the current drive.
+Without a parameter nothing happens.
+
+Examples:
+ CDD D2:>GAMES
+ CDD C:

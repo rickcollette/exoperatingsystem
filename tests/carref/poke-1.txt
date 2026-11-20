@@ -1,0 +1,6 @@
+# poke-1: POKE $600 300 / MDUMP $600 1 / POKE $600,7 / MDUMP $600 1 / POKE 02:$600 9 / MDUMP $600 1
+## screen
+0600- 2C                      ,
+0600- 07                      .
+0600- 09                      .
+## files on D1:

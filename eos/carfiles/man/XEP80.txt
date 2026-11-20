@@ -1,0 +1,28 @@
+XEP80.SYS - 80-column screen on an XEP80
+
+Syntax:
+ XEP80.SYS [/P] [/U] [/V] [/1]
+
+Loads a resident E: and S: handler for
+the Atari XEP80 interface: from then on
+the screen editor shows 80 columns on
+the XEP80's monitor. The handler stays
+after RESET.
+
+Options:
+ /P  50 Hz (PAL) display
+ /U  Ultra speed: 31.5 kHz both ways
+     (needs an XEP80 that has it)
+ /V  VHOLD timing for monitors that
+     roll with the standard timing
+ /1  XEP80 on joystick port 1 (the
+     default is port 2)
+
+The handler is Altirra's XEP80 handler
+by Avery Lee, built for EOS.
+
+Examples:
+ XEP80.SYS
+ XEP80.SYS /P
+
+See also: CON

@@ -1,0 +1,16 @@
+CHTD - set a file's time stamp to now
+
+Syntax:
+ CHTD [/Q] [+|-][A|H|P|S]
+      [d:][path]file[.ext]
+
+Gives every matching file and directory the current date and time (or the one set by a program). A file name must be given; *.* is not assumed. Hidden and protected files are skipped unless attributes say otherwise; protected files keep their protection.
+
+Options:
+ /Q  do not report each file
+
+Example:
+ CHTD *.DAT
+ Changing TD in TEST.DAT
+
+See also: DATE, TIME, ATR

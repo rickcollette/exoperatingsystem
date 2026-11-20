@@ -1,0 +1,5 @@
+# command-1: ECHO before / COMMAND / ECHO after
+## screen
+before
+after
+## files on D1:

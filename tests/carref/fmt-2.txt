@@ -1,0 +1,61 @@
+# fmt-2: FMT P.TXT >>F1.TXT / FMT /S P.TXT 40 >>F2.TXT / FMT /J P.TXT 40 >>F3.TXT / FMT /SJ P.TXT 50 >>F4.TXT / FMT /S/J P.TXT 64 >>F5.TXT
+## screen
+156 Bad parameter
+## files on D1:
+### /F1.TXT status $00
+   The quick brown fox jumps over the
+lazy dog and keeps running far away
+into the   distant   hills beyond the
+river, where nobody can see it.
+
+short line
+  indented  twice
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAlongwordthatdoesnotfit
+end tail
+
+### /F2.TXT status $00
+The quick brown fox jumps over the lazy
+dog and keeps running far away into the
+distant hills beyond the river, where
+nobody can see it.
+
+short line
+indented twice
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAlongwordthatdoesnotfit end
+tail
+
+### /F3.TXT status $00
+The  quick  brown  fox  jumps  over the
+lazy  dog  and  keeps  running far away
+into  the    distant   hills beyond the
+river, where nobody can see it.
+
+short line
+  indented  twice
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAlongwordthatdoesnotfit end
+tail
+
+### /F4.TXT status $00
+The  quick  brown fox jumps over the lazy dog and
+keeps  running  far  away  into the distant hills
+beyond the river, where nobody can see it.
+
+short line
+indented twice
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+longwordthatdoesnotfit end
+tail
+
+### /F5.TXT status $00
+
+### /P.TXT status $00
+   The quick brown fox jumps over the lazy dog and keeps running far away into the   distant   hills beyond the river, where nobody can see it.
+
+short line
+  indented  twice
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlongwordthatdoesnotfit end
+tail
+

@@ -1,0 +1,29 @@
+# copy-17: ATR +H B.DAT / COPY B.DAT SUB> / COPY +H *.* SUB>
+## screen
+File B.DAT
+170 File not found
+B.DAT
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $02
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/B.DAT status $00
+bbbbbb
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

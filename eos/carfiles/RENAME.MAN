@@ -1,0 +1,1 @@
+RENAME - rename files››Syntax:› RENAME [d:][path]old[.ext] new[.ext]››Alias: REN››Renames the matching files. Drive and›path go with the old name only; both›names are needed. Wildcards in the new›name keep the characters of the old›one. If the new name exists, error 151›is shown and nothing is renamed.››Examples:› REN *.BAK *.DOC› RENAME D2:AC*.* *.XX››See also: RENDIR, COPY›

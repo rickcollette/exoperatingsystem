@@ -1,0 +1,40 @@
+XFCONF - set a floppy drive's density
+
+Syntax:
+ XFCONF [d: [/n]]
+
+For drives that do not find the
+density of a disk themselves, such
+as the XF551: the density is sent to
+the drive as a PERCOM block, read
+back and checked.
+
+Without a parameter, XFCONF asks for
+the drive (1-4) and the density.
+With a drive alone it tells whether
+the drive can be set. With a drive
+and /n it sets density n:
+
+ /1 single, 40 tracks, 90K
+ /2 enhanced, 40 tracks, 130K
+ /3 double, 40 tracks, 180K
+ /4 double, two sides, 360K
+ /5 double, two sides, 80 tracks,
+    720K
+
+The messages:
+
+Drive not configurable - a drive
+ without PERCOM (a stock 810 or
+ 1050).
+Drive is not a floppy - a hard disk
+ or a RAM disk.
+Drive rejected the config - the
+ drive refused it.
+Drive cannot do this density - the
+ drive took it but set another.
+
+Example:
+ XFCONF D2: /3
+
+See also: PERCONF

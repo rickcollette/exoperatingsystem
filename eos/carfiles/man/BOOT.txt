@@ -1,0 +1,13 @@
+BOOT - choose the file a disk boots
+
+Syntax:
+ BOOT [d:][path]file[.ext]
+
+Marks a file on an SDFS or EOSFS disk as the program loaded by the boot sectors. The file may be in any directory.
+
+FORMAT writes the SDFS or EOSFS loader. BOOT only records the file's first map or extent list in sector 1. Erasing or replacing the file clears the mark. The stock OS cannot boot 512 byte sectors.
+
+Example:
+ BOOT >DOS>DOS.SYS
+
+See also: COLD, FORMAT

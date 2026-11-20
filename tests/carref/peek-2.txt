@@ -1,0 +1,5 @@
+# peek-2: PEEK COMTAB / PEEK COMTAB2-4
+## screen
+2618 $0A3A, 76 $4C, 43340 $A94C, "L"
+3419 $0D5B, 0 $00, 0 $0000, "."
+## files on D1:

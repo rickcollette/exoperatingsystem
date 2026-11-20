@@ -1,0 +1,12 @@
+# mdump-err: MDUMP / MDUMP 1536 /Q / MDUMP NOSUCH / MDUMP 99:0 8 / ECHO end
+## screen
+MDUMP [bank:]address [count] [/R]
+156 Bad parameter
+156 Bad parameter
+MDUMP [bank:]address [count] [/R]
+156 Bad parameter
+$63:
+0000-
+166 Range error
+end
+## files on D1:

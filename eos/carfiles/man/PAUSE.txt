@@ -1,0 +1,12 @@
+PAUSE - wait for a key
+
+Syntax:
+ PAUSE [seconds]
+
+Stops a batch file with a message until RETURN is pressed, e.g. to change a disk. With a number (0-65535) it waits that many seconds instead.
+
+Do not change the disk the batch file runs from.
+
+Example:
+ PAUSE
+ PAUSE 5

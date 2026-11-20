@@ -1,0 +1,17 @@
+DELTREE - delete a directory tree
+
+Syntax:
+ DELTREE [/Y] [/V] [d:]path
+
+Deletes a directory with all its files and subdirectories, after asking for confirmation.
+
+Options:
+ /Y  do not ask
+ /V  show each directory and file as it is deleted
+
+If error 167 appears on a directory that looks empty, look for hidden entries with DIR +. A file that was never closed after a crash can also keep a directory from being removed; a disk checker can fix that.
+
+Example:
+ DELTREE /V D2:>OLD
+
+See also: RMDIR, ERASE

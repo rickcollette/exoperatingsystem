@@ -1,0 +1,18 @@
+U1MBFLSH - write EOS into the Ultimate 1MB SDX area
+
+Syntax:
+ U1MBFLSH [d:][path]EOS_U1MB.ROM
+
+Writes a 320 KiB EOS U1MB slot image (make u1mb) into the first 320 KiB of the U1MB flash, the SDX area, and restarts the computer into it.
+
+The EOS maintenance disk (EOSMAINT.atr) has the image, this program and EOS startup files without a RAM disk. For the first installation start EOS from the EOS.car cartridge with the U1MB's SDX off; later from the slot's EOS.
+
+Before anything is written it checks that an Ultimate 1MB is present, that the file is exactly 320 KiB with one reset tail in all forty banks (as U1MBCHK), and that 20 extended memory banks are free, and reads the whole image into them. Start the DOS without a RAM disk for this (an EOSSYS.SYS or CONFIG.SYS without DEVICE RAMDISK). It then asks; only Y writes.
+
+Writing: the OS ROM is switched out, interrupts are off. U1MBFLSH reads the flash chip's ID (29F040 types from AMD, AMIC, Bright, Hynix, Macronix; SST 39SF040), erases only the sectors of $00000-$4FFFF, writes and compares every bank, then cold starts. The U1MB BIOS, BASIC and OS ($50000-$7FFFF) are never addressed.
+
+If the chip does not answer (flash writes protected in the U1MB setup, SDX off, an unknown chip) nothing is erased. If erasing or writing fails, the screen says so; the U1MB BIOS is unchanged, so after RESET its setup starts and the SDX area can be written again. Do not reset or switch off while it writes.
+
+Verified in Altirra's U1MB emulation running under EOS (AMIC A29040 and SST 39SF040 chips; also from EOS.car with SDX off into an empty SDX area). Under SDX 4.50 it loads and makes its checks; writing from SDX in the U1MB slot has not been tested. Not yet tested on real hardware.
+
+See also: U1MBCHK

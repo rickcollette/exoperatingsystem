@@ -1,0 +1,8 @@
+# peek-err: PEEK / PEEK NOSUCH / PEEK 1X / PEEK 99:0 / PEEK $FF0000 / PEEK 1 2 / ECHO end
+## screen
+1 $0001, 0 $00, 65280 $FF00, "."
+255:0 $FF:$0000, 255 $FF, 255 $00FF, "
+."
+1 $0001, 0 $00, 65280 $FF00, "."
+end
+## files on D1:

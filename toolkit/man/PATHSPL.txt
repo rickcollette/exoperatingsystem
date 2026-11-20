@@ -1,0 +1,20 @@
+PATHSPL - split a file specification
+
+Syntax:
+ PATHSPL [d:][path]name.ext
+         [d],[p],[f],[b],[x]
+
+Puts the parts of a file name into
+environment variables, for batch
+files:
+ d  device       C:
+ p  path         >FOO>
+ f  file name    BAR.EXE
+ b  base name    BAR
+ x  extension    EXE
+Leave a field empty to skip that
+variable; keep the commas.
+
+Examples:
+ PATHSPL C:>FOO>BAR.EXE D,P,F,B,X
+ PATHSPL %1,,,,,EXT

@@ -1,0 +1,13 @@
+# bload-err: BLOAD A.TXT / BLOAD / BLOAD NONE $600 / BLOAD A.TXT 99:$4000 / BLOAD A.TXT X / ECHO end
+## screen
+156 Bad parameter
+156 Bad parameter
+File NONE
+170 File not found
+156 Bad parameter
+end
+## files on D1:
+### /A.TXT status $00
+Hello world
+x
+

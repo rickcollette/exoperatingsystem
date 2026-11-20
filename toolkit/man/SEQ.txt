@@ -1,0 +1,18 @@
+SEQ - a sequence of numbers
+
+Syntax:
+ SEQ [first [step]] last
+
+Shows the numbers from first (1 when
+not given) to last, step (1 when not
+given) apart, one per line. Numbers
+are 0 to 4294967295, decimal or $hex.
+With first above last SEQ counts
+down; with last alone and last 0 it
+shows nothing. The last number shown
+is the last one not past last.
+
+Examples:
+ SEQ 10
+ SEQ 0 5 100
+ SEQ 10 1 >>COUNT.TXT

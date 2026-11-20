@@ -1,0 +1,8 @@
+# append-1: PATH / APPEND D2: / PATH / APPEND d9:>dos> / PATH / APPEND / APPEND A: B: / PATH
+## screen
+CAR:
+CAR:;D2:
+CAR:;D2:;D9:>DOS>
+156 Bad parameter
+CAR:;D2:;D9:>DOS>;A: B:
+## files on D1:

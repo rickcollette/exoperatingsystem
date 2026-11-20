@@ -1,0 +1,30 @@
+# chkdsk-1: CHKDSK / CHKDSK D1:
+## screen
+Volume: EOS      01 5A
+Sector size: 256 bytes
+Capacity: 180 KB
+Free space: 174 KB
+Volume: EOS      01 5A
+Sector size: 256 bytes
+Capacity: 180 KB
+Free space: 174 KB
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbb
+
+### /C.TXT status $00
+ccc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

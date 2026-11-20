@@ -1,0 +1,40 @@
+# copy-1: COPY A.DAT X.DAT / COPY *.DAT SUB> / COPY C.TXT / COPY C.TXT C.TXT
+## screen
+A.DAT
+A.DAT
+B.DAT
+X.DAT
+C.TXT
+129 File already open
+C.TXT
+129 File already open
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/A.DAT status $00
+aaa
+
+### /SUB/B.DAT status $00
+bbbbbb
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+aaa
+
+### /X.DAT status $00
+aaa
+

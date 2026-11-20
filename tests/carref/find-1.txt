@@ -1,0 +1,32 @@
+# find-1: FIND *.DAT / FIND D1:*.TXT / FIND A:X.DAT
+## screen
+A:>A.DAT
+A:>B.DAT
+A:>SUB>X.DAT
+3 matches found!
+A:>C.TXT
+A:>SUB>DEEP.D>Y.TXT
+2 matches found!
+A:>SUB>X.DAT
+1 match found!
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

@@ -1,0 +1,26 @@
+DU - space used by a directory tree
+
+Syntax:
+ DU [/Q] [+|-AHPS] [d:path]
+
+Counts every file and directory
+below the directory given (the
+current one when none) and shows the
+total bytes, with kilobytes rounded,
+of the directories, of the files and
+of both.
+
+Each entry is shown as it is counted.
+/Q shows only the directories, /QQ
+nothing but the totals.
+
+A name or wildcard after the path
+chooses the files counted; all
+directories are entered. Attributes
+choose among the entries of the
+first directory only.
+
+Examples:
+ DU
+ DU /Q D2:GAMES>
+ DU /QQ *.COM

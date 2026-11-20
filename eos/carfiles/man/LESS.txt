@@ -1,0 +1,28 @@
+LESS - page through text
+
+Syntax:
+ LESS [/C] [<<][path]file[.ext]
+      [>>[path]file[.ext]]
+
+Shows a text file, folding long lines to the screen width. A file that fits on one screen is simply shown; a longer one can be paged through:
+
+ Down,F2,RETURN,=  line down
+ Up,F1,-           line up
+ Right,F4,F,SPACE,* page down
+ Left,F3,B,+       page up
+ D / U             half page down/up
+ G                 go to line number
+ < / >             top / end
+ Q, ESC            quit
+
+Options:
+ /C  clear the screen first
+
+LESS also works as a filter at the end of a pipe. PC and Unix line ends and TAB are converted to ATASCII; with output redirected to a file LESS only converts. The file must fit in free memory.
+
+Examples:
+ LESS README.TXT
+ DIR | LESS
+ LESS PC.TXT >>ATARI.TXT
+
+See also: MORE, TYPE, MAN, FMT

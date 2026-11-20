@@ -1,0 +1,38 @@
+# chtd-5: DATE <<D.TXT >>O.TXT / TIME <<T.TXT >>O.TXT / ERASE O.TXT / CHTD C.TXT / CHTD SUB / DIR C.TXT / DIR SUB
+## screen
+Changing TD in C.TXT
+Changing TD in SUB
+Volume:    EOS
+Directory: MAIN
+C        TXT      4 15-03-26 12:34
+692 FREE SECTORS
+Volume:    EOS
+Directory: MAIN
+SUB          <DIR>  15-03-26 12:34
+692 FREE SECTORS
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbb
+
+### /C.TXT status $00
+ccc
+
+### /D.TXT status $00
+15-03-26
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+
+### /T.TXT status $00
+12:34:00
+

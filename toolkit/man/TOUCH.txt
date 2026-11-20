@@ -1,0 +1,16 @@
+TOUCH - new empty file, or new date
+
+Syntax:
+ TOUCH [/C|/H] [d:][path]name
+
+A file that is not there is made,
+empty. One that is there gets the
+date and time of now.
+
+ /C  do not make a missing file
+ /H  a link itself, not the file it
+     leads to
+
+Examples:
+ TOUCH NEW.TXT
+ TOUCH /C OLD.DAT

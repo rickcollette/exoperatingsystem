@@ -1,0 +1,26 @@
+# setpaths-2: SETPATHS P.TXT / PWD
+## screen
+<no result>
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbb
+
+### /C.TXT status $00
+ccc
+
+### /P.TXT status $00
+A:>SUB>DEEP.D>
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

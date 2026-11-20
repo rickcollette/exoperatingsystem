@@ -1,0 +1,7 @@
+# con-1: CON / CON 41 / CON X / CON 40 / ECHO after 40
+## screen
+156 Bad parameter
+156 Bad parameter
+156 Bad parameter
+after 40
+## files on D1:

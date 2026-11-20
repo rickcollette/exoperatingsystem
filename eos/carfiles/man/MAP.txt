@@ -1,0 +1,20 @@
+MAP - map drives
+
+Syntax:
+ MAP [unit] [SIO|OS|NORMAL|OFF] [d:]
+ MAP [d:][path]file[.ext]
+
+Assigns a physical drive number (unit) to a logical drive d: and chooses how requests for it go:
+
+ NORMAL  PBI devices first, then SIO
+ SIO     SIO only (skip PBI devices)
+ OS      not available (EOS has no OS mode)
+ OFF     drive disabled (138)
+
+MAP keeps its own table, apart from SWAP's; it stays over RESET. A mode given alone changes only the mode. MAP with a file name reads one set of parameters per line from that file. MAP alone shows help and the table. The transfer speed is set by SIOSET.
+
+Examples:
+ MAP 1 SIO B:
+ MAP 3 DK:     (drive 11; K: is the keyboard)
+
+See also: SWAP, SIOSET

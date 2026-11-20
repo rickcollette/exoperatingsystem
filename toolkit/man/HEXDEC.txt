@@ -1,0 +1,13 @@
+HEXDEC - 32-bit hex and decimal converter
+
+Syntax:
+ HEXDEC number
+
+Prints the number in decimal and in
+hex. A hex number starts with $. The
+range is 0 to 4294967295 ($FFFFFFFF);
+larger numbers wrap around.
+
+Examples:
+ HEXDEC 255
+ HEXDEC $1A2B3C

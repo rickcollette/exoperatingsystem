@@ -1,0 +1,1 @@
+DF - free space on all drives››Syntax:› DF [/A]››Lists every drive that can be read›with its total and free space in KiB,›the percentage free and the volume›name, and a total line at the end.››Options:› /A  list all drives A: to O:, with›     the error for drives that cannot›     be read››Example:› DF /A››See also: CHKDSK›

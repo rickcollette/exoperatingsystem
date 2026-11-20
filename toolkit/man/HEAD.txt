@@ -1,0 +1,19 @@
+HEAD - the first lines of a file
+
+Syntax:
+ HEAD [-n count | -count] [filename]
+
+Copies the first count lines (10 when
+none is given) to standard output. A
+file with fewer lines is copied
+whole. Without a name standard input
+is read, so HEAD works with << and >>.
+
+ -n count  the number of lines, 0 to
+           65535 (also -ncount and
+           -count)
+
+Examples:
+ HEAD README.TXT
+ HEAD -n 5 LOG.TXT
+ HEAD -3 <<LIST.TXT >>TOP.TXT

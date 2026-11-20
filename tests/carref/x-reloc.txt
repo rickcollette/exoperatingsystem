@@ -1,0 +1,5 @@
+# x-reloc: X CAR:MEM.COM / ECHO end
+## screen
+152 Not binary file
+end
+## files on D1:

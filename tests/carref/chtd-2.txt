@@ -1,0 +1,36 @@
+# chtd-2: ATR +P B.DAT / ATR +H C.TXT / ATR +A A.DAT / CHTD *.* / DIR /A
+## screen
+Changing TD in A.DAT
+Changing TD in B.DAT
+Changing TD in C.TXT
+Changing TD in AUTOEXEC.BAT
+Changing TD in SDXPROBE.COM
+Changing TD in SUB
+Volume:    EOS
+Directory: MAIN
+A       DAT .a.      4  6-06-23 23:51
+B       DAT p..      4  6-06-23 23:51
+AUTOEXECBAT ...     68  6-06-23 23:51
+SDXPROBECOM ...     74  6-06-23 23:51
+SUB         ... <DIR>   6-06-23 23:51
+696 FREE SECTORS
+## files on D1:
+### /A.DAT status $04
+aaa
+
+### /B.DAT status $01
+bbb
+
+### /C.TXT status $02
+ccc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

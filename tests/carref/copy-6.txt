@@ -1,0 +1,58 @@
+# copy-6: COPY /V *.DAT SUB> / COPY /Q *.DAT SUB> / COPY /V/Q C.TXT SUB> / MD NEW / COPY /V /R SUB NEW>
+## screen
+A.DAT
+B.DAT
+2 files copied
+156 Bad parameter
+SUB>
+SUB>X.DAT
+SUB>DEEP.D>
+SUB>DEEP.D>Y.TXT
+SUB>A.DAT
+SUB>B.DAT
+2 directories and 4 files copied
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /NEW status $20
+<directory>
+### /NEW/SUB status $20
+<directory>
+### /NEW/SUB/A.DAT status $00
+aaa
+
+### /NEW/SUB/B.DAT status $00
+bbbbbb
+
+### /NEW/SUB/DEEP.D status $20
+<directory>
+### /NEW/SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /NEW/SUB/X.DAT status $00
+xxx
+
+### /SUB status $20
+<directory>
+### /SUB/A.DAT status $00
+aaa
+
+### /SUB/B.DAT status $00
+bbbbbb
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

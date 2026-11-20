@@ -1,0 +1,16 @@
+# key-1: MEM / KEY / KEY / KEY OFF / KEY / KEY ON / MEM
+## screen
+Main: $18FF,$18FF
+Ext: $FF69,$FF69
+Use: OSRAM
+0 Ext banks free
+KEY is OFF
+KEY is OFF
+KEY is OFF
+KEY is OFF
+KEY is ON
+Main: $1ACC,$1ACC
+Ext: $FF69,$FF69
+Use: OSRAM
+0 Ext banks free
+## files on D1:

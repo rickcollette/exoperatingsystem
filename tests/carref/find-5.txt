@@ -1,0 +1,20 @@
+# find-5: MD SUB / COPY A.DAT SUB> / COPY A.DAT B.DAT / FIND *.DAT
+## screen
+A.DAT
+A.DAT
+A:>A.DAT
+A:>SUB>A.DAT
+A:>B.DAT
+3 matches found!
+## files on D1:
+### /A.DAT status $00
+a
+
+### /B.DAT status $00
+a
+
+### /SUB status $20
+<directory>
+### /SUB/A.DAT status $00
+a
+

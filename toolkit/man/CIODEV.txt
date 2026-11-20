@@ -1,0 +1,22 @@
+CIODEV - the OS's CIO devices
+
+Syntax:
+ CIODEV [dev]
+
+Without a parameter, lists the
+devices in the OS handler table: the
+name, the id (its place in the table)
+in decimal and hex, and the address
+of the device's handler table. Then
+the number of free entries.
+
+With a device name, shows the six
+vectors of its handler table: OPEN,
+CLOSE, GET, PUT, STATUS and SPECIAL.
+
+These are the OS's devices, not the
+ones the command line uses.
+
+Examples:
+ CIODEV
+ CIODEV E:

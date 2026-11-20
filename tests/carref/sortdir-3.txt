@@ -1,0 +1,38 @@
+# sortdir-3: SORTDIR D1: /Z / SORTDIR D9: /N / SORTDIR NONE> /N / SORTDIR /N / SORTDIR A.TXT /N
+## screen
+156 Bad parameter
+138 Device does not respond
+150 Path not found
+Use: SORTDIR d:[path] [/NTSDX]
+/N - sort by file name (default)
+/T - sort by file type
+/S - sort by file size
+/D - sort by creation date
+/X - reverse sort
+Use: SORTDIR d:[path] [/NTSDX]
+/N - sort by file name (default)
+/T - sort by file type
+/S - sort by file size
+/D - sort by creation date
+/X - reverse sort
+## files on D1:
+### /2X.COM status $00
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+### /A1.TXT status $00
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /M.ABC status $00
+m
+
+### /SUB status $20
+<directory>
+### /SUB/X.DAT status $00
+xxx
+
+### /ZED.TXT status $00
+zz
+

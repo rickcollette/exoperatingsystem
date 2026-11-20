@@ -1,0 +1,9 @@
+build/
+__pycache__/
+# local test media, not part of the code (README.md, "Test media"): disk
+# images, the SDX Toolkit, the IDE2.0PLUS vendor files
+media/
+*.atr
+*.ATR
+# built images handed out (make; copies of build/)
+DISTRIBUTE/

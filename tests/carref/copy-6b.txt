@@ -1,0 +1,38 @@
+# copy-6b: COPY /D A.DAT SUB>D.DAT / COPY A.DAT SUB>E.DAT / DIR SUB>
+## screen
+A.DAT
+A.DAT
+Volume:    EOS
+Directory: SUB
+X        DAT      4  1-01-25 12:00
+DEEP     D   <DIR>   1-01-25 12:00
+D        DAT      4  6-06-23 23:51
+E        DAT      4  1-01-25 12:00
+692 FREE SECTORS
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/D.DAT status $00
+aaa
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/E.DAT status $00
+aaa
+
+### /SUB/X.DAT status $00
+xxx
+

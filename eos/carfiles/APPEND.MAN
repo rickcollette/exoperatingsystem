@@ -1,0 +1,1 @@
+APPEND - extend the search path››Syntax:› APPEND d: | path | device››Adds one drive, directory or device to›the end of the $PATH variable. Handy›for a temporary change: the entries›already in $PATH stay as they are,›nothing has to be typed again.››Example:› PATH› CAR:› APPEND D2:› PATH› CAR:;D2:››See also: PATH, SET›

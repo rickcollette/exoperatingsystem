@@ -1,0 +1,22 @@
+# df-2: DF /A
+## screen
+Drv   Total    Free  % Volume
+=== ======= ======= == ========
+A:      181     178 98 EOS
+B:  138 Device does not respond
+C:  138 Device does not respond
+D:  138 Device does not respond
+E:  138 Device does not respond
+F:  138 Device does not respond
+G:  138 Device does not respond
+H:  138 Device does not respond
+I:  138 Device does not respond
+J:  138 Device does not respond
+K:  138 Device does not respond
+L:  138 Device does not respond
+M:  138 Device does not respond
+N:  138 Device does not respond
+O:  138 Device does not respond
+=== ======= ======= == ========
+All     181     178 98
+## files on D1:

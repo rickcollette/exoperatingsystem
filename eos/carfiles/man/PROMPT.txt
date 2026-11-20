@@ -1,0 +1,21 @@
+PROMPT - set the prompt
+
+Syntax:
+ PROMPT [text]
+
+Sets the command prompt; PROMPT alone shows it. These codes in the text are replaced:
+ $L  drive letter and colon (A:)
+ $N  drive number and colon (1:)
+ $P  path of the current directory
+ $D  date
+ $T  time
+ $R  new line
+An _ shows as a space.
+
+PROMPT x is the same as SET PROMPT=x. The default is D$N. With no $PROMPT at all the prompt is >. $P reads the disk each time the prompt is shown.
+
+Examples:
+ PROMPT $L$P\
+ PROMPT $D_$L
+
+See also: SET, PATH

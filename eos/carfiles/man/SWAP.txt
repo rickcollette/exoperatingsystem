@@ -1,0 +1,12 @@
+SWAP - swap drive numbers
+
+Syntax:
+ SWAP [d d]
+
+Exchanges two logical drives, given by number or letter without a colon, in either order. SWAP alone lists which physical drive each of A: to O: uses (A: = 1 ... by default). The change lasts until the next cold start.
+
+Example:
+ SWAP 2 O
+ SWAP
+
+See also: MAP

@@ -1,0 +1,9 @@
+VER - show the DOS version
+
+Syntax:
+ VER
+
+Shows the version, date and copyright line of the DOS, as at start up.
+
+Example:
+ VER

@@ -1,0 +1,33 @@
+# df-1: DF / DF A: / DF /Z
+## screen
+Drv   Total    Free  % Volume
+=== ======= ======= == ========
+A:      181     175 96 EOS
+=== ======= ======= == ========
+All     181     175 96
+Drv   Total    Free  % Volume
+=== ======= ======= == ========
+A:      181     175 96 EOS
+=== ======= ======= == ========
+All     181     175 96
+156 Bad parameter
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbb
+
+### /C.TXT status $00
+ccc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

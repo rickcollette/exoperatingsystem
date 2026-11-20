@@ -1,0 +1,9 @@
+# format-1: FORMAT /X / FORMAT /QQ D9: / FORMAT /QQQ D9: / FORMAT /QQ CAR: / FORMAT /QQ D9: TOOLONGNAME / FORMAT /QQ D9: A B
+## screen
+156 Bad parameter
+138 Device does not respond
+138 Device does not respond
+156 Bad parameter
+138 Device does not respond
+138 Device does not respond
+## files on D1:

@@ -1,0 +1,13 @@
+TD - time and date line
+
+Syntax:
+ TD [ON|OFF]
+
+Installs a line at the top of the screen that shows the date and time. The first TD installs it; TD ON and TD OFF switch the line. The format follows $DAYTIME. An X in the line shows the caps/inverse key state. Needs a clock driver.
+
+If a program misbehaves, use TD OFF.
+
+Example:
+ TD ON
+
+See also: DATE, TIME, KEY

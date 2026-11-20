@@ -1,0 +1,21 @@
+RDDUMP - save a RAM disk to a file
+
+Syntax:
+ RDDUMP d: [d:][path]file
+
+Writes every sector of the RAM disk
+in drive d: to the file, so that
+RDLOAD can put them back after the
+computer was switched off.
+
+The drive must be a RAM disk: one
+that reports one track of 256-byte
+sectors, a multiple of 64 of them.
+Else RDDUMP says it is not one.
+
+RDDUMP needs 16K of free memory.
+
+Example:
+ RDDUMP O: C:>SYS>RAMDISK.DMP
+
+See also: RDLOAD

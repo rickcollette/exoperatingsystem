@@ -1,0 +1,15 @@
+IDEPLUS - IDE2.0PLUS support
+
+The IDE2.0PLUS (IDE Plus 2.0) is a PBI hard disk interface. Its BIOS maps APT partitions to drives D1:-D15:; EOS reaches them through the OS's SIO like any other drive.
+
+Verified in Altirra:
+- EOS starts and warm-resets with the device.
+- BIOS21.COM, the BIOS 2.1 updater, runs under EOS and flashes the device.
+- With BIOS 2.1, EOS reads the physical disk (device $20, also by XDCB), uses a mapped partition (status, PERCOM, DISKINFO, DIR, TYPE, COPY) and reads it again after a warm reset.
+- APT lists and changes the partition table; the BIOS uses the new mapping after a restart.
+
+Setup: map partitions with APT, restart, then FORMAT the drive. To update the BIOS, run BIOS21.COM from the KMK/DLT distribution and answer its questions.
+
+Not verified: real hardware, the slave disk, the BIOS's ATR mounting and SDX cartridge switching.
+
+See also: APT, FORMAT

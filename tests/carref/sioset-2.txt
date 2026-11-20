@@ -1,0 +1,18 @@
+# sioset-2: SIOSET REFRESH / SIOSET WAITACK / SIOSET WAITACK $10 / SIOSET WAITACK / SIOSET WAITACK 2 / SIOSET REFRESH 5 / SIOSET 2 NORMAL / SIOSET 2 RESET / SIOSET 2 FOO
+## screen
+Value: $00=0
+Value: $02=2
+Value: $10=16
+Value: $10=16
+Value: $02=2
+Value: $05=5
+Unit Type   USidx
+---- ------ -----
+2  NORMAL
+Unit Type   USidx
+---- ------ -----
+2  -
+Unit Type   USidx
+---- ------ -----
+2  -
+## files on D1:

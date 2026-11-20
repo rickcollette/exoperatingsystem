@@ -1,0 +1,23 @@
+CAT - files to standard output
+
+Syntax:
+ CAT [-n] [filename ...]
+
+Copies the files, one after another,
+to standard output. A name may have
+the wildcards * and ?: the files that
+match, in directory order. Without a
+name standard input is read, so CAT
+works with << and >>.
+
+ -n  number the lines, from 1 over
+     all the files
+
+A file that is not there ends CAT
+with the error.
+
+Examples:
+ CAT README.TXT
+ CAT -n *.TXT
+ CAT A.TXT B.TXT >>AB.TXT
+ CAT <<IN.TXT

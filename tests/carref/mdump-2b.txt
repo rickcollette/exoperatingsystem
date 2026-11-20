@@ -1,0 +1,4 @@
+# mdump-2b: MDUMP $FFFC 8
+## screen
+FFFC- BB EE A2 C1 FF 00 FF 00 ;n"A....
+## files on D1:

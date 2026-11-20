@@ -1,0 +1,17 @@
+COLD - restart the computer
+
+Syntax:
+ COLD [/C|N]
+
+Restarts the system as at power on (a jump through $E477), but extended memory keeps its contents, so RAM disks survive.
+
+Options:
+ /C  restart with the DOS cartridge off and the cartridge plugged into it on
+ /N  restart as if no cartridges were present
+
+Hold OPTION while pressing RETURN to restart without BASIC.
+
+Example:
+ COLD
+
+See also: BOOT, CAR

@@ -1,0 +1,1 @@
+TIME - show or set the time››Syntax:› TIME [/T | hh[:mm[:ss]]]››Shows the time (24-hour) and asks for›a new one; RETURN keeps it. Hours,›hours:minutes or all three may be›typed. A time on the command line is›set at once.››Options:› /T  show the time only, do not ask››Needs a clock driver for correct›results.››Examples:› TIME› TIME 16:42› TIME /T››See also: DATE, TD›

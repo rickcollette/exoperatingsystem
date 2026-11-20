@@ -1,0 +1,31 @@
+# deltree-5: ATR +P SUB>X.DAT / DELTREE /YV SUB / DIR SUB>
+## screen
+A:SUB>X.DAT
+File X.DAT
+170 File not found
+Volume:    EOS
+Directory: SUB
+X        DAT      4  1-01-25 12:00
+DEEP     D   <DIR>   1-01-25 12:00
+696 FREE SECTORS
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $01
+xxx
+

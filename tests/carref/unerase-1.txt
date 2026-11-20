@@ -1,0 +1,26 @@
+# unerase-1: UNERASE / UNERASE NONE.DAT / UNERASE *.DAT / UNERASE D9:X / UNERASE NOPATH>X
+## screen
+156 Bad parameter
+138 Device does not respond
+150 Path not found
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

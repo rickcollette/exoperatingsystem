@@ -1,0 +1,8 @@
+# key-2: KEY X / KEY OFF / KEY ON OFF / KEY /X / KEY
+## screen
+KEY is OFF
+KEY is OFF
+KEY is ON
+KEY is ON
+KEY is ON
+## files on D1:

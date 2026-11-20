@@ -1,0 +1,15 @@
+# x-err: X / X NONE / X A.TXT / X /Q T1 / X /L Q T1 / ECHO end
+## screen
+Use: X [/C][/L mode] cmd [parms]
+170 File not found
+152 Not binary file
+156 Bad parameter
+RAM C0 BC1F
+end
+## files on D1:
+### /A.TXT status $00
+Hello world
+x
+
+### /T1.COM status $00
+hex ffff00306d30a95a8d00a0ad00a0a2528e6230a241c95af002a24f8e6330a204a56a204a30e8ade602204a30ade502204a30a9628d4403a9308d4503a90c8d4803a9008d4903a90b8d4203a2004c56e4484a4a4a4a20553068290fc90a9002690669309d6230e86052414d20787820787878789be002e1020030

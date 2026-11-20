@@ -1,0 +1,13 @@
+# time-ask: TIME <<IN.TXT / TIME /T / TIME <<NL.TXT
+## screen
+Current time is: 23:51:18
+Enter new (HH:MM:SS): 10:20:30
+Current time is: 10:20:31
+Enter new (HH:MM:SS):
+## files on D1:
+### /IN.TXT status $00
+10:20:30
+
+### /NL.TXT status $00
+
+

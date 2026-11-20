@@ -1,0 +1,22 @@
+MACH - the machine's hardware
+
+Syntax:
+ MACH
+
+Shows what the system found when it
+started:
+
+- the computer: 400/800 or XL/XE
+- the CPU: 6502, 65C02 or 65C816
+- the address space: 64 KB, or 16 MB
+  with a 65C816
+- the clock speed in percent (100 is
+  the standard speed)
+- the memory: main, extended (with
+  its type) and the 65C816's high
+  memory, with its first address
+
+MACH tests nothing itself.
+
+Example:
+ MACH

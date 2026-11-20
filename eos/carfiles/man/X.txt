@@ -1,0 +1,16 @@
+X - run without cartridges
+
+Syntax:
+ X [/C] [/L mode] [d:][path]file[.ext]
+   [params]
+
+Runs a program with all cartridges switched off, including the DOS cartridge, for programs that need the RAM there (e.g. Turbo BASIC XL). The DOS library is then not available: only plain binary files run, single-byte I/O is slow and redirection is limited. Rule: if a program fails with a cartridge present, run it with X.
+
+Options:
+ /C  clear $80-$FF, $400-$6FF and MEMLO to MEMTOP before loading
+ /L  loading mode as for LOAD
+
+Example:
+ X TURBO.COM
+
+See also: LOAD, CAR, BASIC

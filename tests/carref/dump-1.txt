@@ -1,0 +1,15 @@
+# dump-1: DUMP A.TXT / DUMP A.TXT 2 / DUMP A.TXT 2 3 / DUMP A.TXT $0D / DUMP A.TXT 2 /A
+## screen
+0000- 48 65 6C 6C 6F 20 77 6F Hello wo
+0008- 72 6C 64 9B 78 9B       rld.x.
+0002- 6C 6C 6F 20 77 6F 72 6C llo worl
+000A- 64 9B 78 9B             d.x.
+0002- 6C 6C 6F                llo
+000D- 9B                      .
+0002- 6C 6C 6F 20 77 6F 72 6C llo worl
+000A- 64 9B 78 9B             d.x.
+## files on D1:
+### /A.TXT status $00
+Hello world
+x
+

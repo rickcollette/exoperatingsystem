@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="708" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<rect width="100%" height="100%" fill="white"/>
+<text x="10" y="24" font-size="16" font-weight="bold">BENCH.BAS: EOS against SpartaDOS X 4.50 (DOS time)</text>
+<text x="10" y="44" fill="#555">time against SDX's for the same job (SDX = 100%, shorter is faster); frames (1/60 s) at each bar</text>
+<rect x="10" y="56" width="12" height="12" fill="#c0392b"/>
+<text x="26" y="67">SpartaDOS X 4.50</text>
+<rect x="152" y="56" width="12" height="12" fill="#2471a3"/>
+<text x="168" y="67">EOS</text>
+<line x1="660.0" y1="80" x2="660.0" y2="690" stroke="#999" stroke-dasharray="4 3"/>
+<text x="660.0" y="704" fill="#777" text-anchor="middle">100%</text>
+<text x="222" y="108" text-anchor="end">PUT 4 KB, a byte at a time</text>
+<rect x="230" y="88" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="100" fill="#222">3152 (100%)</text>
+<rect x="230" y="106" width="389.8" height="15" fill="#2471a3"/>
+<text x="624.8" y="118" fill="#222">2857 (91%)</text>
+<text x="222" y="158" text-anchor="end">GET them back</text>
+<rect x="230" y="138" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="150" fill="#222">1029 (100%)</text>
+<rect x="230" y="156" width="318.4" height="15" fill="#2471a3"/>
+<text x="553.4" y="168" fill="#222">762 (74%)</text>
+<text x="222" y="208" text-anchor="end">Write 16 KB in one CIO call</text>
+<rect x="230" y="188" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="200" fill="#222">161 (100%)</text>
+<rect x="230" y="206" width="58.8" height="15" fill="#2471a3"/>
+<text x="293.8" y="218" fill="#222">22 (14%)</text>
+<text x="222" y="258" text-anchor="end">Read it in one call</text>
+<rect x="230" y="238" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="250" fill="#222">109 (100%)</text>
+<rect x="230" y="256" width="173.6" height="15" fill="#2471a3"/>
+<text x="408.6" y="268" fill="#222">44 (40%)</text>
+<text x="222" y="308" text-anchor="end">PRINT # 200 lines</text>
+<rect x="230" y="288" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="300" fill="#222">726 (100%)</text>
+<rect x="230" y="306" width="101.9" height="15" fill="#2471a3"/>
+<text x="336.9" y="318" fill="#222">172 (24%)</text>
+<text x="222" y="358" text-anchor="end">INPUT # them</text>
+<rect x="230" y="338" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="350" fill="#222">252 (100%)</text>
+<rect x="230" y="356" width="271.3" height="15" fill="#2471a3"/>
+<text x="506.3" y="368" fill="#222">159 (63%)</text>
+<text x="222" y="408" text-anchor="end">Create 30 files</text>
+<rect x="230" y="388" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="400" fill="#222">1192 (100%)</text>
+<rect x="230" y="406" width="160.9" height="15" fill="#2471a3"/>
+<text x="395.9" y="418" fill="#222">446 (37%)</text>
+<text x="222" y="458" text-anchor="end">Directory listing (OPEN mode 6)</text>
+<rect x="230" y="438" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="450" fill="#222">77 (100%)</text>
+<rect x="230" y="456" width="161.9" height="15" fill="#2471a3"/>
+<text x="396.9" y="468" fill="#222">29 (38%)</text>
+<text x="222" y="508" text-anchor="end">Open the 30th file 20 times</text>
+<rect x="230" y="488" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="500" fill="#222">331 (100%)</text>
+<rect x="230" y="506" width="136.4" height="15" fill="#2471a3"/>
+<text x="371.4" y="518" fill="#222">105 (32%)</text>
+<text x="222" y="558" text-anchor="end">64 NOTE/POINT seeks, a byte each</text>
+<rect x="230" y="538" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="550" fill="#222">273 (100%)</text>
+<rect x="230" y="556" width="217.4" height="15" fill="#2471a3"/>
+<text x="452.4" y="568" fill="#222">138 (51%)</text>
+<text x="222" y="608" text-anchor="end">Rename 30 files</text>
+<rect x="230" y="588" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="600" fill="#222">771 (100%)</text>
+<rect x="230" y="606" width="184.6" height="15" fill="#2471a3"/>
+<text x="419.6" y="618" fill="#222">331 (43%)</text>
+<text x="222" y="658" text-anchor="end">Delete 30 files</text>
+<rect x="230" y="638" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="650" fill="#222">821 (100%)</text>
+<rect x="230" y="656" width="157.6" height="15" fill="#2471a3"/>
+<text x="392.6" y="668" fill="#222">301 (37%)</text>
+</svg>

@@ -1,0 +1,25 @@
+# ramdisk-three: RAMDISK.SYS N,4 / RAMDISK.SYS M,2 / RAMDISK.SYS L,2 / RAMDISK.SYS N,2 / RAMDISK.SYS A,2 / CHKDSK O: / CHKDSK N: / CHKDSK M: / DIR L:
+## screen
+Ramdisk not installed
+SIO table full!
+Ramdisk not installed
+SIO table full!
+Volume: X Disk O 00 A5
+Sector size: 256 bytes
+Capacity: 64 KB
+Free space: 63 KB
+Volume: X Disk N 00 D5
+Sector size: 256 bytes
+Capacity: 64 KB
+Free space: 63 KB
+Volume: X Disk M 00 F2
+Sector size: 256 bytes
+Capacity: 32 KB
+Free space: 31 KB
+138 Device does not respond
+## files on D1:
+### /CONFIG.SYS status $00
+DEVICE SPARTA
+DEVICE SIO
+DEVICE RAMDISK O,4
+

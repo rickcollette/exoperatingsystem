@@ -1,0 +1,42 @@
+# man-2: SET MANPATH=D1:>MAN;D1:>DOC / MAN / MAN FMT / MAN FMT /? / MAN LESS /? / MAN NOPE / MAN NOPE /? / MAN AA /P / MAN CC / MAN fmt.txt
+## screen
+fmt doc page
+second line
+Available help pages:
+FMT
+Available help pages:
+LESS
+LESS
+No manuals found for 'NOPE'
+Available help pages:
+aa help
+No manuals found for 'CC'
+Use: man command
+Error: omit the extension
+## files on D1:
+### /DOC status $20
+<directory>
+### /DOC/DD.MAN status $00
+dd page
+
+### /DOC/LESS.TXT status $00
+less text in doc
+
+### /MAN status $20
+<directory>
+### /MAN/AA.HLP status $00
+aa help
+
+### /MAN/BB.TXT status $00
+bb text
+
+### /MAN/CC.BIN status $00
+not a page
+
+### /MAN/FMT.DOC status $00
+fmt doc page
+second line
+
+### /MAN/LESS.MAN status $00
+less man page
+

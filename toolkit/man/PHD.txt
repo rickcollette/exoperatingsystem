@@ -1,0 +1,16 @@
+PHD - save the directory, change it
+
+Syntax:
+ PHD [d:path]
+
+Saves the current drive and
+directory in the variable _OLDWD,
+then changes drive and directory as
+CDD does. PLD goes back. Only one
+directory is kept: a second PHD
+replaces it.
+
+Example:
+ PHD D2:>WORK
+ ...
+ PLD

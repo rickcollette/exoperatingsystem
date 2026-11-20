@@ -1,0 +1,11 @@
+# less-2: LESS NONE / LESS /X A.TXT / LESS A.TXT B.TXT / LESS D9:A.TXT
+## screen
+File NONE
+170 File not found
+156 Bad parameter
+hello
+138 Device does not respond
+## files on D1:
+### /A.TXT status $00
+hello
+

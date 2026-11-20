@@ -1,0 +1,12 @@
+# bload-1: BLOAD A.TXT $600 / MDUMP $600 16 / BLOAD A.TXT 02:$610 / MDUMP 02:$610 8 / BLOAD A.TXT 1536+32 / MDUMP 1568 4
+## screen
+0600- 48 65 6C 6C 6F 20 77 6F Hello wo
+0608- 72 6C 64 9B 78 9B 81 06 rld.x...
+$02:
+0610- 48 65 6C 6C 6F 20 77 6F Hello wo
+0620- 48 65 6C 6C             Hell
+## files on D1:
+### /A.TXT status $00
+Hello world
+x
+

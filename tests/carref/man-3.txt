@@ -1,0 +1,39 @@
+# man-3: SET MANPATH=D1:>MAN / SET PAGER=ECHO;X;%;Y / MAN FMT / SET PAGER=ECHO / MAN FMT / SET PAGER=NOPE / MAN FMT / SET PAGER=LESS / MAN FMT / SET PAGER=TYPE;% / MAN FMT / MAN FMT /P
+## screen
+X D1:>MAN>FMT.DOC  Y
+D1:>MAN>FMT.DOC
+File NOPE.COM
+170 File not found
+fmt doc page
+second line
+fmt doc page
+second line
+fmt doc page
+second line
+## files on D1:
+### /DOC status $20
+<directory>
+### /DOC/DD.MAN status $00
+dd page
+
+### /DOC/LESS.TXT status $00
+less text in doc
+
+### /MAN status $20
+<directory>
+### /MAN/AA.HLP status $00
+aa help
+
+### /MAN/BB.TXT status $00
+bb text
+
+### /MAN/CC.BIN status $00
+not a page
+
+### /MAN/FMT.DOC status $00
+fmt doc page
+second line
+
+### /MAN/LESS.MAN status $00
+less man page
+

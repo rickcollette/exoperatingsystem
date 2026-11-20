@@ -1,0 +1,32 @@
+# arc-dir: MD D / ARC A D>Z A.TXT SUB>*.TXT / ARC L D>Z / DIR D>
+## screen
+Creating new archive: A:D>Z.ARC
+Adding:   A.TXT        Store:   Done.
+Adding:   B.TXT        Store:   Done.
+Filename     Length   Date     Time
+============ ======== ======== ======
+A.TXT              41  1-01-25 12:00
+B.TXT              41  1-01-25 12:00
+==== ========
+Total      2       82
+Volume:    EOS
+Directory: D
+Z        ARC    142  6-06-23 23:51
+700 FREE SECTORS
+## files on D1:
+### /A.TXT status $00
+hello world
+the second line
+ARC test ===
+
+### /D status $20
+<directory>
+### /D/Z.ARC status $00
+hex 1a02412e545854000000000000000029000000215a006043ff2900000068656c6c6f20776f726c649b746865207365636f6e64206c696e659b4152432074657374203d3d3d9b1a02422e545854000000000000000029000000215a006043ff2900000068656c6c6f20776f726c649b746865207365636f6e64206c696e659b4152432074657374203d3d3d9b1a00
+### /SUB status $20
+<directory>
+### /SUB/B.TXT status $00
+hello world
+the second line
+ARC test ===
+

@@ -1,0 +1,14 @@
+SHUFFLE - random directory order
+
+Syntax:
+ SHUFFLE d:[path]
+
+The opposite of SORTDIR: puts the
+entries of a directory in random
+order. DOS 2 disks are refused,
+since DOS 2 itself would no longer
+find the files.
+
+Examples:
+ SHUFFLE D1:
+ SHUFFLE D2:>GAMES>

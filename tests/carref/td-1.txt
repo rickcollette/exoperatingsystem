@@ -1,0 +1,10 @@
+# td-1: TD / TD / TD ON / TD OFF / TD X / TD ON OFF / MEM
+## screen
+TD installed
+156 Bad parameter
+156 Bad parameter
+Main: $1C6C,$1C6C
+Ext: $FF69,$FF69
+Use: OSRAM
+0 Ext banks free
+## files on D1:

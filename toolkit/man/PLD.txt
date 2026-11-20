@@ -1,0 +1,9 @@
+PLD - back to the saved directory
+
+Syntax:
+ PLD
+
+Changes to the drive and directory
+that PHD saved, and forgets them.
+If nothing was saved, PLD does
+nothing.

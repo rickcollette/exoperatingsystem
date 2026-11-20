@@ -1,0 +1,6 @@
+# save-2: SAVE T4.DAT $600 / SAVE / SAVE T5.DAT X $600 / ECHO end
+## screen
+<no result>
+## files on D1:
+### /T4.DAT status $00
+

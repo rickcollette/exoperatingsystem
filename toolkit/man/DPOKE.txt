@@ -1,0 +1,16 @@
+DPOKE - write a word to memory
+
+Syntax:
+ DPOKE [[$]index:][$]location
+       [$]value [amount]
+
+Writes the value low byte first. The
+amount is the number of bytes, 1 to
+4 (default 2; 0 writes one byte).
+The location may be a symbol; an
+index before the colon selects a
+bank of extended memory.
+
+Examples:
+ DPOKE $2E7 $2000
+ DPOKE $600 $12345678 4

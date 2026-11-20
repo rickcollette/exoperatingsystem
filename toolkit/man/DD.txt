@@ -1,0 +1,16 @@
+DD - copy bytes of standard input
+
+Syntax:
+ DD [skip [count]]
+
+Copies standard input to standard
+output, leaving out the first skip
+bytes. With count only that many
+bytes are copied; when the input
+ends first, error 136. Numbers may be
+decimal or $hex.
+
+Examples:
+ DD 128 <<DISK.ATR >>DISK.RAW
+ DD 6 20 <<SONG.NEO
+ DD 0 256 <<DATA.BIN >>HEAD.BIN

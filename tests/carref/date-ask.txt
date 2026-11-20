@@ -1,0 +1,20 @@
+# date-ask: DATE 1-2-21 / DATE <<IN.TXT / DATE /T / DATE <<NL.TXT / DATE /T / DATE <<BAD.TXT / SET DAYTIME=1 / DATE <<NL.TXT
+## screen
+Current date is:  1-02-21
+Enter new (DD-MM-YY):  7-03-21
+Current date is:  7-03-21
+Enter new (DD-MM-YY):  7-03-21
+Current date is:  7-03-21
+Enter new (DD-MM-YY): <Invalid Date>
+Current date is:  3-07-21
+Enter new (MM-DD-YY):
+## files on D1:
+### /BAD.TXT status $00
+99
+
+### /IN.TXT status $00
+7-3-21
+
+### /NL.TXT status $00
+
+

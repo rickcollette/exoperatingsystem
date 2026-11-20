@@ -1,0 +1,22 @@
+# man-1: SET / MAN / SET MANPATH / MAN / MAN LESS
+## screen
+CHVOL    CLS      COMP     FIND
+LOAD     PAUSE    RS232    SET
+TYPE     VER      VERIFY   BASIC
+ECHO     SETPATHS SIOSET   APPEND
+CAR      CLR      CON      RMDIR
+COPY     ATR      CHKDSK   ED
+MDUMP    MORE     FORMAT   PWD
+SAVE     COLD     MAN      RENDIR
+TD       DEV      MENU     ARC
+BLOAD    TIME     DF       FMT
+MEM      MKDIR    UNERASE  COMMAND
+DUMP     PROMPT   X        DATE
+DELTREE  PATH     RENAME   SORTDIR
+SWAP     BOOT     CHDIR    ERASE
+MAP      PEEK     POKE     CON64
+Use: man command
+Error: $MANPATH is not defined
+Use: man command
+Error: $MANPATH is not defined
+## files on D1:

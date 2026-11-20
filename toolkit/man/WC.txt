@@ -1,0 +1,19 @@
+WC - count words, lines and bytes
+
+Syntax:
+ WC [/W][/L][/C] [d:][path]name
+
+Counts the words, lines (EOLs) and
+bytes of a file, or of standard
+input when no name is given, and
+shows them with the name. Words are
+split by blanks and EOLs.
+
+ /W  words only
+ /L  lines only
+ /C  bytes only
+Options together choose several.
+
+Examples:
+ WC README.TXT
+ WC /L LIST.TXT

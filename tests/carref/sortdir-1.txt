@@ -1,0 +1,30 @@
+# sortdir-1: SORTDIR / SORTDIR D1:
+## screen
+Use: SORTDIR d:[path] [/NTSDX]
+/N - sort by file name (default)
+/T - sort by file type
+/S - sort by file size
+/D - sort by creation date
+/X - reverse sort
+Sort completed!
+## files on D1:
+### /2X.COM status $00
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+### /A1.TXT status $00
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /M.ABC status $00
+m
+
+### /SUB status $20
+<directory>
+### /SUB/X.DAT status $00
+xxx
+
+### /ZED.TXT status $00
+zz
+

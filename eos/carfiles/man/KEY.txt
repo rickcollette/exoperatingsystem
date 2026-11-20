@@ -1,0 +1,12 @@
+KEY - keyboard buffer
+
+Syntax:
+ KEY [ON|OFF]
+
+The first KEY installs a 32-key type-ahead buffer with faster key repeat and adds a resident KEY command (symbol @KEY). After that KEY ON and KEY OFF switch the buffer, and KEY shows its state. Auto-repeated keys are not buffered.
+
+Example:
+ KEY
+ KEY is ON
+
+Turn KEY OFF if a program has trouble with it.

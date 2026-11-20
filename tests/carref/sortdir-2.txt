@@ -1,0 +1,38 @@
+# sortdir-2: ERASE B.DAT / SORTDIR D1: /N / SORTDIR D1:SUB /N / SORTDIR SUB> /S / SORTDIR D1: /S /N / DIR
+## screen
+Use: SORTDIR d:[path] [/NTSDX]
+/N - sort by file name (default)
+/T - sort by file type
+/S - sort by file size
+/D - sort by creation date
+/X - reverse sort
+Sort completed!
+Sort completed!
+Volume:    EOS
+Directory: MAIN
+SUB          <DIR>   1-01-25 12:00
+M        ABC      2  1-01-25 12:00
+ZED      TXT      3  1-01-25 12:00
+2X       COM     41  1-01-25 12:00
+SDXPROBE COM     74  1-01-25 12:00
+AUTOEXEC BAT     96  1-01-25 12:00
+A1       TXT    301  1-01-25 12:00
+697 FREE SECTORS
+## files on D1:
+### /2X.COM status $00
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+### /A1.TXT status $00
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+### /M.ABC status $00
+m
+
+### /SUB status $20
+<directory>
+### /SUB/X.DAT status $00
+xxx
+
+### /ZED.TXT status $00
+zz
+

@@ -1,0 +1,24 @@
+SET - environment variables
+
+Syntax:
+ SET [name[=value]]
+
+SET alone lists all variables. SET name=value sets one; SET name removes it. Usable in CONFIG.SYS, batch files and at the prompt. A variable is used as $name; $name$ ends the name inside a longer word.
+
+Some variables:
+ PATH     command search path
+ PROMPT   the prompt
+ MANPATH  where MAN looks
+ PAGER    viewer for MAN
+ SYSERR   file with error texts
+ BASIC    BASIC memory-save file
+ CAR      cartridge memory-save file
+ DAYTIME  date order (1 US, 2 EU)
+ TEMP     place for temporary files
+
+Examples:
+ SET
+ SET CAR=A:CAR.SAV
+ SET CAR
+
+See also: PATH, PROMPT, ECHO

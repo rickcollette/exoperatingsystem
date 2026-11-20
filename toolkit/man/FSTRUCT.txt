@@ -1,0 +1,18 @@
+FSTRUCT - the structure of a binary
+
+Syntax:
+ FSTRUCT file
+
+Lists the blocks of a binary file in
+order: Atari DOS segments with their
+addresses and lengths, run and init
+addresses, and the SpartaDOS X
+relocatable blocks, fixups and
+symbols. On a screen of 64 columns
+or more each line also shows its
+offset in the file. A file that does
+not start with a header gives error
+152.
+
+Example:
+ FSTRUCT GAME.COM

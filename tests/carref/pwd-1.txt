@@ -1,0 +1,27 @@
+# pwd-1: PWD / CD SUB / PWD / CD DEEP.D / PWD / CD > / PWD / PWD X
+## screen
+A:>
+A:\SUB>
+A:\SUB\DEEP.D>
+A:>
+A:>
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbb
+
+### /C.TXT status $00
+ccc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

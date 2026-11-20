@@ -1,0 +1,7 @@
+# sioset-a: SIOSET >>S1.TXT / SIOSET 1 >>S2.TXT / SIOSET REFRESH >>S3.TXT / SIOSET WAITACK >>S4.TXT / SIOSET 1 NORMAL >>S5.TXT
+## screen
+## files on D1:
+### /CONFIG.SYS status $00
+DEVICE SPARTA
+DEVICE SIO /A
+

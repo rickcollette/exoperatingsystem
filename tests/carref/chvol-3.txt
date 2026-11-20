@@ -1,0 +1,15 @@
+# chvol-3: CHVOL   lead / DIR NONE.X / CHVOL A,B / DIR NONE.X / CHVOL *? / DIR NONE.X
+## screen
+Volume Name changed to lead
+Volume:    lead
+Directory: MAIN
+710 FREE SECTORS
+Volume Name changed to A,B
+Volume:    A,B
+Directory: MAIN
+710 FREE SECTORS
+Volume Name changed to *?
+Volume:    *?
+Directory: MAIN
+710 FREE SECTORS
+## files on D1:

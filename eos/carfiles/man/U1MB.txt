@@ -1,0 +1,13 @@
+U1MB - EOS image for the U1MB SDX slot
+
+EOS_U1MB.rom is a separate 320 KiB EOS build for the SDX slot of the Ultimate 1MB. It selects its banks with the U1MB SDX bank register. It is a raw image without a cartridge header and it does not contain or replace the U1MB firmware.
+
+Setup, no SDX needed: in the U1MB setup set SDX off and allow flash writes, start EOS from the EOS.car cartridge with the maintenance disk (EOSMAINT.atr) in D1:, and run U1MBFLSH EOS_U1MB.ROM: it checks the image, writes the SDX area only and restarts into it. Then remove the cartridge and set SDX on (320 KiB, GOS off). U1MBCHK checks the file alone. Give the U1MB PBI BIOS and any other PBI device (IDE2.0PLUS) different IDs, or turn the U1MB PBI BIOS off.
+
+Clock: DEVICE RTIME8 (EOS's default) uses the U1MB clock when there is no R-Time 8; DATE and TIME read and set it.
+
+RAM disk: the default RAM disk O: is in the extended memory EOS finds.
+
+Verified in Altirra, with a boot stub in place of the U1MB BIOS: U1MBFLSH writes the slot (two flash chip types), EOS starts from it, survives a warm reset, reads the clock, uses the RAM disk, and works with an IDE2.0PLUS and APT. Not verified on real hardware.
+
+See also: APT, IDEPLUS

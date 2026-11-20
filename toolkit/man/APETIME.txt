@@ -1,0 +1,20 @@
+APETIME - the date and time from the
+PC
+
+Syntax:
+ APETIME [/Q]
+ DEVICE APETIME [/Q] (in EOSSYS.SYS)
+
+Asks the PC program on the SIO bus
+(APE, AspeQt, RespeQt) for the date
+and time, shows them and sets the
+system's clock to them. With JIFFY
+the clock then keeps going, so this
+stands in for a clock cartridge.
+
+/Q does not show the date and time.
+When the PC does not answer,
+APETIME says so.
+
+APETIME.COM and APETIME.SYS are the
+same program.

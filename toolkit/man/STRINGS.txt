@@ -1,0 +1,22 @@
+STRINGS - the text in a binary file
+
+Syntax:
+ STRINGS [-n length | -length]
+         [filename]
+
+Shows every run of at least length
+printable characters in the file as
+a line. Printable are $20 to $7C
+($7D and $7E would clear the screen
+and delete). Without a name standard
+input is read, so STRINGS works with
+<< and >>.
+
+ -n length  the shortest run shown,
+            1 to 255 (4 when none
+            is given; also -nlength
+            and -length)
+
+Examples:
+ STRINGS GAME.COM
+ STRINGS -n 8 DATA.BIN >>TEXT.TXT

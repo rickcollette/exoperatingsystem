@@ -1,0 +1,13 @@
+# chkdsk-3: CHKDSK D9: / CHKDSK CAR: / CHKDSK /Z / CHKDSK A: B:
+## screen
+138 Device does not respond
+Volume: Cart 4.4 00 00
+Sector size: 8192 bytes
+Capacity: 1024 KB
+Free space: 0 KB
+156 Bad parameter
+Volume: EOS      01 5A
+Sector size: 256 bytes
+Capacity: 180 KB
+Free space: 178 KB
+## files on D1:

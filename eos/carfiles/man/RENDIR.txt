@@ -1,0 +1,11 @@
+RENDIR - rename a directory
+
+Syntax:
+ RENDIR [d:][path]old new
+
+Renames a directory, with the same rules as RENAME for files.
+
+Example:
+ RENDIR SD_TK SDX_TK
+
+See also: RENAME, MKDIR, RMDIR

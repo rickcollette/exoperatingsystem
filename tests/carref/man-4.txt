@@ -1,0 +1,64 @@
+# man-4: SET MANPATH=D1:>MANY / MAN / SET MANPATH=D9:;D1:>NOPE;D1:>MANY / MAN N01 / MAN
+## screen
+Available help pages:
+N01      N02      N03      N04
+N05      N06      N07      N08
+N09      N10      N11      N12
+N13      N14      SETPATHS LONGNAME
+page 1
+Available help pages:
+N01      N02      N03      N04
+N05      N06      N07      N08
+N09      N10      N11      N12
+N13      N14      SETPATHS LONGNAME
+## files on D1:
+### /MANY status $20
+<directory>
+### /MANY/LONGNAME.DOC status $00
+long name 2
+
+### /MANY/N01.MAN status $00
+page 1
+
+### /MANY/N02.MAN status $00
+page 2
+
+### /MANY/N03.MAN status $00
+page 3
+
+### /MANY/N04.MAN status $00
+page 4
+
+### /MANY/N05.MAN status $00
+page 5
+
+### /MANY/N06.MAN status $00
+page 6
+
+### /MANY/N07.MAN status $00
+page 7
+
+### /MANY/N08.MAN status $00
+page 8
+
+### /MANY/N09.MAN status $00
+page 9
+
+### /MANY/N10.MAN status $00
+page 10
+
+### /MANY/N11.MAN status $00
+page 11
+
+### /MANY/N12.MAN status $00
+page 12
+
+### /MANY/N13.MAN status $00
+page 13
+
+### /MANY/N14.MAN status $00
+page 14
+
+### /MANY/SETPATHS.MAN status $00
+long name
+

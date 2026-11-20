@@ -1,0 +1,27 @@
+NVWGL - a clock's NV-RAM on the
+screen
+
+Syntax:
+ NVWGL
+
+Shows the 256 bytes of a real-time
+clock's NV-RAM as hex, kept up to
+date, "--" where a byte cannot be
+read. Under them are 32 bytes from
+the cursor as characters, and the
+cursor's address in hex and decimal.
+
+Keys:
+ arrows  move the cursor
+ 0-9 A-F two digits write a byte at
+         the cursor and move on
+ space   ends
+
+It needs a clock with NV-RAM and its
+driver loaded (one that offers the
+symbol I_NVRAM). The NV-RAM often
+holds the settings of the board the
+clock is on: writing to it can lose
+them.
+
+See also: NVPEEK

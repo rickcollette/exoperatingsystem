@@ -1,0 +1,9 @@
+# save-1: POKE $600 255 / SAVE TEST.DAT $600 $607 / DUMP TEST.DAT / SAVE T2.DAT 1536 1536
+## screen
+0000- FF FF 00 06 07 06 FF 86 ........
+0008- 32 A0 12 B9 EC 06       2 .9l.
+## files on D1:
+### /T2.DAT status $00
+hex ffff00060006ff
+### /TEST.DAT status $00
+hex ffff00060706ff8632a012b9ec06

@@ -1,0 +1,24 @@
+DELDUP - find files kept twice
+
+Syntax:
+ DELDUP [d:]path1> [d:]path2> [/RV]
+
+Compares every file of path2 with
+the files of path1 that have the
+same size. A file of path1 with the
+same contents is shown after
+"** Dup: ", whatever its name.
+
+ /R  delete those files from path1
+     ("** Del: ")
+ /V  show both names before each
+     comparison
+
+Subdirectories are not searched.
+Directories, hidden and protected
+files are left alone. At the end the
+number of copies found.
+
+Example:
+ DELDUP NEW> GAMES> /R
+deletes from NEW> what GAMES> has.

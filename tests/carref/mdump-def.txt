@@ -1,0 +1,6 @@
+# mdump-def: MDUMP $FFF0 >>MD.TXT
+## screen
+<no result>
+## files on D1:
+### /MD.TXT status $00
+

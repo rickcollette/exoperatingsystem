@@ -1,0 +1,14 @@
+DEV - list the kernel devices
+
+Syntax:
+ DEV
+
+Lists the installed DOS devices: number, name, driver address, and whether the DOS buffers its I/O. The number of free slots is shown last.
+
+Example:
+ DEV
+ Id Name Addr  uBufs
+  0 DSK: $0DCE On
+  2 CAR: $0B95 On
+
+See also: CHKDSK

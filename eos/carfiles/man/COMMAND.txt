@@ -1,0 +1,15 @@
+COMMAND - the command processor
+
+Syntax:
+ COMMAND
+
+COMMAND.COM reads command lines and runs them. It is started by DOS itself; you do not type it.
+
+Internal commands are done by COMMAND itself. Other commands are programs: they are searched along $PATH (default CAR:) and then in the current directory. While a program runs COMMAND is removed from memory and loaded again afterwards. LOAD COMMAND.COM keeps it in memory.
+
+A device other than a disk (e.g. CAR:) may be the current drive.
+
+Example:
+ LOAD COMMAND.COM
+
+See also: PATH, PROMPT, LOAD

@@ -1,0 +1,35 @@
+# copy-10: COPY NONE.DAT X.DAT / COPY A.DAT D9:X.DAT / COPY A.DAT NOPATH>X.DAT / COPY /Z A.DAT X.DAT / COPY A.DAT B.DAT C.DAT / COPY SUB X.DAT / COPY
+## screen
+File NONE.DAT
+170 File not found
+A.DAT
+138 Device does not respond
+A.DAT
+150 Path not found
+156 Bad parameter
+A.DAT
+File SUB
+170 File not found
+COPY [/BCDIKLMNQRSV] [+AHP] src [dst[/
+A]]
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+aaa
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

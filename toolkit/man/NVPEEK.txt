@@ -1,0 +1,25 @@
+NVPEEK - read or write a clock's
+NV-RAM
+
+Syntax:
+ NVPEEK address [value]
+
+Shows the byte at the address in the
+NV-RAM of a real-time clock, in
+decimal, in hex and as a character.
+With a value, writes it there first.
+
+It needs a clock with NV-RAM and its
+driver loaded (one that offers the
+symbol I_NVRAM); without one NVPEEK
+does not load.
+
+The NV-RAM often holds the settings
+of the board the clock is on:
+writing to it can lose them.
+
+Examples:
+ NVPEEK 16
+ NVPEEK 16 $41
+
+See also: NVWGL

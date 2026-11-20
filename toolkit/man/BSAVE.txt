@@ -1,0 +1,15 @@
+BSAVE - save memory to a file
+
+Syntax:
+ BSAVE file address length
+
+Writes length bytes of memory, from
+address on, to a new file, as they
+are. Numbers are decimal or $hex.
+The address may also be a symbol, be
+given with a memory index (1:$4000),
+and have +n or -n after it.
+
+Examples:
+ BSAVE SCREEN.DAT $BC40 960
+ BSAVE PAGE6.DAT $600 256

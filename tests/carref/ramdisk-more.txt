@@ -1,0 +1,10 @@
+# ramdisk-more: RAMDISK.SYS / RAMDISK.SYS P,2 / RAMDISK.SYS Q,2 / RAMDISK.SYS R,2 / DIR P: / DIR Q: / DIR R:
+## screen
+Ramdisk not installed
+64k left for XE programs
+Ramdisk not installed
+No extended RAM
+130 Nonexistent device
+130 Nonexistent device
+130 Nonexistent device
+## files on D1:

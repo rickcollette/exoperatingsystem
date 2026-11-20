@@ -1,0 +1,16 @@
+TYPE - show a file
+
+Syntax:
+ TYPE [+|-][A|H|P|S] [d:][path]file
+      [/P]
+
+Writes the file to the screen (or to a redirected output). Any line length is fine. CTRL-1 stops and restarts the output. Attributes select files as in DIR; the default is -HS.
+
+Options:
+ /P  wait for a key after each 23 lines
+
+Examples:
+ TYPE README.TXT /P
+ TYPE NOTES.TXT >>PRN:
+
+See also: MORE, LESS, DUMP, COPY

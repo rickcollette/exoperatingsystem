@@ -1,0 +1,20 @@
+ATR - set or clear attributes
+
+Syntax:
+ ATR [+|-][A|H|P] [d:][path]name[.ext]
+
+Alias: ATTRIB
+
+Sets (+) or clears (-) attributes of every file and directory matching the name.
+
+Attributes:
+ A  archived: set by backups and COPY /B; cleared when a file is written
+ H  hidden: not shown by DIR, skipped by most commands; may still be run
+ P  protected: cannot be erased, overwritten or changed
+
+The S (subdirectory) bit cannot be changed with ATR.
+
+Example:
+ ATR +A -P *.COM
+
+See also: DIR

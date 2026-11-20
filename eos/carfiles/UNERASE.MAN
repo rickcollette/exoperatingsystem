@@ -1,0 +1,1 @@
+UNERASE - recover erased files››Syntax:› UNERASE [d:][path]file[.ext]››Looks for erased files matching the›name (wildcards allowed) and asks for›each one whether to restore it. A file›cannot be found or restored once its›directory entry or one of its sectors›has been reused by another file.››Example:› UNERASE *.BAS› Restore TEST.BAS? Y››See also: ERASE›

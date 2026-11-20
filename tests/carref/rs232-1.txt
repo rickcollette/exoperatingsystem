@@ -1,0 +1,7 @@
+# rs232-1: RS232 /X / RS232 X / RS232 /E / RS232
+## screen
+156 Bad parameter
+138 Device does not respond
+COM: installed
+138 Device does not respond
+## files on D1:

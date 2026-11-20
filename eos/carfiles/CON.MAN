@@ -1,0 +1,1 @@
+CON - choose the console width››Syntax:› CON 40|64|80››Switches the console between 40, 64›and 80 columns. 64 columns needs the›CON64.SYS driver, 80 columns the›CON.SYS driver; both may be loaded›together. If the driver for the chosen›width is not loaded, the screen goes›back to 40 columns.››Example:› CON 64››See also: CON64›

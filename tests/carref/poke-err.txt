@@ -1,0 +1,4 @@
+# poke-err: POKE / POKE 1536 / POKE 1536 X / POKE 99:1536 1 / POKE NOSUCH 1 / POKE 1536 1 2 / ECHO end
+## screen
+end
+## files on D1:

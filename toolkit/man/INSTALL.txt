@@ -1,0 +1,18 @@
+INSTALL - keep programs in memory
+
+Syntax:
+ INSTALL [d:][path]file [...]
+
+Loads each file into memory without
+running it, as LOAD does, but for
+good: an unload (LOAD alone) does
+not free it. Useful for commands
+that are run often, such as a batch
+file's.
+
+Give the full file name with its
+extension. Several files can follow
+one another.
+
+Example:
+ INSTALL X.COM

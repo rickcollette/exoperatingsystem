@@ -1,0 +1,22 @@
+# deltree-3: DELTREE / DELTREE /Y NONE / DELTREE /Y A.DAT / DELTREE /YX SUB / DELTREE /Y /V D1:SUB>
+## screen
+DELTREE [/YV] [d:]path
+150 Path not found
+150 Path not found
+156 Bad parameter
+A:SUB>X.DAT
+A:SUB>DEEP.D>
+A:SUB>DEEP.D>Y.TXT
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>

@@ -1,0 +1,44 @@
+PERCONF - set a drive's geometry
+
+Syntax:
+ PERCONF d: [SIDES n] [TRK n] [SPT n]
+            [BPS n] [STEP n] [FLG n]
+
+Shows the drive's status and its
+configuration (the PERCOM block):
+sides, tracks, sectors a track,
+bytes a sector, step rate and flags,
+with the disk's size worked out from
+them.
+
+A drive that takes a configuration
+can then be set up: press C and
+answer the questions (Return keeps
+the value shown, a word that is no
+number starts again). The new block
+is sent and the drive's status for
+it shown (1 is good), then the block
+is read back. R reads it all again,
+Q or Esc ends.
+
+With keywords PERCONF works alone:
+it changes only the values given,
+sends the block, reads it back and
+shows it. The values are not
+checked. The keywords:
+
+ SIDES n  sides, 1 or 2
+ TRK n    tracks: 35, 40, 77, 80
+ SPT n    sectors a track: 18, 26
+ BPS n    bytes a sector: 128, 256,
+          512
+ STEP n   step rate, 0 to 3
+ FLG n    flags: 0, or 4 (MFM)
+
+Numbers are decimal, or hex after $.
+
+Examples:
+ PERCONF D2:
+ PERCONF D2: SPT 26 BPS 128 FLG 4
+
+See also: XFCONF

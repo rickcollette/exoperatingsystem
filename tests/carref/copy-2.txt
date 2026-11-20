@@ -1,0 +1,47 @@
+# copy-2: COPY *.DAT *.BAK / COPY A.DAT SUB>Q*.* / COPY *.DAT SUB>*.X / COPY B.DAT SUB / COPY C.TXT SUB>DEEP.D
+## screen
+A.DAT
+B.DAT
+A.DAT
+A.DAT
+B.DAT
+B.DAT
+151 File exists
+C.TXT
+151 File exists
+## files on D1:
+### /A.BAK status $00
+aaa
+
+### /A.DAT status $00
+aaa
+
+### /B.BAK status $00
+bbbbbb
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/A.X status $00
+aaa
+
+### /SUB/B.X status $00
+bbbbbb
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/Q.DAT status $00
+aaa
+
+### /SUB/X.DAT status $00
+xxx
+

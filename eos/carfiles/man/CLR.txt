@@ -1,0 +1,8 @@
+CLR - remove left-over variables
+
+Syntax:
+ CLR
+
+Deletes the internal environment variables a batch file creates for itself. They stay behind only when a batch file was stopped with RESET; CLR cleans them up.
+
+See also: SET

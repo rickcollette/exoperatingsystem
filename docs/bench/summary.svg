@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="558" font-family="Helvetica, Arial, sans-serif" font-size="13">
+<rect width="100%" height="100%" fill="white"/>
+<text x="10" y="24" font-size="16" font-weight="bold">Every benchmark: EOS against SDX</text>
+<text x="10" y="44" fill="#555">time against SDX's for the same job (SDX = 100%, shorter is faster); frames or count at each bar</text>
+<rect x="10" y="56" width="12" height="12" fill="#c0392b"/>
+<text x="26" y="67">SDX 4.50</text>
+<rect x="96" y="56" width="12" height="12" fill="#2471a3"/>
+<text x="112" y="67">EOS (EOSFS; PRINTF: EOS)</text>
+<line x1="660.0" y1="80" x2="660.0" y2="540" stroke="#999" stroke-dasharray="4 3"/>
+<text x="660.0" y="554" fill="#777" text-anchor="middle">100%</text>
+<text x="222" y="108" text-anchor="end">Copy a 40 KB file (DOS)</text>
+<rect x="230" y="88" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="100" fill="#222">722 (100%)</text>
+<rect x="230" y="106" width="350.2" height="15" fill="#2471a3"/>
+<text x="585.2" y="118" fill="#222">588 (81%)</text>
+<text x="222" y="158" text-anchor="end">List 60 files (DIR) (DOS)</text>
+<rect x="230" y="138" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="150" fill="#222">324 (100%)</text>
+<rect x="230" y="156" width="268.1" height="15" fill="#2471a3"/>
+<text x="503.1" y="168" fill="#222">202 (62%)</text>
+<text x="222" y="208" text-anchor="end">120 seeks in a 300 KB file (DOS)</text>
+<rect x="230" y="188" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="200" fill="#222">803 (100%)</text>
+<rect x="230" y="206" width="132.3" height="15" fill="#2471a3"/>
+<text x="367.3" y="218" fill="#222">247 (31%)</text>
+<text x="222" y="258" text-anchor="end">Open 3 files of 300 (DOS)</text>
+<rect x="230" y="238" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="250" fill="#222">374 (100%)</text>
+<rect x="230" y="256" width="150.6" height="15" fill="#2471a3"/>
+<text x="385.6" y="268" fill="#222">131 (35%)</text>
+<text x="222" y="308" text-anchor="end">Copy a 40 KB file (drive)</text>
+<rect x="230" y="288" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="300" fill="#222">6005 (100%)</text>
+<rect x="230" y="306" width="359.4" height="15" fill="#2471a3"/>
+<text x="594.4" y="318" fill="#222">5019 (84%)</text>
+<text x="222" y="358" text-anchor="end">List 60 files (DIR) (drive)</text>
+<rect x="230" y="338" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="350" fill="#222">961 (100%)</text>
+<rect x="230" y="356" width="351.7" height="15" fill="#2471a3"/>
+<text x="586.7" y="368" fill="#222">786 (82%)</text>
+<text x="222" y="408" text-anchor="end">120 seeks in a 300 KB file (drive)</text>
+<rect x="230" y="388" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="400" fill="#222">12659 (100%)</text>
+<rect x="230" y="406" width="161.1" height="15" fill="#2471a3"/>
+<text x="396.1" y="418" fill="#222">4744 (37%)</text>
+<text x="222" y="458" text-anchor="end">Open 3 files of 300 (drive)</text>
+<rect x="230" y="438" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="450" fill="#222">2234 (100%)</text>
+<rect x="230" y="456" width="346.1" height="15" fill="#2471a3"/>
+<text x="581.1" y="468" fill="#222">1798 (80%)</text>
+<text x="222" y="508" text-anchor="end">PRINTF average</text>
+<rect x="230" y="488" width="430.0" height="15" fill="#c0392b"/>
+<text x="665.0" y="500" fill="#222">965 (100%)</text>
+<rect x="230" y="506" width="260.0" height="15" fill="#2471a3"/>
+<text x="495.0" y="518" fill="#222">584 (60%)</text>
+</svg>

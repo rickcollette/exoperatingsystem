@@ -1,0 +1,27 @@
+MENU - file manager
+
+Syntax:
+ MENU   (or just * at the prompt)
+
+A full-screen program to copy, delete, rename, view and print files, also many at once (tagged), and on a single drive with disk swaps. Windows: directory tree, totals, files. RETURN switches between file and directory commands, ESC goes to the extra commands. ^ means hold CTRL.
+
+File commands:
+ C/^C copy file/tagged files
+ D/^D delete file/tagged files
+ E    run the file
+ F    file mask
+ L    log another drive/path
+ P/^P print file/tagged files
+ R    rename
+ S    shell command
+ T/^T tag file/all
+ U/^U untag file/all
+ V    view
+
+Dir commands: A free space, D delete directory, F mask, L log, M make directory, P print, T/^T tag, U/^U untag.
+
+Extra commands: D display mode, S sort, ^S shell command, Q quit.
+
+Leave with ESC then Q, never with RESET.
+
+See also: COPY, ERASE, RENAME

@@ -1,0 +1,12 @@
+CLS - clear the screen
+
+Syntax:
+ CLS [/F]
+
+Clears the screen.
+
+Options:
+ /F  reopen the screen (GRAPHICS 0) instead of only clearing it; the $SCRDEF settings are applied again
+
+Example:
+ CLS

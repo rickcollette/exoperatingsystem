@@ -1,0 +1,39 @@
+APT - Atari Partition Table (FDISK)
+
+Syntax:
+ APT [/n]
+ APT [/n] INIT [/F]
+ APT [/n] NEW size[K|M]
+ APT [/n] DEL p
+ APT [/n] MAP d p
+ APT [/n] UNMAP d
+ APT [/n] BOOT d
+ APT [/n] AUTO p ON|OFF
+ APT [/n] WP p ON|OFF
+
+APT partitions a hard disk attached through a PBI BIOS that provides the physical disk device ($20), such as the IDE2.0PLUS BIOS 2.1, and edits its APT partition table. /1 is the master disk (the default), /2 the slave.
+
+Without a command APT lists the table: where it is, its revision, the boot drive, the drives mapped to partitions, and each partition's type, start, size (512-byte disk sectors), sector size and flags (A automount, W write protected). Reserved entries are listed but never changed.
+
+ INIT    a new, empty table at sector 0. A disk whose sector 0 is in use (an APT table, a PC partition table, any data) needs /F
+ NEW     a partition after the last one: size in 512-byte sectors, or K or M (16 to 65535 sectors; 32M gives the largest, 65535); automount on
+ DEL     remove partition p; the ones after it move up one number. A mapped partition must be unmapped first
+ MAP     map drive d (1-15, A-O or Dn:) to partition p
+ UNMAP   remove drive d's mapping
+ BOOT    set the boot drive (0: none)
+ AUTO    set or clear automount for partition p
+ WP      set or clear write protection
+
+Each change is shown first and written only after Y (and Return) at the question; anything else leaves the disk unchanged. The table sector is written and read back. Restart the computer: the BIOS reads the table when it starts.
+
+A new disk: APT INIT, APT NEW for each partition, APT MAP for each drive, restart, then FORMAT each drive (FORMAT /QQ D2: NAME).
+
+APT reads the table at sector 0, or where a PC MBR partition of type $7F points. It changes only the first table sector of a revision 0 table and keeps every other byte; NEW refuses when the place of the new entry holds other data. Partitions use 512-byte sectors. Partitions are not resized.
+
+Verified in Altirra with the IDE2.0PLUS BIOS 2.1. Other hard disk BIOSes are not verified.
+
+Example:
+ APT NEW 16M
+ APT MAP D2: 1
+
+See also: IDEPLUS, U1MB, FORMAT

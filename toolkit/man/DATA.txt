@@ -1,0 +1,29 @@
+DATA - a file as BASIC DATA lines
+
+Syntax:
+ DATA [file [start [count]]]
+      [/H$CNLS [line step] [size]]
+
+Prints the bytes of the file, from
+offset start on, as Atari BASIC DATA
+lines with numbers 10, 11, 12 ... A
+count of 0 prints nothing; any other
+count prints to the end of the file.
+Without a file name, standard input
+is read.
+
+Options:
+ /H  numbers in hex
+ /$  hex numbers start with $
+ /C  hex with no commas (10 a line)
+ /N  no line numbers
+ /L  first line number and step
+     follow
+ /S  numbers per line follows
+     (default 7)
+The numbers of /L come before the
+one of /S.
+
+Examples:
+ DATA SPRITE.DAT /L 1000 10
+ DATA FONT.FNT 0 /HC >>FONT.LST

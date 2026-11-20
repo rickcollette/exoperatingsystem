@@ -1,0 +1,58 @@
+# copy-8: COPY /N *.DAT SUB> / MD BK / COPY /B *.DAT BK> / COPY /B *.DAT BK> / COPY /K C.TXT BK> / DIR /A
+## screen
+A.DAT
+B.DAT
+A.DAT
+B.DAT
+A.DAT
+B.DAT
+C.TXT
+Volume:    EOS
+Directory: MAIN
+A       DAT .a.      4  1-01-25 12:00
+B       DAT .a.      7  1-01-25 12:00
+C       TXT .a.      7  1-01-25 12:00
+AUTOEXECBAT ...     99  1-01-25 12:00
+SDXPROBECOM ...     74  1-01-25 12:00
+SUB         ... <DIR>   1-01-25 12:00
+BK          ... <DIR>   6-06-23 23:51
+684 FREE SECTORS
+## files on D1:
+### /A.DAT status $04
+aaa
+
+### /B.DAT status $04
+bbbbbb
+
+### /BK status $20
+<directory>
+### /BK/A.DAT status $00
+aaa
+
+### /BK/B.DAT status $00
+bbbbbb
+
+### /BK/C.TXT status $00
+ccc
+cc
+
+### /C.TXT status $04
+ccc
+cc
+
+### /SUB status $20
+<directory>
+### /SUB/A.DAT status $00
+aaa
+
+### /SUB/B.DAT status $00
+bbbbbb
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+

@@ -1,0 +1,7 @@
+# date-us: DATE 5-2-21 / SET DAYTIME=1 / DATE /T / DATE 12-25-99 / DATE /T / DATE 25-12-99 / SET DAYTIME=2 / DATE /T
+## screen
+2-05-21
+12-25-99
+<Invalid Date>
+25-12-99
+## files on D1:

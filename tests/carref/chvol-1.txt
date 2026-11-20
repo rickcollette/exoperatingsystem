@@ -1,0 +1,15 @@
+# chvol-1: CHVOL TESTING / DIR NONE.X / CHVOL D1:my disk / DIR NONE.X / CHVOL LONGNAME12 / DIR NONE.X
+## screen
+Volume Name changed to TESTING
+Volume:    TESTING
+Directory: MAIN
+710 FREE SECTORS
+Volume Name changed to my disk
+Volume:    my disk
+Directory: MAIN
+710 FREE SECTORS
+Volume Name changed to LONGNAME
+Volume:    LONGNAME
+Directory: MAIN
+710 FREE SECTORS
+## files on D1:

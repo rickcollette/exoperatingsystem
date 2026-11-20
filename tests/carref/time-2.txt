@@ -1,0 +1,9 @@
+# time-2: TIME 24 / TIME 12:60 / TIME 1:2:60 / TIME X / TIME /X / TIME 123 / SET DAYTIME=1 / TIME 13:00:00 / TIME /T
+## screen
+<Invalid Time>
+<Invalid Time>
+<Invalid Time>
+156 Bad parameter
+<Invalid Time>
+13:00:00
+## files on D1:

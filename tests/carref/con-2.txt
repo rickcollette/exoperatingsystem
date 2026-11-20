@@ -1,0 +1,6 @@
+# con-2: ECHO before / CON 64 / ECHO after 64 / CON 80 / ECHO after 80 / CON 40 80
+## screen
+before
+after 64
+after 80
+## files on D1:

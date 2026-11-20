@@ -1,0 +1,23 @@
+WHICH - where a command is found
+
+Syntax:
+ WHICH command ...
+
+Looks for each command as the command
+processor does: a built-in command,
+else the program NAME.COM (.COM
+unless the name has an extension).
+With a device or directory in the
+name only there is looked; else the
+current directory and then each entry
+of $PATH, in order.
+
+Shows NAME: built-in, the file as it
+is found (X.COM in the current
+directory, CAR:DIR.COM), or
+NAME: not found. Programs run through
+COMEXE or RUNEXT are not looked for.
+
+Examples:
+ WHICH DIR
+ WHICH TYPE COPY MYPROG

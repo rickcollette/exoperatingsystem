@@ -1,0 +1,29 @@
+# copy-9: COPY /M A.DAT SUB> / COPY /M B.DAT SUB>NEW.DAT / COPY /M C.TXT CON: / COPY /M /R SUB> >
+## screen
+A.DAT
+The destination must be a directory
+156 Bad parameter
+C.TXT
+ccc
+cc
+SUB>X.DAT
+SUB>DEEP.D>
+SUB>DEEP.D>Y.TXT
+SUB>A.DAT
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /DEEP.D status $20
+<directory>
+### /DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB status $20
+<directory>
+### /X.DAT status $00
+xxx
+

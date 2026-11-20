@@ -1,0 +1,50 @@
+# chkdsk-f: CHKDSK >>C.LOG / CHKDSK /X >>X.LOG
+## screen
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbb
+
+### /C.LOG status $00
+
+     Volume: EOS      02 5A
+Sector size: 256 bytes
+   Capacity: 180 KB
+ Free space: 174 KB
+
+### /C.TXT status $00
+ccc
+
+### /SUB status $20
+<directory>
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/X.DAT status $00
+xxx
+
+### /X.LOG status $00
+
+           Volume: EOS      04 5A
+      File system: SpartaDOS
+          Version: 2.1
+
+       Media type: disk
+  Number of sides: 1
+ Number of tracks: 40
+      Sector size: 256 bytes
+  Sectors/cluster: 1
+     Cluster size: 256 bytes
+         Capacity: 720 clusters
+       Free space: 693 clusters
+
+   Root directory: $0010
+VTOC sector count: 1
+VTOC first sector: $0004
+
+  Formatting time: 1-01-25 12:00
+

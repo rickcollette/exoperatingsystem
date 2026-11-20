@@ -1,0 +1,23 @@
+# sioset-4: SIOSET 2 NORMAL / SIOSET 2 / SIOSET 3 INDUS / SIOSET 3 / SIOSET 4 XF / SIOSET 4 / SIOSET 5 US 9 / SIOSET 5 / SIOSET WAITACK 16 / SIOSET REFRESH 128 / SIOSET WAITACK / SIOSET REFRESH / SIOSET 0
+## screen
+Value: $80=128
+Value: $10=16
+Value: $80=128
+Unit Type   USidx
+---- ------ -----
+1  XF
+2  NORMAL
+3  INDUS
+4  XF
+5  US     $09
+6  -
+7  -
+8  -
+9  -
+10  -
+11  -
+12  -
+13  -
+14  -
+15  -
+## files on D1:

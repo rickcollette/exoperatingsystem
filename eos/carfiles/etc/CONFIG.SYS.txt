@@ -1,0 +1,20 @@
+; EOS default configuration (CAR:)
+;
+; EOS has its disk, SIO and DOS 2
+; drivers built in, so nothing has to
+; be loaded here. To change the setup,
+; put your own CONFIG.SYS (or
+; EOSSYS.SYS) on drive D1:. Lines:
+;   USE OSRAM | BANKED | NONE
+;   SET name=value
+;   DEVICE driver [parameters]
+;   ECHO text
+;   MERGE file
+; Lines starting with ; are comments.
+;
+; EOS already sets these at start:
+; SET PATH=CAR:
+; SET PROMPT=D$N
+; SET SYSERR=CAR:SYSERR.MSG
+; SET MAXDRV=O:
+; SET MANPATH=CAR:

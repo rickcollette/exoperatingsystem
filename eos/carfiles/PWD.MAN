@@ -1,0 +1,1 @@
+PWD - show the current directories››Syntax:› PWD››Lists the current directory of every›drive that can be read.››Example:› PWD› A:\DRIVERS>› C:>››See also: CHDIR, SETPATHS›

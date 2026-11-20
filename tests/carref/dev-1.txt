@@ -1,0 +1,21 @@
+# dev-1: DEV / DEV X
+## screen
+Id Name Addr  uBufs
+-- ---- ----- -----
+0  DSK: $0D7D On
+1  CLK: $18B3
+2  CAR: $0B90 On
+3  CON: $0BB3
+4  PRN: $0BB0
+5  NUL: $0BE4
+2 slots free
+Id Name Addr  uBufs
+-- ---- ----- -----
+0  DSK: $0D7D On
+1  CLK: $18B3
+2  CAR: $0B90 On
+3  CON: $0BB3
+4  PRN: $0BB0
+5  NUL: $0BE4
+2 slots free
+## files on D1:

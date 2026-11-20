@@ -1,0 +1,14 @@
+# dump-err: DUMP A.TXT 100 / DUMP NONE / DUMP A.TXT /Q / DUMP A.TXT X / ECHO end
+## screen
+166 Range error
+File NONE
+170 File not found
+156 Bad parameter
+0000- 48 65 6C 6C 6F 20 77 6F Hello wo
+0008- 72 6C 64 9B 78 9B       rld.x.
+end
+## files on D1:
+### /A.TXT status $00
+Hello world
+x
+

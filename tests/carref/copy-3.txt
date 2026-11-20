@@ -1,0 +1,60 @@
+# copy-3: COPY,,SUB> / COPY SUB>X.DAT / CD SUB / COPY,,>NEW.DAT
+## screen
+A.DAT
+B.DAT
+C.TXT
+AUTOEXEC.BAT
+SDXPROBE.COM
+SUB>X.DAT
+X.DAT
+A.DAT
+B.DAT
+C.TXT
+AUTOEXEC.BAT
+SDXPROBE.COM
+## files on D1:
+### /A.DAT status $00
+aaa
+
+### /B.DAT status $00
+bbbbbb
+
+### /C.TXT status $00
+ccc
+cc
+
+### /NEW.DAT status $00
+hex ffff00803d8078a9008d0ed4ad01d34829fe8d01d3a0c0c0d09004c0d890158c27809838e9808d2a80a200bd00c09d0040e8d0f7c8d0e0688d01d3a9408d0ed4584c3b80e002e1020080
+### /SUB status $20
+<directory>
+### /SUB/A.DAT status $00
+aaa
+
+### /SUB/AUTOEXEC.BAT status $00
+CLS
+COPY,,SUB>
+COPY SUB>X.DAT
+CD SUB
+COPY,,>NEW.DAT
+SDXPROBE
+
+### /SUB/B.DAT status $00
+bbbbbb
+
+### /SUB/C.TXT status $00
+ccc
+cc
+
+### /SUB/DEEP.D status $20
+<directory>
+### /SUB/DEEP.D/Y.TXT status $00
+yyy
+
+### /SUB/SDXPROBE.COM status $00
+hex ffff00803d8078a9008d0ed4ad01d34829fe8d01d3a0c0c0d09004c0d890158c27809838e9808d2a80a200bd00c09d0040e8d0f7c8d0e0688d01d3a9408d0ed4584c3b80e002e1020080
+### /SUB/X.DAT status $00
+xxx
+
+### /X.DAT status $00
+xxx
+
