@@ -46,6 +46,7 @@ make carttest   # boot EOS.car, EOS_SIC.car, EOS_SICP.car in Altirra
 make maint      # build/EOSMAINT.atr, the EOS maintenance disk (tools/mkmaint.py)
 make eosfsboot  # native EOSFS disk loader (build/EOSFSBOOT.bin)
 make eosfsboottest # build/marker/extent/XEX checks for that loader
+make release    # clean build, DISTRIBUTE/, tag and GitHub release
 make mainttest  # EOS started from it, every program on it run (tools/maint_test.py)
 make handbook   # docs/EOS_HANDBOOK.md: WHY, USER_MANUAL, EOS_COMPATABILITY,
                 # HARDWARE_TEST, EOSFS, BENCHMARKS in one book (tools/mkhandbook.py)
@@ -69,6 +70,21 @@ python3 tools/eosfs.py build build/MYBOOT.atr 720 256 tree EOS --boot DOS/EOS.SY
 sectors 1-3 and records the file's first extent list in the boot field. Boot
 images may use 128 or 256 byte sectors. The stock OS cannot boot 512 byte
 sectors.
+
+### Release
+
+`make release` accepts a clean commit on `main`. It checks the Git author,
+committer and GitHub login, rebuilds everything, replaces `DISTRIBUTE/`, writes
+SHA-256 checksums, pushes `main` and tag `v0.1`, then creates the release at
+`rickcollette/exoperatingsystem`. Git must use
+`rickcollette <rcollet@gmail.com>` and `gh` must be logged in as
+`rickcollette`.
+
+For another version:
+
+```sh
+make release RELEASE_VERSION=0.2
+```
 
 `python3 tools/combo_test.py` runs the U1MB + IDE2.0PLUS machine (EOS from
 the U1MB slot, U1MB clock and RAM disk, IDE storage); it needs

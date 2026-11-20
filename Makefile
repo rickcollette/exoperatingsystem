@@ -25,6 +25,8 @@
 #   make toolkit    EOS's own Toolkit (toolkit/): build/etk/*.COM and the
 #                   disk build/EOSTK.atr
 #   make tktest     each of them against the SDX Toolkit's (make tkx first)
+#   make release    clean build, DISTRIBUTE/, tag and GitHub release (v0.1;
+#                   RELEASE_VERSION=0.2 for another version)
 #
 # The emulator tests need wine, xvfb, xdotool, ImageMagick's import, Altirra
 # (ALTIRRA_EXE) and the SDX 4.50 cartridge (SDX_CART): see tools/emu.py.
@@ -34,7 +36,7 @@ PYTHON  ?= python3
 MFLAGS  := -s
 B       := build
 
-.PHONY: all eos eosfsboot eosfsboottest u1mb sic flash sidetest carttest maint mainttest handbook handbook-pdf u1mbtest u1mbemu ideplusemu ideplustest helpemu apttest atari800test tkx toolkit tktest eostest xbtest eostest-eosfs cartest fmttest mutineer quick eosall clean
+.PHONY: all eos eosfsboot eosfsboottest u1mb sic flash sidetest carttest maint mainttest handbook handbook-pdf u1mbtest u1mbemu ideplusemu ideplustest helpemu apttest atari800test tkx toolkit tktest eostest xbtest eostest-eosfs cartest fmttest mutineer quick eosall release release-dist clean
 .SECONDARY:
 all: eos u1mb sic flash toolkit maint
 
@@ -313,6 +315,26 @@ tktest: $(XCAR) $(ETK)
 
 tkx:
 	$(PYTHON) tools/tkunpack.py media/toolkit.atr $(B)
+
+RELEASE_VERSION ?= 0.1
+RELEASE_FILES := EOS.car EOS_U1MB.rom EOS_SIC.car EOS_SICP.car EOS_SIDE.rom \
+                 EOS_SIDE2.rom EOS_SIDE3.rom EOS_MYIDE2.rom EOSTK.atr \
+                 EOSMAINT.atr EOS_HANDBOOK.pdf EOSFSBOOT.bin
+RELEASE_ASSETS := $(addprefix DISTRIBUTE/,$(RELEASE_FILES)) DISTRIBUTE/SHA256SUMS.txt
+
+release:
+	$(PYTHON) tools/release.py check $(RELEASE_VERSION)
+	$(MAKE) clean
+	$(MAKE) all handbook-pdf
+	$(MAKE) release-dist
+	$(PYTHON) tools/release.py publish $(RELEASE_VERSION) $(RELEASE_ASSETS)
+
+release-dist:
+	rm -rf DISTRIBUTE
+	mkdir -p DISTRIBUTE
+	cp $(addprefix $(B)/,$(filter-out EOSFSBOOT.bin,$(RELEASE_FILES))) DISTRIBUTE/
+	cp $(EOSFSBOOT) DISTRIBUTE/EOSFSBOOT.bin
+	cd DISTRIBUTE && sha256sum $(RELEASE_FILES) > SHA256SUMS.txt
 
 clean:
 	rm -rf $(B)
