@@ -521,6 +521,7 @@ def t_vim_interactive():
     files = {
         'lines.txt': ('\n'.join(lines) + '\n').encode('ascii'),
         'ops.txt': b'ab\ncd\n',
+        'move.txt': b'one\ntwo\nthree\n',
         'keep.txt': b'keep\r\nthis\r\n',
         'bad.txt': b'bad\x00text\n',
         'too-long.txt': b'x' * 256 + b'\n',
@@ -588,6 +589,20 @@ def t_vim_interactive():
         emu.keys(wid, 'n')             # wraps to the same sole match
         command(wid, 'wq', confirm=True)
 
+    def edit_moving(wid):
+        emu.type_line(wid, 'vim move.txt')
+        time.sleep(1)
+        emu.keys(wid, 'i', 'Right')
+        chars(wid, 'x')
+        emu.keys(wid, 'Down')
+        chars(wid, 'y')
+        emu.keys(wid, 'Down', 'Left')
+        chars(wid, 'z')
+        emu.keys(wid, 'Up')
+        chars(wid, 'q')
+        emu.keys(wid, 'Escape')
+        command(wid, 'wq', confirm=True)
+
     def failed_edit(wid):
         emu.type_line(wid, 'vim keep.txt')
         time.sleep(1)
@@ -605,7 +620,8 @@ def t_vim_interactive():
                 timeout=90) as d:
         if d.first is None:
             return False, 'no initial 64K command prompt'
-        for action in (edit_new, edit_ops, edit_lines, failed_edit, line_limit):
+        for action in (edit_new, edit_ops, edit_lines, edit_moving, failed_edit,
+                       line_limit):
             if d.step(action) is None:
                 return False, 'editor did not return to the command prompt'
 
@@ -614,6 +630,7 @@ def t_vim_interactive():
         return False, 'EOSFS errors: %r' % errors
     got_new = tree.get('/new.txt', (0, None))[1]
     got_ops = tree.get('/ops.txt', (0, None))[1]
+    got_move = tree.get('/move.txt', (0, None))[1]
     got_keep = tree.get('/keep.txt', (0, None))[1]
     got_bad = tree.get('/bad.txt', (0, None))[1]
     got_lines = tree.get('/lines.txt', (0, None))[1]
@@ -622,6 +639,7 @@ def t_vim_interactive():
                   '\n'.join(lines[1:-1]) + '\nlast-line30\tvalue\n').encode('ascii')
     expected = [(got_new, b'alpha\ttab\nbeta\n', 'new LF/tab file'),
                 (got_ops, b'ab\ncd\n', 'undo operations'),
+                (got_move, b'oxne\ntwyqo\nthzree\n', 'INSERT arrow editing'),
                 (got_keep, b'keep\r\nthis\r\n', 'failed :e/CRLF'),
                 (got_bad, b'bad\x00text\n', 'rejected input'),
                 (got_limit, b'l' * 255 + b'\n', '255-byte/full-line handling'),

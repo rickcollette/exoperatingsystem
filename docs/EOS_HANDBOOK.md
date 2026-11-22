@@ -1493,7 +1493,8 @@ The status line begins with N or I for the current mode.
 NORMAL commands include arrows, i, a, o, x, dd, yy, p, u, 0, $, gg, G,
 literal / search, n, and : commands. INSERT accepts text, Tab, Return and
 Backspace; Escape returns to NORMAL. Cursor keys move without leaving INSERT;
-edits outside the bounded undo transaction are safely refused.
+typing continues at the new position, including on another existing line.
+Undo reverses the most recent bounded edit segment.
 
 Commands are :w, :w file, :q, :q!, :wq, :e file, and :e! file. Existing
 files require Y confirmation. Failed loads leave the text and filename
@@ -1507,7 +1508,7 @@ longer lines are rejected without changing the buffer.
 
 On the tested 64K 800XL configuration, 24,832 bytes of 127-byte lines load;
 24,976 bytes is safely refused. Capacity varies slightly with the final line.
-VIM.COM is 10,572 bytes including relocation data (8,684 bytes linked code
+VIM.COM is 10,577 bytes including relocation data (8,686 bytes linked code
 and static workspace), above the aspirational 8 KiB target. VIM is transient,
 so this does not enlarge the resident kernel.
 

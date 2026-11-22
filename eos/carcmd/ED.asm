@@ -1648,8 +1648,9 @@ vk_retadd inc undo_lines
 vk_retdone rts
 
 * The 256-byte undo payload covers the original line and lines split/opened
-* during this INSERT.  Vertical motion is allowed; edits outside that bounded
-* transaction are refused instead of becoming silently non-undoable.
+* during this INSERT.  When vertical motion reaches an existing line outside
+* that range, the first edit there starts a new bounded undo segment.  Earlier
+* edits stay committed and u reverses the most recent segment.
 vk_editok
         lda undo_type
         cmp #4
@@ -1676,7 +1677,8 @@ vke_range
         bcc vke_no
 vke_yes clc
         rts
-vke_no  sec
+vke_no  jsr undo_session
+        clc
         rts
 
 vimfull lda m_fulla
