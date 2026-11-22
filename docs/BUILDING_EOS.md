@@ -78,9 +78,11 @@ field. Boot images may use 128 or 256 byte sectors. The stock OS cannot boot
 
 Every build gets the EOS version from the repository's `VERSION` file.
 `make release` accepts a clean commit on `main`. It checks the Git author,
-committer and GitHub login, rebuilds everything, replaces `DISTRIBUTE/`, writes
-SHA-256 checksums, pushes `main` and the matching `vX.Y` tag, then creates the
-release at `rickcollette/exoperatingsystem`. Git must use
+committer and GitHub login, rebuilds everything, and replaces `DISTRIBUTE/`.
+Every release asset has `-VERSION` before its extension (for example,
+`EOS-0.6.car`), including `SHA256SUMS-0.6.txt`. The command pushes `main` and
+the matching `vX.Y` tag, then creates the release at
+`rickcollette/exoperatingsystem`. Git must use
 `rickcollette <rcollet@gmail.com>` and `gh` must be logged in as
 `rickcollette`.
 

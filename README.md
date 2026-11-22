@@ -43,11 +43,12 @@ Every build reads its EOS version from `VERSION`. `make release` requires a
 clean commit on `main`, the
 `rickcollette/exoperatingsystem` origin, Git identity
 `rickcollette <rcollet@gmail.com>`, and a `gh` login for `rickcollette`. It
-rebuilds everything, replaces `DISTRIBUTE/`, writes `SHA256SUMS.txt`, pushes
-`main` and the matching `vX.Y` tag, and creates the GitHub release. After the
-release succeeds it advances `VERSION` for the next build and commits that
-change. Versions run from `0.0` through `0.99`, then `1.0` through `1.99`,
-and so on.
+rebuilds everything and replaces `DISTRIBUTE/`. Release assets are named with
+the version before their extension, for example `EOS-0.6.car`, together with
+`SHA256SUMS-0.6.txt`. It pushes `main` and the matching `vX.Y` tag and creates
+the GitHub release. After the release succeeds it advances `VERSION` for the
+next build and commits that change. Versions run from `0.0` through `0.99`,
+then `1.0` through `1.99`, and so on.
 
 ## Testing
 

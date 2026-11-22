@@ -38,6 +38,7 @@ MFLAGS  := -s
 B       := build
 VERSION_FILE := VERSION
 VERSION_ICL  := $(B)/version.icl
+RELEASE_VERSION := $(strip $(file <$(VERSION_FILE)))
 
 .PHONY: help all eos eosfsboot eosfsboottest u1mb sic flash sidetest carttest maint mainttest handbook handbook-pdf u1mbtest u1mbemu ideplusemu ideplustest helpemu apttest atari800test tkx toolkit tktest eostest xbtest eostest-eosfs cartest fmttest mutineer quick eosall release release-dist clean
 .SECONDARY:
@@ -403,7 +404,11 @@ tkx:
 RELEASE_FILES := EOS.car EOS_U1MB.rom EOS_SIC.car EOS_SICP.car EOS_SIDE.rom \
                  EOS_SIDE2.rom EOS_SIDE3.rom EOS_MYIDE2.rom EOSTK.atr \
                  EOSMAINT.atr EOS_HANDBOOK.pdf EOSFSBOOT.bin
-RELEASE_ASSETS := $(addprefix DISTRIBUTE/,$(RELEASE_FILES)) DISTRIBUTE/SHA256SUMS.txt
+versioned_release_name = $(basename $(1))-$(RELEASE_VERSION)$(suffix $(1))
+RELEASE_VERSIONED_FILES := $(foreach file,$(RELEASE_FILES),$(call versioned_release_name,$(file)))
+RELEASE_SUMS := SHA256SUMS-$(RELEASE_VERSION).txt
+RELEASE_ASSETS := $(addprefix DISTRIBUTE/,$(RELEASE_VERSIONED_FILES)) \
+                  DISTRIBUTE/$(RELEASE_SUMS)
 
 release:
 	$(PYTHON) tools/release.py check
@@ -415,9 +420,9 @@ release:
 release-dist:
 	rm -rf DISTRIBUTE
 	mkdir -p DISTRIBUTE
-	cp $(addprefix $(B)/,$(filter-out EOSFSBOOT.bin,$(RELEASE_FILES))) DISTRIBUTE/
-	cp $(EOSFSBOOT) DISTRIBUTE/EOSFSBOOT.bin
-	cd DISTRIBUTE && sha256sum $(RELEASE_FILES) > SHA256SUMS.txt
+	$(foreach file,$(filter-out EOSFSBOOT.bin,$(RELEASE_FILES)),cp $(B)/$(file) DISTRIBUTE/$(call versioned_release_name,$(file));)
+	cp $(EOSFSBOOT) DISTRIBUTE/$(call versioned_release_name,EOSFSBOOT.bin)
+	cd DISTRIBUTE && sha256sum $(RELEASE_VERSIONED_FILES) > $(RELEASE_SUMS)
 
 clean:
 	rm -rf $(B)
