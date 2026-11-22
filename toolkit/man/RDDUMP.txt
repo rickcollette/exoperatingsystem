@@ -16,6 +16,6 @@ Else RDDUMP says it is not one.
 RDDUMP needs 16K of free memory.
 
 Example:
- RDDUMP O: C:>SYS>RAMDISK.DMP
+ RDDUMP O: C:/SYS/RAMDISK.DMP
 
 See also: RDLOAD

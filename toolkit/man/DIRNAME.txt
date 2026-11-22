@@ -4,15 +4,13 @@ Syntax:
  DIRNAME path
 
 Shows the device and directory part
-of the path: up to its last separator
-(: > < or \), without a > or \ at the
-end. The : of a device and the > of
-the main directory stay. A name alone
+of the path: up to its last slash.
+The colon of a device stays. A name alone
 gives an empty line (the current
 directory).
 
 Examples:
- DIRNAME D1:>DOS>X.COM   D1:>DOS
- DIRNAME D1:>X.COM       D1:>
+ DIRNAME D1:/DOS/X.COM   D1:/DOS
+ DIRNAME D1:/X.COM       D1:/
  DIRNAME D2:X.COM        D2:
- DIRNAME D1:>DOS>        D1:>
+ DIRNAME D1:/DOS/        D1:/

@@ -34,7 +34,7 @@ def names(kind):
     if kind == 'eos':
         sys.argv[1:] = []
         import eos_test
-        return list(eos_test.TESTS)
+        return list(eos_test.EOSFS_ACTIVE if eos_test.EOSFS else eos_test.TESTS)
     if kind == 'fmt':
         import fmt_test
         return list(fmt_test.CASES)

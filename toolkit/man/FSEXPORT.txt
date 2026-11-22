@@ -1,0 +1,16 @@
+FSEXPORT - export one EOSFS file
+
+Syntax:
+ fsexport source Dn:
+
+Copies one EOSFS file into the root directory of an existing DOS2/MyDOS or
+SDFS disk. The destination is accessed through raw physical sectors and is
+never mounted by EOS.
+
+Foreign names are uppercase 8.3. FSEXPORT prints the exact mapped destination
+name, including case loss, character replacement or shortening, before any
+write. It refuses an existing destination name, EOSFS destination, full disk,
+full root directory, unsupported format or non-128-byte sector geometry.
+
+The implementation and its sector list are transient; they consume no
+resident kernel memory.

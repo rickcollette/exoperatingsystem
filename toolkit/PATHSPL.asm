@@ -18,7 +18,7 @@ COMTAB   smb 'COMTAB'
 BUFOFF   equ $0A               ; (COMTAB+)
 LBUF     equ $3F
 ext      equ $076A             ; (U_GEFINA: the extension and the path)
-path     equ $07A0
+path     equ $0640
 EOL      equ $9B
 
         blk reloc main
@@ -100,7 +100,7 @@ do_d    ldx #0                 ; d: the device alone
         jmp PUTENV
 done    rts
 
-* expand: the name (8+3) as NAME.EXT at buf+Y, then put
+* expand: the exact NUL-ended name at buf+Y, then put
 expand  lda pbuf
         ldx pbuf+1
         jsr U_EXPAND

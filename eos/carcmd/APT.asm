@@ -465,7 +465,7 @@ li3     lda row
         dta a(row)
         jmp li6
 li4     jsr which
-        sta val
+        sta kwc
         bne li5
         jsr PRINTF
         dta c'D%b: not a listed partition',EOL,0
@@ -1255,7 +1255,10 @@ kw      ldy #0
 kw1     ldx #0
 kw2     lda kwtab,y
         beq kw_no
-        cmp COMTAB+$21,x
+        sta val
+        lda COMTAB+$21,x
+        and #$DF
+        cmp kwc
         bne kw3
         iny
         inx
@@ -1338,6 +1341,7 @@ bootd   dta 0
 row     dta 0
 wn      dta 0
 kwn     dta 0
+kwc     dta 0
 mask    dta 0
 val     dta a(0)
 lba     dta 0,0,0,0

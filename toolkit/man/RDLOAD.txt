@@ -19,8 +19,8 @@ To restore it at each start, put in
 AUTOEXEC.BAT:
 
  IF RAMDISK
-   IF NOT EXISTS $RAMDISK>*.*
-     RDLOAD C:>SYS>RAMDISK.DMP
+   IF NOT EXISTS $RAMDISK/*.*
+     RDLOAD C:/SYS/RAMDISK.DMP
    FI
  FI
 

@@ -17,18 +17,18 @@ SDX area (SDX); step 7 erases the CF card.
 
 ## The maintenance disk
 
-`EOSMAINT.atr` is an EOS disk: EOS reads its `EOSSYS.SYS` (the clock
+`EOSMAINT.atr` is a native EOSFS disk: EOS reads its `eossys.sys` (the clock
 driver, no RAM disk, so the flasher has room for the image) and
-`EOSAUTO.BAT` (shows `README.TXT`). It holds:
+`eosauto.bat` (shows `readme.txt`). It holds:
 
 | File | Use |
 | --- | --- |
-| `EOS_U1MB.ROM`, `EOS_U1MB.MD5` | the U1MB slot image and its MD5 |
-| `U1MBFLSH.COM`, `U1MBCHK.COM` | write / check the image |
-| `APT.COM`, `FORMAT.COM` | partition the hard disk, make file systems |
-| `MD5.COM`, `MEMINFO.COM`, `MACH.COM` | check files, memory, the machine |
-| `MAN/*.MAN` | their help pages: `TYPE MAN>APT.MAN` |
-| `IDEPLUS/` | the IDE2.0PLUS utilities (BIOS 2.1 updater and more), when they were available at build time |
+| `eos_u1mb.rom`, `eos_u1mb.md5` | the U1MB slot image and its MD5 |
+| `u1mbflsh.com`, `u1mbchk.com` | write / check the image |
+| `apt.com`, `format.com` | partition the hard disk, make file systems |
+| `md5.com`, `meminfo.com`, `mach.com` | check files, memory, the machine |
+| `man/*.man` | their help pages: `type man/apt.man` |
+| `ideplus/` | the IDE2.0PLUS utilities (BIOS 2.1 updater and more), when they were available at build time |
 
 ## 1. Record the machine
 
@@ -47,22 +47,22 @@ In the U1MB setup: SDX off (so the cartridge port is used), memory 1 MB,
 flash writes allowed. Insert the Maxflash cartridge with `EOS.car`, put
 `EOSMAINT.atr` in D1:, switch on.
 
-Expected: `EOS <VERSION> Extendable Operating System`, using the value in the
+Expected: `EOS v<VERSION> (c)2026 Rick Collette`, using the value in the
 repository's `VERSION` file, followed by the README and the `D1:` prompt; no
 `X Disk O` RAM disk (`DIR O:` gives an error).
 
 ## 3. Check the image and the flasher (read only)
 
-    U1MBCHK EOS_U1MB.ROM
-    MD5 EOS_U1MB.ROM
-    TYPE EOS_U1MB.MD5
+    u1mbchk eos_u1mb.rom
+    md5 eos_u1mb.rom
+    type eos_u1mb.md5
 
 Expected: `U1MB image: 40 banks, common reset tail OK`, and the two MD5
-values equal. Then `U1MBFLSH EOS_U1MB.ROM` and answer `N`: `Not written.`
+values equal. Then `u1mbflsh eos_u1mb.rom` and answer `N`: `Not written.`
 
 ## 4. Write EOS into the SDX area
 
-    U1MBFLSH EOS_U1MB.ROM
+    u1mbflsh eos_u1mb.rom
 
 Answer `Y`. The bottom line of the screen shows `reading the flash chip
 ID`, `erasing`, then `Writing bank nn of 40`; then the computer restarts,
@@ -86,8 +86,8 @@ cartridge.
 
 ## 5. Clock and RAM disk
 
-The maintenance disk's `EOSSYS.SYS` starts no RAM disk. Remove the disk
-(or use one without `EOSSYS.SYS`) and restart for EOS's defaults:
+The maintenance disk's `eossys.sys` starts no RAM disk. Remove the disk
+(or use one without `eossys.sys`) and restart for EOS's defaults:
 
 - `DATE` and `TIME` (press Return at each question): the U1MB's date and
   time; no `R-Time 8 not present` line at start.

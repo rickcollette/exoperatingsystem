@@ -60,7 +60,7 @@ s_p1    lda COMTAB+$3F,y
         cmp #EOL
         beq s_p3
         iny
-        cmp #'>'
+        cmp #'/'
         beq s_p2
         cmp #'<'
         beq s_p2

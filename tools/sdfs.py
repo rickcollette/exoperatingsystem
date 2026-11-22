@@ -12,10 +12,15 @@ usage: sdfs.py check image.atr          exit 1 on errors
 """
 import struct
 import sys
+from pathlib import Path
 
 ST_PROT, ST_HIDDEN, ST_ARCH, ST_USED, ST_DEL, ST_DIR, ST_LINK, ST_OPEN = (
     1, 2, 4, 8, 16, 32, 64, 128)
-ENTRY = 23
+SDFS_ENTRY = 23
+EOSFS_ENTRY = 44
+EOSFS_NAME_MAX = 31
+EOSFS_CLEAN = 0x47
+EOSFS_DIRTY = 0x48
 
 
 class SdfsError(Exception):
@@ -59,17 +64,18 @@ class Volume:
         self.boot = h
         w = lambda o: h[o] | h[o + 1] << 8
         self.version = h[32]
-        # EOSFS (docs/EOSFS.md): an SDFS 2.1 disk whose maps are extent lists
-        self.eosfs = self.version in (0x45, 0x46)   # $46: EOSFS with changes not all written (its dirty flag)
-        if self.version not in (0x20, 0x21, 0x45, 0x46):
+        # EOSFS v2 has extents, long case-sensitive names and 44-byte entries.
+        self.eosfs = self.version in (EOSFS_CLEAN, EOSFS_DIRTY)
+        if self.version not in (0x20, 0x21, EOSFS_CLEAN, EOSFS_DIRTY):
             raise SdfsError('not SDFS 2.x (revision byte $%02X)' % self.version)
+        self.entry_size = EOSFS_ENTRY if self.eosfs else SDFS_ENTRY
         self.main = w(9)
         self.total = w(11)
         self.free = w(13)
         self.nbmp = h[15]
         self.bmap = w(16)
         self.name = h[22:30].decode('latin-1').rstrip()
-        if self.version in (0x21, 0x45, 0x46):
+        if self.version in (0x21, EOSFS_CLEAN, EOSFS_DIRTY):
             self.seclen = w(33)
             self.mapents = (self.seclen - 4) // 4 if self.eosfs else w(35)
         else:
@@ -122,7 +128,7 @@ class Volume:
     # ---- directories --------------------------------------------------------
     def walk(self):
         """Yield (path, entry dict) for every live entry, depth first."""
-        root = {'name': 'MAIN', 'status': ST_USED | ST_DIR, 'map': self.main,
+        root = {'name': 'main', 'status': ST_USED | ST_DIR, 'map': self.main,
                 'length': None, 'path': ''}
         self.owner = {}
         yield from self._walk_dir(root, 0)
@@ -134,52 +140,39 @@ class Volume:
         for s in data:
             raw += self.sec(s)[:self.seclen] if s else bytes(self.seclen)
         self._own(maps + [s for s in data if s], what)
-        hdr = raw[:ENTRY]
-        if len(hdr) < ENTRY:
+        entry_size = self.entry_size
+        hdr = raw[:entry_size]
+        if len(hdr) < entry_size:
             self.errors.append('%s: empty directory file' % what)
             return
         hparent = hdr[1] | hdr[2] << 8
         dlen = hdr[3] | hdr[4] << 8 | hdr[5] << 16
         if hparent != parent_map:
             self.errors.append('%s: parent link %d, expected %d' % (what, hparent, parent_map))
-        if dlen % ENTRY or dlen > len(raw):
+        if dlen % entry_size or dlen > len(raw):
             self.errors.append('%s: directory length %d invalid' % (what, dlen))
         # the parent's entry length of a subdirectory is not maintained (SDX: 23, BW-DOS: 0)
         d['dirlen'] = dlen
-        if dlen > 1424 * ENTRY:
-            self.warnings.append('%s: %d entries exceed SDX limit' % (what, dlen // ENTRY - 1))
-        hname = hdr[6:14].decode('latin-1').rstrip()
-        if hname != d['name'].split('.')[0]:
+        if not self.eosfs and dlen > 1424 * entry_size:
+            self.warnings.append('%s: %d entries exceed SDX limit' %
+                                 (what, dlen // entry_size - 1))
+        hname = self._entry_name(hdr)
+        if hname != d['name']:
             self.warnings.append('%s: header name %r' % (what, hname))
         names = set()
-        index = None
-        xmap = hdr[20] | hdr[21] << 8
-        if self.eosfs and hdr[22] == 0xFF:   # EOSFS: the directory's name index
-            imaps, idata = self.chain(xmap, what + ' index')
-            self._own(imaps + [x for x in idata if x], what + ' index')
-            index = bytearray()
-            for x in idata:
-                index += self.sec(x)[:self.seclen] if x else bytes(self.seclen)
-        for o in range(ENTRY, min(dlen, len(raw)), ENTRY):
-            e = raw[o:o + ENTRY]
+        for o in range(entry_size, min(dlen, len(raw)), entry_size):
+            e = raw[o:o + entry_size]
             st = e[0]
-            if index is not None:
-                k = o // ENTRY
-                want = ixhash(e[6:17]) if st & ST_USED and not st & ST_DEL else 0
-                got = index[k] if k < len(index) else 0
-                if got != want:
-                    self.errors.append('%s: index entry %d is %d, not %d' % (what, k, got, want))
             if st == 0:
                 break
             if st & ST_DEL or not st & ST_USED:
                 continue
-            fn = e[6:14].decode('latin-1').rstrip()
-            ext = e[14:17].decode('latin-1').rstrip()
-            name = fn + ('.' + ext if ext else '')
+            name = self._entry_name(e)
             path = d['path'] + '/' + name
             ent = {'name': name, 'status': st, 'map': e[1] | e[2] << 8,
                    'length': e[3] | e[4] << 8 | e[5] << 16, 'path': path,
-                   'date': tuple(e[17:20]), 'time': tuple(e[20:23])}
+                   'date': tuple(e[38:41] if self.eosfs else e[17:20]),
+                   'time': tuple(e[41:44] if self.eosfs else e[20:23])}
             if st & ST_DIR and st & ST_LINK:
                 self.errors.append('%s: both subdir and symlink bits' % path)
             if st & ST_OPEN:
@@ -187,8 +180,9 @@ class Volume:
             if name in names:
                 self.errors.append('%s: duplicate name' % path)
             names.add(name)
-            if not all(0x20 < ord(c) < 0x7F for c in fn + ext) or not fn:
-                self.errors.append('%s: invalid name %r' % (path, e[6:17]))
+            if (not name or '/' in name or
+                    not all(0x20 <= ord(c) < 0x7F for c in name)):
+                self.errors.append('%s: invalid name %r' % (path, name))
             if st & ST_DIR:
                 yield path, ent
                 yield from self._walk_dir(ent, d['map'])
@@ -204,6 +198,19 @@ class Volume:
                     if ent['length']:
                         self.errors.append('%s: length %d but no sector map' % (path, ent['length']))
                 yield path, ent
+
+    def _entry_name_bytes(self, e):
+        if self.eosfs:
+            n = e[6]
+            if n > EOSFS_NAME_MAX:
+                return bytes(e[7:7 + EOSFS_NAME_MAX])
+            return bytes(e[7:7 + n])
+        fn = bytes(e[6:14]).rstrip(b' ')
+        ext = bytes(e[14:17]).rstrip(b' ')
+        return fn + (b'.' + ext if ext else b'')
+
+    def _entry_name(self, e):
+        return self._entry_name_bytes(e).decode('latin-1')
 
     def _own(self, sectors, what):
         for s in sectors:
@@ -285,7 +292,7 @@ def build(path, total, seclen, files, volname='EOS', eosfs=False,
         if len(bootcode) != 384 or bootcode[:2] != b'\x00\x03':
             raise SdfsError('bootcode must be 384 bytes and three sectors')
     if boot is not None:
-        boot = boot.replace('>', '/').replace('\\', '/').strip('/').upper()
+        boot = boot.replace('>', '/').replace('\\', '/').strip('/')
         if bootcode is None:
             raise SdfsError('a boot file requires bootcode')
     mapents = (seclen - 4) // 2
@@ -341,10 +348,41 @@ def build(path, total, seclen, files, volname='EOS', eosfs=False,
         b, _, e = n.partition('.')
         return b.ljust(8).encode()[:8] + e.ljust(3).encode()[:3]
 
+    def eos_name(n):
+        try:
+            raw = n.encode('ascii')
+        except UnicodeEncodeError:
+            raise SdfsError('EOSFS name is not ASCII: %r' % n)
+        if not raw or len(raw) > EOSFS_NAME_MAX:
+            raise SdfsError('EOSFS name must be 1..%d bytes: %r' %
+                            (EOSFS_NAME_MAX, n))
+        if any(c in b'/*?' for c in raw) or any(c < 0x20 or c >= 0x7F for c in raw):
+            raise SdfsError('invalid EOSFS name: %r' % n)
+        return bytes([len(raw)]) + raw.ljust(EOSFS_NAME_MAX, b'\0')
+
+    def entry(status, fmap, length, n, st):
+        if eosfs:
+            return (bytes([status]) + struct.pack('<H', fmap) +
+                    struct.pack('<I', length)[:3] + eos_name(n) + bytes(st))
+        return (bytes([status]) + struct.pack('<H', fmap) +
+                struct.pack('<I', length)[:3] + name83(n) + bytes(st))
+
     stamp = bytes([1, 1, 25, 12, 0, 0])
     tree = {'': []}
     for p, d in files.items():
+        if eosfs:
+            try:
+                plen = len(('/' + p).encode('ascii'))
+            except UnicodeEncodeError:
+                raise SdfsError('EOSFS path is not ASCII: %r' % p)
+            if plen > 127:
+                raise SdfsError('EOSFS path exceeds 127 bytes: %r' % p)
         parts = p.split('/')
+        if eosfs and (not all(parts) or any(x in ('.', '..') for x in parts)):
+            raise SdfsError('invalid EOSFS path: %r' % p)
+        if eosfs:
+            for part in parts:
+                eos_name(part)
         for i in range(1, len(parts)):
             d_ = '/'.join(parts[:i])
             if d_ not in tree:
@@ -368,14 +406,14 @@ def build(path, total, seclen, files, volname='EOS', eosfs=False,
             st, extra = stamp, 0
             if isinstance(data, tuple):
                 data, st, extra = data
-            name = (d + '/' + n if d else n).upper()
+            name = d + '/' + n if d else n
             fmap = store(data)
             maps[name] = fmap
             filemaps[name] = fmap
-            entries.append(bytes([ST_USED | extra]) + struct.pack('<H', fmap) +
-                           struct.pack('<I', len(data))[:3] + name83(n) + bytes(st))
-        hdr_len = 23 * (1 + len(tree[d]))
-        own = (d.split('/')[-1] if d else 'MAIN')
+            entries.append(entry(ST_USED | extra, fmap, len(data), n, st))
+        entry_size = EOSFS_ENTRY if eosfs else SDFS_ENTRY
+        hdr_len = entry_size * (1 + len(tree[d]))
+        own = (d.split('/')[-1] if d else 'main')
         subs = []
         for n, data in tree[d]:
             if data is None:
@@ -387,14 +425,8 @@ def build(path, total, seclen, files, volname='EOS', eosfs=False,
         maps[d] = dmap
         for n, sub in subs:
             mkdir(sub, dmap)
-            entries.append(bytes([ST_USED | ST_DIR]) + struct.pack('<H', maps[sub]) +
-                           struct.pack('<I', 23)[:3] + name83(n) + stamp)
-        body = bytes([ST_USED | ST_DIR]) + struct.pack('<H', parent) + \
-            struct.pack('<I', hdr_len)[:3] + name83(own) + stamp + b''.join(entries)
-        if eosfs:                      # the name index: its list at header +20,
-            index = bytes([0] + [ixhash(e[6:17]) for e in entries])   # $FF at +22
-            xmap = store(index)
-            body = body[:20] + struct.pack('<HB', xmap, 0xFF) + body[23:]
+            entries.append(entry(ST_USED | ST_DIR, maps[sub], entry_size, n, stamp))
+        body = entry(ST_USED | ST_DIR, parent, hdr_len, own, stamp) + b''.join(entries)
         for i, sec in enumerate(body_secs):
             img[sec] = body[i * seclen:(i + 1) * seclen]
         if eosfs:
@@ -430,7 +462,7 @@ def build(path, total, seclen, files, volname='EOS', eosfs=False,
     hdr[30] = 0x28 if total == 720 else 0xD0 if (total, seclen) == (1440, 512) else 1
     hdr[37] = 1
     hdr[31] = {128: 0x80, 256: 0x00, 512: 0x01}[seclen]
-    hdr[32] = 0x45 if eosfs else 0x21
+    hdr[32] = EOSFS_CLEAN if eosfs else 0x21
     struct.pack_into('<HH', hdr, 33, seclen, mapents)
     hdr[38], hdr[39] = 1, 0x5A
     if boot is not None:
@@ -463,7 +495,7 @@ def overwrite(path, name, data, newname=None):
     length in the directory entry is set to len(data). With newname the
     entry is renamed too."""
     v = Volume(path)
-    raw = bytearray(open(path, 'rb').read())
+    raw = bytearray(Path(path).read_bytes())
 
     def off(sec):
         if v.img.atr_seclen <= 256:
@@ -471,16 +503,21 @@ def overwrite(path, name, data, newname=None):
         return 16 + (sec - 1) * v.img.atr_seclen
     _, dsecs = v.chain(v.main, '/')
     pos = [off(sec) + k for sec in dsecs for k in range(v.seclen)]   # directory byte -> image
-    want = name.upper()
-    for o in range(ENTRY, len(pos) - ENTRY + 1, ENTRY):
-        e = bytes(raw[pos[o + k]] for k in range(ENTRY))
+    entry_size = v.entry_size
+    want = name.strip('/') if v.eosfs else name.upper()
+    for o in range(entry_size, len(pos) - entry_size + 1, entry_size):
+        e = bytes(raw[pos[o + k]] for k in range(entry_size))
         if e[0] == 0:
             break
         if e[0] & ST_DEL or not e[0] & ST_USED:
             continue
-        fn = e[6:14].decode('latin-1').rstrip()
-        ext = e[14:17].decode('latin-1').rstrip()
-        if fn + ('.' + ext if ext else '') != want:
+        if v.eosfs:
+            found = e[7:7 + e[6]].decode('ascii')
+        else:
+            fn = e[6:14].decode('latin-1').rstrip()
+            ext = e[14:17].decode('latin-1').rstrip()
+            found = fn + ('.' + ext if ext else '')
+        if found != want:
             continue
         _, fdata = v.chain(e[1] | e[2] << 8, name)
         if len(data) > len(fdata) * v.seclen:
@@ -491,11 +528,23 @@ def overwrite(path, name, data, newname=None):
         for k, b in enumerate((len(data) & 0xFF, len(data) >> 8 & 0xFF, len(data) >> 16)):
             raw[pos[o + 3 + k]] = b
         if newname:
-            b, _, e = newname.upper().partition('.')
-            nb = b.ljust(8).encode()[:8] + e.ljust(3).encode()[:3]
-            for k in range(11):
-                raw[pos[o + 6 + k]] = nb[k]
-        open(path, 'wb').write(raw)
+            if v.eosfs:
+                try:
+                    nb = newname.encode('ascii')
+                except UnicodeEncodeError:
+                    raise SdfsError('EOSFS name is not ASCII: %r' % newname)
+                if (not nb or len(nb) > EOSFS_NAME_MAX or any(c in b'/*?' for c in nb) or
+                        any(c < 0x20 or c >= 0x7F for c in nb)):
+                    raise SdfsError('invalid EOSFS name: %r' % newname)
+                raw[pos[o + 6]] = len(nb)
+                for k in range(EOSFS_NAME_MAX):
+                    raw[pos[o + 7 + k]] = nb[k] if k < len(nb) else 0
+            else:
+                b, _, ext = newname.upper().partition('.')
+                nb = b.ljust(8).encode()[:8] + ext.ljust(3).encode()[:3]
+                for k in range(11):
+                    raw[pos[o + 6 + k]] = nb[k]
+        Path(path).write_bytes(raw)
         return
     raise SdfsError('%s: not in the main directory' % name)
 

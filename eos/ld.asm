@@ -16,6 +16,7 @@ E_NOSYM equ 154
 E_NOMEM equ 158
 E_CONFLICT equ 179
 E_ARCH  equ 184
+E_PATHLEN equ 182
 
         org CARTLO
         jmp u_load             ; $A000 LD_LOAD
@@ -36,6 +37,9 @@ u_load  lda SYSLEVEL           ; this program's level: what to restore after it
         jsr farcall
         dta b(BK_LIB),a(L_FAIL)
 ul0     tax
+        lda FLAG               ; bits 7/6 are public; bit 0 is loader-private
+        and #$C0
+        sta FLAG
         lda MEMLO
         sta ld_mlo,x
         lda MEMLO+1
@@ -418,6 +422,16 @@ ul_trunc2 jmp ul_trunc
 * ---- symbol references: add a symbol's address -----------------------------
 ul_xref jsr getname
         bcs ul_trunc2
+        ldx #5                 ; importing U_ARGV opts into the native sidecar
+uxa1    lda ld_name,x
+        cmp ux_argn,x
+        bne uxa2
+        dex
+        bpl uxa1
+        lda FLAG
+        ora #1
+        sta FLAG
+uxa2
         jsr getw               ; fix-up size
         bcs ul_trunc2
         lda #0
@@ -462,9 +476,9 @@ ul_xdef jsr getb
         bcs ul_trunc2
         sta ld_num
         jsr getw
-        bcs ul_trunc2
+        jcs ul_trunc2
         jsr getname
-        bcs ul_trunc2
+        jcs ul_trunc2
         ldx ld_num
         clc
         lda ld_bslo,x
@@ -479,7 +493,19 @@ ul_xdef jsr getb
 ul_next2 jmp ul_next
 
 * ---- end of file: run it ----------------------------------------------------
-ul_done ldy #7                 ; kd_close
+ul_done lda FLAG               ; legacy COMTAB programs have 64 line bytes
+        and #1
+        bne uld_ok
+        ldx #0
+uld_l   lda COMTAB+CT_LBUF,x
+        cmp #EOL
+        beq uld_ok
+        inx
+        cpx #64
+        bcc uld_l
+        lda #E_PATHLEN         ; never silently truncate a legacy command
+        jmp fail
+uld_ok  ldy #7                 ; kd_close
         lda ld_fid
         sta file_id
         jsr jkernel
@@ -548,6 +574,7 @@ bw_sig  dta b($AD,$00,$07,$C9,$53,$D0,$00,$AD,$03,$07,$C9,$42)
 
 ld_file dta c'File '
 ld_sym  dta c'Symbol '
+ux_argn dta c'U_ARGV'
 * ld_putc: A to standard output; keeps X, Y
 ld_putc jsr farcall
         dta b(BK_LIB),a(L_PUTC)

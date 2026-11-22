@@ -3,11 +3,11 @@
 
 ge_end  .ds 1                  ; U_GEFINA
 ge_ns   .ds 1
-ge_lim  .ds 1
+ge_start .ds 1                 ; input offset after an optional device
 ge_n    .ds 1
 ge_dv   .ds 1
 ge_u    .ds 1
-ge_rawp .ds 65                 ; U_GEPATH: the path as given
+ge_rawp .ds 27                 ; _CRUNCH's bounded temporary parameter
 ge_stop .ds 1                  ; where the specification ended
 fs_fn   .ds 1
 fg_y    .ds 1                  ; FGETC
@@ -136,6 +136,7 @@ cp_bat  .ds 1                  ; handle of the running batch file, $FF none
 cp_cold .ds 1                  ; not 0: run the startup batch file
 cp_i    .ds 1
 cp_fail .ds 1                  ; U_FAIL: the error that ended the last command
+cp_cond .ds 1                  ; pending conditional: 1 &&, 2 ||
 cp_inb  .ds 1                  ; not 0: the command processor's own command runs
 cp_echo .ds 1                  ; bit 7: ECHO ON
 cp_erron .ds 1                 ; bit 7: ERROR ON
@@ -162,9 +163,6 @@ sx_lim  .ds 1                  ; and the last page it may use
 cp_cfg  .ds 1                  ; bit 7: EOSSYS.SYS is being read
 dm_x    .ds 1
 cp_lflag .ds 1                 ; the loader's FLAG for the next program (LOAD: $80)
-ue_st   .ds 1                  ; U_EXPAND: the field
-ue_end  .ds 1
-ue_q    .ds 1                  ; where its trailing ?s start
 bk_fn   .ds 1
 dk_on   .ds 1                  ; $80: DOSKEY.SYS loaded
 dk_x    .ds 1                  ; $80: /X
@@ -218,8 +216,8 @@ cr_pos0 .ds NCAR               ; searches: the next file
 cr_pos1 .ds NCAR
 cr_pos2 .ds NCAR
 cr_ent  .ds 24
-cr_pat  .ds 11
-cr_spat .ds 11
+cr_pat  equ cr_spat
+cr_spat .ds 17                 ; NUL-ended exact CAR glob, max 16 bytes
 cr_i    .ds 2
 cr_cnt  .ds 2
 cr_t    .ds 3
@@ -276,7 +274,7 @@ ld_trap .ds NLEVEL             ; traps set when the level began
 * CIO D: handler (dev.asm)
 dc_x    .ds 1
 dc_b    .ds 1
-dir_name .ds 11                ; kd_first: the directory's name (FMS, CAR:)
+dir_name .ds EOS_NAME_SIZE     ; kd_first: the directory's NUL-ended name
 ke_sa   .ds 1                  ; e_wrap's saved registers
 ke_sx   .ds 1
 ke_sy   .ds 1

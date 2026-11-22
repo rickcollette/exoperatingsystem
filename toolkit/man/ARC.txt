@@ -1,0 +1,7 @@
+ARC
+
+ARC command[options] archive [files]
+
+Legacy SEA ARC-compatible archiver. It is retained on the Toolkit disk for
+existing ARC files. The default CAR environment uses standard USTAR archives
+through TAR.

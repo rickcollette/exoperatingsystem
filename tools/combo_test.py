@@ -51,7 +51,7 @@ def main():
     atr = OUT / 'combo.atr'
     mem = OUT / 'combo.bin'
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (U.label('k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (U.label('k_prompt'), emu.win(mem))]
     host_before = datetime.datetime.now()
     with emu.Session(OUT, [atr], cart=None, name='combo', turbo=True, debugcmds=cmds,
                      ultimate1mb=True, devices=IDE.ide_device(hd), fastboot=False,

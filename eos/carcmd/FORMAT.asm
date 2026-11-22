@@ -1,18 +1,17 @@
 ; EOS CAR: FORMAT, format a disk
 ;   FORMAT                      the formatter menu
 ;   FORMAT /Q|QQ [dn:] [volname] soft format (/Q asks first, /QQ does not)
-; A soft format ("build directory") writes an empty SDFS 2.1 file system
+; A soft format ("build directory") writes an empty EOSFS v2 file system
 ; on whatever the drive holds: boot sectors (EOS's boot loader, which loads
 ; the BOOT file; for 512-byte sectors one sector that fails to boot), the
-; bitmap, the main directory (a data sector, then its map); the rest of
+; bitmap, the main directory (a data sector, then its extent list); the rest of
 ; the disk is free (optimized: the last sector too). The drive's size
-; comes from its PERCOM block, else from the SDFS volume header on it, else
+; comes from its PERCOM block, else from an EOSFS volume header on it, else
 ; from its status (single, enhanced or double density, 40 tracks).
 ; The menu also formats floppies physically (PERCOM block written to a
 ; drive that has one, then the format command; the skew: Standard, High Speed (XF551 $A1),
 ; Ultra Speed (US Doubler $66 with a sector order)) and
-; can build an Atari DOS 2 file system (VTOC, empty directory; 1040
-; sectors get the DOS 2.5 VTOC2).
+; Foreign logical creation is provided by transient Toolkit programs.
 ; All sector I/O goes through jsector_io (device $31, the unit from
 ; sio_index), so the RAM disk and installed SIO drivers are formatted too;
 ; the FMS is asked for the disk's information first, so that
@@ -49,13 +48,10 @@ E_BADPAR equ 156
         icl 'FORMATbequ.icl'
 
         blk reloc main
-start   lda #1                 ; defaults: optimize, standard skew, SDFS
+start   lda #1                 ; defaults: optimize, standard skew, EOSFS v2
         sta opt
         lda #0
         sta skew
-        sta sdx2
-        sta mode3
-        sta eosfs
         sta size
         jsr presize
         lda CURDEV
@@ -315,7 +311,7 @@ g2      sta tbyte
         inc hard
 g3      clc
         rts
-g_hdr   lda #128               ; an SDFS header in sector 1?
+g_hdr   lda #128               ; an EOSFS header in sector 1?
         sta seclen
         lda #0
         sta seclen+1
@@ -373,7 +369,7 @@ g_ok    clc
 g_err   sec
         rts
 
-; rdhdr: sector 1 as seclen gives it: C=0 when it is an SDFS header (total
+; rdhdr: sector 1 as seclen gives it: C=0 when it is an EOSFS header (total
 ; and seclen from it), else C=1 (A = the status of a failed read, or 0)
 rdhdr   lda #1
         sta s_sec
@@ -384,21 +380,10 @@ rdhdr   lda #1
         jsr rdsec
         bmi rh_err
         lda buf+32
-        cmp #$21
+        cmp #$47
         beq rh21
-        cmp #$20
+        cmp #$48
         bne rh_no
-        lda #0                 ; SDFS 2.0: 128 or 256
-        sta seclen
-        lda #1
-        sta seclen+1
-        lda buf+31
-        cmp #$80
-        bne rh1
-        sta seclen
-        lda #0
-        sta seclen+1
-        beq rh1
 rh21    lda buf+33
         sta seclen
         lda buf+34
@@ -433,7 +418,7 @@ cz_no   sec
 cz_ok   clc
         rts
 
-; oldname: the volume name on the disk (SDFS), else blanks, into vol
+; oldname: the volume name on an EOSFS disk, else blanks, into vol
 oldname ldx #7
         lda #' '
 on1     sta vol,x
@@ -448,9 +433,11 @@ on1     sta vol,x
         jsr rdsec
         bmi on3
         lda buf+32
-        and #$FE
-        cmp #$20
+        cmp #$47
+        beq on2a
+        cmp #$48
         bne on3
+on2a
         ldx #7
 on2     lda buf+22,x
         sta vol,x
@@ -491,7 +478,7 @@ mu_big  lda #$FF
         sta m_a+1
         rts
 
-; ---- BUILDDIR: an empty SDFS 2.1 file system ---------------------------------
+; ---- BUILDDIR: an empty EOSFS v2 file system ---------------------------------
 
 ; builddir: on drive unit, size seclen/total, name vol, opt;
 ; C=1, A = status on an error
@@ -559,20 +546,13 @@ bd3     lsr t24+2
         lda dsec+1
         adc #0
         sta msec+1
-        clc                    ; the first free sector (EOSFS: after the
-        lda msec               ; main directory's name index list, isec)
+        clc                    ; the first free sector follows the main map
+        lda msec
         adc #1
         sta ffree
-        sta isec
         lda msec+1
         adc #0
         sta ffree+1
-        sta isec+1
-        lda eosfs
-        beq bd2i
-        inc ffree
-        bne bd2i
-        inc ffree+1
 bd2i
         lda total              ; the last free one
         sta last
@@ -607,24 +587,12 @@ bd5     jsr clrbuf
         lda seclen+1
         cmp #2
         beq bd7
-        ldx #0                 ; the boot loader, 3 x 128 bytes
-bd6     lda booter,x
-        ldy eosfs
-        beq bd6a
-        lda xbooter,x
-bd6a
+        ldx #0                 ; the EOSFS boot loader, 3 x 128 bytes
+bd6     lda xbooter,x
         sta buf,x
-        lda booter+128,x
-        ldy eosfs
-        beq bd6b
         lda xbooter+128,x
-bd6b
         sta buf+128,x
-        lda booter+256,x
-        ldy eosfs
-        beq bd6c
         lda xbooter+256,x
-bd6c
         sta buf+256,x
         inx
         bpl bd6
@@ -672,11 +640,8 @@ bd9     lda vol,x
         ldx seclen+1           ; size code: $80, 0, 1
         lda szcode,x
         sta buf+31
-        lda #$21               ; SDFS 2.1, or EOSFS (docs/EOSFS.md)
-        ldx eosfs
-        beq bd9a
-        lda #$45
-bd9a    sta buf+32
+        lda #$47
+        sta buf+32
         lda seclen
         sta buf+33
         lda seclen+1
@@ -692,6 +657,8 @@ bd9a    sta buf+32
         txa
         ror @
         sta buf+35
+        lsr buf+36             ; EOSFS extents are four bytes, not two
+        ror buf+35
         lda #1
         sta buf+37
         lda #0                 ; sequence number 0, as SDX's FORMAT
@@ -767,27 +734,21 @@ bd17    lda bp
         jsr clrbuf
         lda #$28               ; in use, directory
         sta buf
-        lda #23                ; its length: the header entry
+        lda #44                ; v2 header entry length
         sta buf+3
-        ldx #10
+        lda #4                 ; exact-case root directory name
+        sta buf+6
+        ldx #3
 bd18    lda mainnm,x
-        sta buf+6,x
+        sta buf+7,x
         dex
         bpl bd18
         jsr clk_get
         ldx #5
 bd19    lda date,x
-        sta buf+17,x
+        sta buf+38,x
         dex
         bpl bd19
-        lda eosfs              ; EOSFS: its name index at +20..22 (the
-        beq bd19a              ; seconds $FF: docs/EOSFS.md 3.3)
-        lda isec
-        sta buf+20
-        lda isec+1
-        sta buf+21
-        lda #$FF
-        sta buf+22
 bd19a
         lda dsec
         sta s_sec
@@ -800,22 +761,11 @@ bd19a
         sta buf+4
         lda dsec+1
         sta buf+5
-        lda eosfs              ; EOSFS: an extent list, one extent of 1
-        beq bd20
         lda #1
         sta buf+6
 bd20    lda msec
         sta s_sec
         lda msec+1
-        sta s_sec+1
-        jsr wrsec
-        bmi err
-        lda eosfs              ; EOSFS: the index, an empty list
-        beq bd21
-        jsr clrbuf
-        lda isec
-        sta s_sec
-        lda isec+1
         sta s_sec+1
         jsr wrsec
         bmi err
@@ -873,158 +823,6 @@ flush   lda drv
         sta device
         ldy #19
         jmp jkernel
-
-; ---- Atari DOS 2: VTOC and an empty directory --------------------------------
-
-; build2: total 720 (single or double density) or 1040 (DOS 2.5);
-; C=1, A = status on an error
-build2  jsr flush
-        jsr clrbuf             ; boot sectors: one that fails to boot
-        ldx #7
-b2a     lda boot2,x
-        sta buf,x
-        dex
-        bpl b2a
-        lda #0
-        sta s_off
-        sta s_off+1
-        sta s_sec+1
-        lda #1
-        sta s_sec
-b2b     jsr wrsec
-        jmi err2
-        jsr clrbuf
-        inc s_sec
-        lda s_sec
-        cmp #4
-        bcc b2b
-        lda #<368              ; the directory: 368 down to 361 empty
-        sta s_sec
-        lda #>368
-        sta s_sec+1
-b2c     jsr wrsec
-        jmi err2
-        dec s_sec
-        lda s_sec
-        cmp #<360
-        bne b2c
-        lda #2                 ; the VTOC
-        sta buf
-        lda #<707
-        sta buf+3
-        lda #>707
-        sta buf+4
-        ldx #<707
-        ldy #>707
-        lda total+1
-        cmp #>1040
-        bne b2d
-        ldx #<1010
-        ldy #>1010
-b2d     stx buf+1
-        sty buf+2
-        lda #0                 ; sectors 0-719 from byte 10
-        sta cur
-        sta cur+1
-        sta cur+2
-        lda #<4
-        sta ffree
-        lda #0
-        sta ffree+1
-        lda #<719
-        sta last
-        lda #>719
-        sta last+1
-        ldx #10
-b2e     stx bp
-        jsr mapbyte
-        jsr b2hole
-        ldx bp
-        sta buf,x
-        jsr add8
-        inx
-        cpx #100
-        bcc b2e
-        jsr wrsec              ; (s_sec is 360)
-        bmi err2
-        lda total+1
-        cmp #>1040
-        bne b2_ok
-        jsr clrbuf             ; DOS 2.5: VTOC2, sectors 48-1023
-        lda #48
-        sta cur
-        lda #0
-        sta cur+1
-        lda #<1023
-        sta last
-        lda #>1023
-        sta last+1
-        ldx #0
-b2f     stx bp
-        jsr mapbyte
-        jsr b2hole
-        ldx bp
-        sta buf,x
-        jsr add8
-        inx
-        cpx #122
-        bcc b2f
-        lda #<303              ; free above 720
-        sta buf+122
-        lda #>303
-        sta buf+123
-        lda #<1024
-        sta s_sec
-        lda #>1024
-        sta s_sec+1
-        jsr wrsec
-        bmi err2
-b2_ok   clc
-        rts
-err2    sec
-        rts
-; b2hole: A without the bits of sectors 360-368 and 720 (VTOC, directory)
-b2hole  ldy #7
-bh1     sty mb_y
-        clc
-        lda cur
-        adc mb_y
-        sta mb_s
-        lda cur+1
-        adc #0
-        sta mb_s+1
-        bne bh2
-        lda mb_s               ; (high byte 0: below 256)
-        jmp bh5
-bh2     cmp #>360
-        bne bh3
-        lda mb_s
-        cmp #<360
-        bcc bh5
-        cmp #<369
-        bcc bh4
-        bcs bh5
-bh3     cmp #>720
-        bne bh5
-        lda mb_s
-        cmp #<720
-        bne bh5
-bh4     lda bitv,y
-        eor #$FF
-        and mb_v
-        sta mb_v
-bh5     dey
-        bpl bh1
-        lda mb_v
-        rts
-; add8: cur += 8
-add8    clc
-        lda cur
-        adc #8
-        sta cur
-        bcc a8
-        inc cur+1
-a8      rts
 
 ; ---- the physical format ---------------------------------------------------------
 
@@ -1208,10 +1006,10 @@ m_show  jsr setgeo
         jsr PRINTF
         dta c' O  Optimize   %*t',EOL
         dta c' S  Skew       %*t',EOL
-        dta c' M  Mode       %*t',EOL
+        dta c'    Filesystem EOSFS v2',EOL
         dta c' V  Volume     %8s',EOL
         dta c' Z  Size       %*t',EOL,0
-        dta a(opt,t_onoff,skew,t_skew,mode3,t_mode,vol,size,t_size)
+        dta a(opt,t_onoff,skew,t_skew,vol,size,t_size)
         lda size
         cmp #nsizes
         bne m_sz
@@ -1255,24 +1053,12 @@ m_k4    txa
 
 ; nfree: free = the free sectors the file system will have (0 when the
 ; disk is too small)
-nfree   lda sdx2
-        bne nf2
-        jsr layout
+nfree   jsr layout
         bcc nf1
         lda #0
         sta free
         sta free+1
 nf1     rts
-nf2     ldx #<707              ; DOS 2: 707, DOS 2.5 on 1040 sectors: 1010
-        ldy #>707
-        lda total+1
-        cmp #>1040
-        bne nf3
-        ldx #<1010
-        ldy #>1010
-nf3     stx free
-        sty free+1
-        rts
 
 k_unit  jsr PRINTF
         dta c'Unit (1-9, A-O)? ',0
@@ -1306,23 +1092,6 @@ k_skew  inc skew
         lda #0
         sta skew
 k_s1    jmp m_show
-k_mode  ldx mode3              ; Sparta, Atari, EOS
-        inx
-        cpx #3
-        bcc k_m1
-        ldx #0
-k_m1    stx mode3
-        lda #0
-        sta sdx2
-        sta eosfs
-        dex
-        bmi k_m2
-        bne k_m3
-        inc sdx2
-        bne k_m2
-k_m3    inc eosfs
-k_m2    jsr fixat
-        jmp m_show
 k_vol   jsr PRINTF
         dta c'Volume name? ',0
         jsr getln
@@ -1345,17 +1114,9 @@ k_v2a   sta vol,x
         bcc k_v2a
 k_v3    jmp m_show
 
-; Z: the next standard size (Atari DOS 2: 90K, 127K, 180K only), after
-; the last one Advanced
+; Z: the next standard size, after the last one Advanced
 k_size  inc size
         lda size
-        ldx sdx2
-        beq k_z1
-        cmp #3
-        bcc k_z2
-        lda #0
-        sta size
-        beq k_z2
 k_z1    cmp #nsizes+1
         bcc k_z2
         lda #0
@@ -1416,12 +1177,7 @@ k_fmt   jsr setgeo
         beq k_f1
         jsr pformat
         bcs k_err
-k_f1    lda sdx2
-        bne k_f2
-        jsr builddir
-        bcs k_err
-        jmp m_show
-k_f2    jsr build2
+k_f1    jsr builddir
         bcs k_err
         jmp m_show
 k_bld   jsr geo                ; on what the drive holds now
@@ -1439,13 +1195,6 @@ k_err   jsr U_ERROR
 ; advanced: D, T, H and N change the geometry as it is shown
 advanced lda #nsizes
         sta size
-        lda sdx2               ; Atari DOS 2 has the standard sizes only
-        beq adv1
-        lda #0
-        sta sdx2
-        sta mode3
-        sta sz_kept
-adv1
         rts
 
 ; presize: the geometry of standard size `size`
@@ -1463,33 +1212,6 @@ presize ldx size
         lda sz_spth,x
         sta g_spt+1
 ps_ret  rts
-
-; fixat: Atari DOS 2 takes 90K, 127K or 180K
-fixat   lda sdx2
-        beq fa3
-        lda size
-        cmp #3
-        bcc fa1
-        ldx #5                 ; the size and geometry before, for the
-fa0     lda size,x             ; next mode
-        sta sz_keep,x
-        dex
-        bpl fa0
-        stx sz_kept
-        lda #0
-        sta size
-fa1     jsr presize
-fa2     rts
-fa3     lda sz_kept            ; leaving Atari DOS 2: the size as it was
-        beq fa2
-        ldx #5
-fa4     lda sz_keep,x
-        sta size,x
-        dex
-        bpl fa4
-        inx
-        stx sz_kept
-        rts
 
 ; getln: a line into lbuf; N=1 on Break
 getln   lda p_lbuf
@@ -1675,10 +1397,6 @@ quiet   dta 0
 newvol  dta 0
 opt     dta 0
 skew    dta 0
-sdx2    dta 0
-mode3   dta 0                  ; Sparta, Atari, EOS
-eosfs   dta 0
-isec    dta a(0)               ; EOSFS: the main directory's name index list
 size    dta 0                  ; (size, g_dens, g_trk, g_hd, g_spt: in this order)
 g_dens  dta 0
 g_trk   dta 0
@@ -1725,9 +1443,8 @@ sk_p    dta 0
 sk_s    dta 0
 bitv    dta b($80,$40,$20,$10,$08,$04,$02,$01)
 szcode  dta b($80,$00,$01)
-mainnm  dta c'MAIN       '
+mainnm  dta c'main'
 boot512 dta b($00,$01,$00,$04,$E0,$07,$4C,$40,$04,$00,$00)
-boot2   dta b($00,$01,$00,$07,$40,$15,$38,$60)
 d_szl   dta b(128,128,0,0,0)
 d_szh   dta b(0,0,1,2,2)
 d_spt   dta b(18,26,18,9,18)
@@ -1740,15 +1457,12 @@ sz_spth dta h(18,26,18,18,9,18,65535)
 sz_tl   dta l(720,1040,720,1440,1440,2880,65535)
 sz_th   dta h(720,1040,720,1440,1440,2880,65535)
 nsizes  equ 7
-keys    dta c'UOSMVZDTHNFB'
-nkeys   equ 12
-m_jmp   dta a(k_unit-1,k_opt-1,k_skew-1,k_mode-1,k_vol-1,k_size-1,k_dens-1)
+keys    dta c'UOSVZDTHNFB'
+nkeys   equ 11
+m_jmp   dta a(k_unit-1,k_opt-1,k_skew-1,k_vol-1,k_size-1,k_dens-1)
         dta a(k_trk-1,k_hd-1,k_nspt-1,k_fmt-1,k_bld-1)
-sz_keep dta 0,0,0,0,0,0
-sz_kept dta 0
 t_onoff dta c'Off',EOL,c'On',EOL,0
 t_skew  dta c'Standard',EOL,c'High Speed',EOL,c'Ultra Speed',EOL,0
-t_mode  dta c'Sparta',EOL,c'Atari',EOL,c'EOS',EOL,0
 t_dens  dta c'Single',EOL,c'Medium',EOL,c'Double',EOL,c'DD 512',EOL
         dta c'High',EOL,0
 t_size  dta c'90K (SD)',EOL,c'127K (ED)',EOL,c'180K (DD)',EOL,c'360K (DD DS)',EOL
@@ -1759,10 +1473,6 @@ p_pcb   dta a(pcb)
 p_npcb  dta a(npcb)
 p_lbuf  dta a(lbuf)
 lbuf    :42 dta 0
-booter
-        .local ldrc
-        icl 'FORMATboot.icl'
-        .endl
 xbooter
         .local ldrcx
 EOSFS_BOOT equ 1

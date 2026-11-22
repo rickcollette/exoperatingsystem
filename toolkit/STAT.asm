@@ -6,6 +6,7 @@
 ; target. A directory's size is the one its own header gives. Without a
 ; name: the usage line; no such entry: error 170.
 U_GETATR smb 'U_GETATR'
+U_ARGV   smb 'U_ARGV'
 U_FAIL   smb 'U_FAIL'
 U_SFAIL  smb 'U_SFAIL'
 U_XFAIL  smb 'U_XFAIL'
@@ -24,12 +25,14 @@ scan     equ $0779
 addpos   equ $0782
 bytbuf   equ $0785
 dentry   equ $0789             ; status, node, size, name, date, time
-path     equ $07A0
+path     equ $0640
 ptr      equ $80
 EOL      equ $9B
 
         blk reloc main
-start   lda #0                 ; no attributes given: any entry
+start   lda #$FF
+        jsr U_ARGV
+        lda #0                 ; no attributes given: any entry
         jsr U_GETATR
         bne s1
         jsr PRINTF
@@ -65,7 +68,7 @@ s3      sta mask+1             ; the size less 1: the mask of a part
         sta mask
 s4      jsr FFIRST
         php
-        ldx #22
+        ldx #43
 s5      lda dentry,x
         sta ent,x
         dex
@@ -129,12 +132,12 @@ s12     txa
         lda types+1,x
         sta typep+1
         jsr PRINTF
-        dta b(EOL),c'Name: [%8s.%3s]',b(EOL)
+        dta b(EOL),c'Name: [%s]',b(EOL)
         dta c'Type: %p',b(EOL)
         dta c'Attr: %s',b(EOL)
         dta c'Node: $%04x/%d on %3s%c:',b(EOL)
         dta c'Size: ',0
-        dta a(ent+6,ent+14,typep,attrs,ent+1,ent+1,devnm,drv)
+        dta a(ent+7,typep,attrs,ent+1,ent+1,devnm,drv)
 
         lda ent                ; a directory: the size from its header
         and #$20
@@ -154,7 +157,7 @@ s13     lda (ptr),y
         beq s14
         iny
         bne s13
-s14     lda #'>'
+s14     lda #'/'
         sta dname,y
         lda #EOL
         sta dname+1,y
@@ -205,7 +208,7 @@ s19     lda ent+3,x
 s20     jsr PRINTF
         dta c'%e bytes (%e sectors)',b(EOL)
         dta c'Date: %2b-%02b-%02b Time: %02b:%02b:%02b',b(EOL,0)
-        dta a(ent+3,secs,ent+17,ent+18,ent+19,ent+20,ent+21,ent+22)
+        dta a(ent+3,secs,ent+38,ent+39,ent+40,ent+41,ent+42,ent+43)
 
         bit ent                ; a link: where it leads
         bvc s21
@@ -253,7 +256,7 @@ secsz   dta 0,0,0
 mask    dta 0,0,0,0
 secs    dta 0,0,0,0
 part    dta 0
-ent     :23 dta 0
+ent     :44 dta 0
 dname   :66 dta 0
 link    :65 dta 0
 

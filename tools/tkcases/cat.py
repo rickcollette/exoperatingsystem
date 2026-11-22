@@ -40,7 +40,7 @@ CASES = {
                        'CAT NOEOL.TXT', 'CAT A.TXT'],
                 files=FILES, prog='CAT.COM',
                 want=rows(A + A + B + num(A + B) + ['tail' + A[0]] + A[1:])),
-    'cat2': case(None, ['CAT ?.TXT', 'CAT SUB>*.*', 'CAT D1:SUB>S.*', 'CAT LONG.TXT',
+    'cat2': case(None, ['CAT ?.TXT', 'CAT SUB/*.*', 'CAT D1:SUB/S.*', 'CAT LONG.TXT',
                         'CAT -n LONG.TXT'],
                  files=FILES, prog='CAT.COM',
                  want=rows(A + B + SUB + ['dat'] + SUB + LONG + num(LONG))),

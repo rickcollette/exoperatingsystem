@@ -31,7 +31,7 @@ addpos   equ $0782
 bytbuf   equ $0785
 memreix  equ $0787
 dentry   equ $0789
-path     equ $07A0
+path     equ $0640
 LMARGN   equ $52
 ROWCRS   equ $54
 COLCRS   equ $55
@@ -703,11 +703,11 @@ ld2     txa
         lda logp-1,x
         cmp #':'
         beq ld_r
-        cmp #'>'
+        cmp #'/'
         beq ld_r
         cmp #BSLASH
         beq ld_r
-        lda #'>'
+        lda #'/'
         sta logp,x
         lda #0
         sta logp+1,x
@@ -1187,7 +1187,7 @@ setcurp jsr logspec
         lda dcur
         beq sc2
         jsr dirsp1
-        lda #'>'
+        lda #'/'
         sta spec,x
         inx
 sc2     ldy #0
@@ -1292,11 +1292,11 @@ dirend  txa
         lda dpath-1,x
         cmp #':'
         beq de_r
-        cmp #'>'
+        cmp #'/'
         beq de_r
         cmp #BSLASH
         beq de_r
-        lda #'>'
+        lda #'/'
         sta dpath,x
         lda #EOL
         sta dpath+1,x

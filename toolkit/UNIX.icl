@@ -16,6 +16,11 @@
 * their count. C=1: a lone -, an unknown letter, a bad number, too many
 * names (the tool's usage).
 unargs  ldy #0
+        sty unfiles
+        sty unlen
+        sty unstop
+        lda #1                 ; argv[0] is the command name
+        sta unargi
 ua0     cpy #UNSWN
         bcs ua1
         lda #0
@@ -23,27 +28,51 @@ ua0     cpy #UNSWN
         iny
         iny
         bne ua0
-ua1     jsr U_GETPAR
-        beq ua_ok
+ua1     jsr unnext
+		jeq ua_ok
+        bit unstop
+		jmi ua_nm
         lda unfiles
-        bne ua_nm
+		jne ua_nm
         lda COMTAB+$21
         cmp #'-'
-        bne ua_nm
+		jne ua_nm
         ldx #1
         lda COMTAB+$21,x
         cmp #EOL
-        beq ua_bad             ; a lone -
+        jeq ua_bad             ; a lone -
+        cmp #'-'
+        bne ua2
+        ldx #2
+        lda COMTAB+$21,x
+        cmp #EOL               ; -- ends option parsing
+        bne ua_help
+        dec unstop
+        jmp ua1
+ua_help ldx #2                 ; --help is the common usage request
+        ldy #0
+uah1    lda COMTAB+$21,x
+        cmp unhelp,y
+        jne ua_bad
+        inx
+        iny
+        cpy #4
+        bcc uah1
+        lda COMTAB+$21,x
+        cmp #EOL
+        jeq ua_bad
+        jne ua_bad
 ua2     lda COMTAB+$21,x
         cmp #EOL
         beq ua1
+        jsr TOLOWER            ; shared ATASCII/case normalization
         jsr undig
         bcc ua_dig
         cmp unval
         beq ua_val
         ldy #1
 ua3     cpy #UNSWN
-        bcs ua_bad
+        jcs ua_bad
         cmp unsw,y
         beq ua4
         iny
@@ -57,17 +86,17 @@ ua4     dey
         inx
         bne ua2
 ua_dig  lda unval              ; -5: only for a tool with a number
-        beq ua_bad
+        jeq ua_bad
         bne ua_v1
 ua_val  inx                    ; -n5, or -n 5
         lda COMTAB+$21,x
         cmp #EOL
         bne ua_v1
-        jsr U_GETPAR
-        beq ua_bad
+        jsr unnext
+        jeq ua_bad
         ldx #0
 ua_v1   jsr unnumw
-        bcc ua1
+		jcc ua1
 ua_bad  sec
         rts
 ua_ok   clc
@@ -77,13 +106,39 @@ ua_nm   ldy unlen              ; a name
 ua5     lda COMTAB+$21,x
         sta unames,y
         iny
-        beq ua_bad
+        jeq ua_bad
         inx
         cmp #EOL
         bne ua5
         sty unlen
         inc unfiles
         jmp ua1
+
+* unnext: the next native argv word in COMFNAM, in the shape expected by
+* the compact option parser.  This is the only copy; names then live in the
+* bounded unames area used by the original streaming tools.
+unnext lda unargi
+        jsr U_ARGV
+        bcs unn_none
+        sta $8E
+        stx $8F
+        sty unalen
+        ldy #0
+unn_cp  cpy unalen
+        beq unn_end
+        lda ($8E),y
+        sta COMTAB+$21,y
+        iny
+        bne unn_cp
+unn_end lda #EOL
+        sta COMTAB+$21,y
+        inc unargi
+        tya
+        rts
+unn_none lda #EOL
+        sta COMTAB+$21
+        lda #0
+        rts
 
 * unnumw: the decimal number at COMTAB+$21+X up to EOL to unnum (0 to
 * 65535); C=1 none or not one
@@ -202,9 +257,13 @@ um1     lda MEMTOP
 a_unames dta a(unames)
 a_unend dta a(unend)
 unfiles dta 0
+unstop  dta 0
+unargi  dta 0
+unalen  dta 0
 unlen   dta 0
 unnum   dta a(0)
 untmp   dta 0
 unbot   dta a(0)
 untop   dta a(0)
 unames  :256 dta 0
+unhelp  dta c'help'

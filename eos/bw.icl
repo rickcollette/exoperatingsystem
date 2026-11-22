@@ -327,8 +327,8 @@ bw_tpl  dta c'S',b($32,$00)    ; $0700 SpartaDOS 3.2 compatible
         dta b(EOL)             ; $07A5 PROMPT
         dta c'D1:',b(EOL)      ; $07A6 the current drive
         dta b(1)               ; $07AA DOSDRV
-        dta c'.BAT',b(EOL)     ; $07AB
-        dta c'.COM',b(EOL)     ; $07B0
+        dta c'.bat',b(EOL)     ; $07AB
+        dta c'.com',b(EOL)     ; $07B0
         dta c'*.*',b(EOL)      ; $07B5
         :BW_N-(*-bw_tpl) dta b(0)
         ert *-bw_tpl<>BW_N

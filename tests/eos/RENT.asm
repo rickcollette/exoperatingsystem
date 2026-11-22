@@ -14,7 +14,7 @@ FLAG     smb 'FLAG'
 ERRNO    smb 'ERRNO'
 
 scan     equ $0779
-path     equ $07A0
+path     equ $0640
 EOL      equ $9B
 
         blk reloc main

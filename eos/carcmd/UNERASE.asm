@@ -56,7 +56,7 @@ s2      lda COMTAB+$21,x
         inx
         cmp #':'
         beq s3
-        cmp #'>'
+        cmp #'/'
         beq s3
         cmp #'<'
         beq s3

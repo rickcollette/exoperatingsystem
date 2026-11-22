@@ -1,5 +1,5 @@
-# EOS (Extendable Operating System): a SpartaDOS X 4.5 drop-in for an
-# AtariMax cartridge, built with MADS
+# EOS (Extendable Operating System): a compact Linux-like Atari 8-bit OS,
+# built with MADS for AtariMax and related cartridges
 #
 #   make            AtariMax, U1MB and SIC! images, test programs, Toolkit ATR
 #   make u1mb       the raw 320 KiB U1MB SDX-slot image
@@ -39,9 +39,55 @@ B       := build
 VERSION_FILE := VERSION
 VERSION_ICL  := $(B)/version.icl
 
-.PHONY: all eos eosfsboot eosfsboottest u1mb sic flash sidetest carttest maint mainttest handbook handbook-pdf u1mbtest u1mbemu ideplusemu ideplustest helpemu apttest atari800test tkx toolkit tktest eostest xbtest eostest-eosfs cartest fmttest mutineer quick eosall release release-dist clean
+.PHONY: help all eos eosfsboot eosfsboottest u1mb sic flash sidetest carttest maint mainttest handbook handbook-pdf u1mbtest u1mbemu ideplusemu ideplustest helpemu apttest atari800test tkx toolkit tktest eostest xbtest eostest-eosfs cartest fmttest mutineer quick eosall release release-dist clean
 .SECONDARY:
 all: eos u1mb sic flash toolkit maint
+
+help:
+	@printf '%s\n' \
+		'EOS build targets' \
+		'  make                     Build all cartridge images, Toolkit and maintenance disk' \
+		'  make eos                 Build EOS.car, EOSFS boot loader and EOS test programs' \
+		'  make u1mb               Build the raw 320 KiB Ultimate1MB image' \
+		'  make sic                Build SIC! and SIC!+ cartridge images' \
+		'  make flash              Build SIDE, SIDE2, MyIDE II and SIDE3 flash images' \
+		'  make toolkit            Build Toolkit programs and build/EOSTK.atr' \
+		'  make maint              Build build/EOSMAINT.atr' \
+		'  make eosfsboot          Build the native EOSFS boot loader' \
+		'' \
+		'Documentation' \
+		'  make handbook           Regenerate docs/EOS_HANDBOOK.md' \
+		'  make handbook-pdf       Build build/EOS_HANDBOOK.pdf (pandoc + pdflatex)' \
+		'' \
+		'Tests' \
+		'  make quick              Run the short emulator smoke set' \
+		'  make eostest-eosfs      Run the native EOSFS matrix and resident-size gate' \
+		'  make eostest            Run all EOS emulator tests' \
+		'  make tktest             Test EOS Toolkit utilities' \
+		'  make cartest            Test CAR commands against reference outputs' \
+		'  make fmttest            Run filesystem-format tests' \
+		'  make eosall             Run every CAR command/driver configuration' \
+		'  make xbtest             Run exBASIC test cases' \
+		'  make u1mbtest           Test U1MB image layout and bank selection' \
+		'  make eosfsboottest      Run host-side EOSFS boot-loader tests' \
+		'  make mainttest          Test the maintenance disk' \
+		'  make atari800test       Run Atari800 XL/130XE/PAL/Rambo smoke tests' \
+		'  make sidetest           Test SIDE/SIDE2/MyIDE II/SIDE3 images' \
+		'  make JOBS=N <test>      Set parallel emulator workers (default: 3)' \
+		'' \
+		'Emulator hardware checks' \
+		'  make u1mbemu            Boot the U1MB image in Altirra' \
+		'  make ideplusemu         Test IDE2.0PLUS startup and warm reset' \
+		'  make ideplustest        Test IDE2.0PLUS flash, partitions and APT' \
+		'  make helpemu            Test U1MB, IDEPLUS and APT manual pages' \
+		'' \
+		'Release and housekeeping' \
+		'  make tkx                Unpack local SDX Toolkit test media' \
+		'  make release            Clean-build and publish VERSION release assets' \
+		'  make release-dist       Assemble DISTRIBUTE/ from existing build outputs' \
+		'  make clean              Remove build/' \
+		'' \
+		'Common overrides: MADS=<assembler> PYTHON=<python> ATR=<atr-tool> JOBS=N'
 
 # ---- EOS -----------------------------------------------------
 # the RAM kernel is assembled first; its labels become an include for the
@@ -49,24 +95,30 @@ all: eos u1mb sic flash toolkit maint
 XD      := eos
 XB      := $(B)/eos
 UB      := $(B)/u1mb
-XBANKS  := boot lib fms cp dev ld lib2 dos2 car
+XBANKS  := boot lib fms cp dev ld lib2 eosx car
 # the CAR: device's commands (eos/carcmd), packed into the banks after the code
-CARCMDS := DIR DIRS APPEND BLOAD CAR CHKDSK CHTD CHVOL COMMAND COMP CON COPY \
-           DATE DELTREE DEV DF DUMP ED FIND FMT FORMAT KEY LESS MAN MAP MDUMP MEM \
-           PEEK POKE PWD RS232 SAVE SETPATHS SIOSET SORTDIR TD TIME UNERASE X ARC MENU APT
+CARCMDS := DIR DIRS APPEND BLOAD CAR CHKDSK CHVOL COMMAND COMP CON \
+           DATE DEV DF DUMP FMT FORMAT KEY LESS MAN MAP MDUMP MEM TAR VIM \
+           PEEK POKE PWD RS232 SAVE SETPATHS SIOSET TD TIME X APT
+# Small Unix-style programs that belong in the default environment as well as
+# on the Toolkit disk. They remain transient .COM files and consume no MEMLO.
+CARUNIX := LS CAT HEAD TAIL WC WHICH BASENAME DIRNAME TOUCH STAT DU CP MV
 # CAR:'s other files: EOS's man pages (eos/carfiles/man, tools/mkmanpages.py)
 # and its data files
-CARDATA := $(sort $(wildcard $(XD)/carfiles/*.MAN)) $(XD)/carfiles/SYSERR.MSG \
+CARRETIRED := ARC CHTD DELTREE ED FIND MENU SORTDIR UNERASE
+CARDATA := $(filter-out $(patsubst %,$(XD)/carfiles/%.MAN,$(CARRETIRED)),\
+            $(sort $(wildcard $(XD)/carfiles/*.MAN))) $(XD)/carfiles/SYSERR.MSG \
            $(XD)/carfiles/CONFIG.SYS $(XD)/carfiles/ALIASES.INI $(XD)/carfiles/RUNEXT.CFG
-CARSYS  := SPARTA SIO ATARIDOS INDUS RTIME8 JIFFY RAMDISK Z COMEXE RUNEXT QUICKED ENV DOSKEY
-# CAR:'s overlays (eos/carovl): SORTDIR.OVL
-CAROVL  := SORTDIR
+CARSYS  := RTIME8 JIFFY RAMDISK Z COMEXE RUNEXT QUICKED ENV DOSKEY
+# CAR: overlays are intentionally empty; legacy SDFS directory mutators are
+# not shipped in the EOSFS-native environment.
+CAROVL  :=
 CARFS   := $(XB)/carfs.bin
 XCAR    := $(B)/EOS.car
 U1MBROM := $(B)/EOS_U1MB.rom
 EOSFSBOOT := $(XB)/EOSFSBOOT.bin
 
-eos: $(XCAR) $(EOSFSBOOT) $(XB)/PRINTF.COM $(XB)/HELLO.COM $(XB)/CIOD.COM $(XB)/FSW.COM $(XB)/IOP.COM $(XB)/FULL.COM $(XB)/CONIO.COM $(XB)/ENV.COM $(XB)/DIRTEST.COM $(XB)/PARSE.COM $(XB)/FAILN.COM $(XB)/MEMT.COM $(XB)/NEST.COM $(XB)/CHILD.COM $(XB)/RENT.COM $(XB)/GFLG.COM $(XB)/CRUNCH.COM $(XB)/DIVT.COM $(XB)/FDT.COM $(XB)/UPARM.COM $(XB)/SLEEPT.COM $(XB)/MEM2.COM $(XB)/PTH.COM $(XB)/SBT.COM $(XB)/DIRW.COM $(XB)/CPY.COM $(XB)/D2W.COM $(XB)/D2X.COM $(XB)/D2E.COM $(XB)/RIN.COM $(XB)/LB.COM $(XB)/CT.COM $(XB)/CIOB.COM $(XB)/CIOB2.COM $(XB)/SVT.COM $(XB)/RDT.COM $(XB)/UEX.COM $(XB)/BIO.COM $(XB)/MXT.COM $(XB)/HX.COM $(XB)/TCK.COM $(XB)/BLD.COM $(XB)/SKT.COM $(XB)/VAL.COM $(XB)/GETP.COM $(XB)/IDET.COM
+eos: $(XCAR) $(EOSFSBOOT) $(XB)/PRINTF.COM $(XB)/HELLO.COM $(XB)/CIOD.COM $(XB)/FSW.COM $(XB)/IOP.COM $(XB)/FULL.COM $(XB)/CONIO.COM $(XB)/ENV.COM $(XB)/DIRTEST.COM $(XB)/PARSE.COM $(XB)/FAILN.COM $(XB)/MEMT.COM $(XB)/NEST.COM $(XB)/CHILD.COM $(XB)/RENT.COM $(XB)/GFLG.COM $(XB)/CRUNCH.COM $(XB)/DIVT.COM $(XB)/FDT.COM $(XB)/UPARM.COM $(XB)/ARGT.COM $(XB)/SLEEPT.COM $(XB)/MEM2.COM $(XB)/PTH.COM $(XB)/SBT.COM $(XB)/DIRW.COM $(XB)/CPY.COM $(XB)/D2W.COM $(XB)/D2X.COM $(XB)/D2E.COM $(XB)/RIN.COM $(XB)/LB.COM $(XB)/CT.COM $(XB)/CIOB.COM $(XB)/CIOB2.COM $(XB)/SVT.COM $(XB)/RDT.COM $(XB)/UEX.COM $(XB)/BIO.COM $(XB)/MXT.COM $(XB)/HX.COM $(XB)/TCK.COM $(XB)/BLD.COM $(XB)/SKT.COM $(XB)/VAL.COM $(XB)/GETP.COM $(XB)/IDET.COM $(XB)/SPG.COM $(XB)/XCL.COM
 
 eosfsboot: $(EOSFSBOOT)
 
@@ -129,8 +181,10 @@ $(XB)/symtab.icl: $(XD)/symbols.txt tools/mksymtab.py $(XB)/kernel.bin $(XB)/lib
 	$(PYTHON) tools/mksymtab.py $< $(XB) $@
 $(XB)/ld.bin: $(XB)/symtab.icl
 
-CARALL  = $(patsubst %,$(XB)/car/%.COM,$(CARCMDS)) $(patsubst %,$(XB)/car/%.SYS,$(CARSYS)) \
-          $(XB)/car/XEP80.SYS $(patsubst %,$(XB)/car/%.OVL,$(CAROVL)) $(CARDATA)
+CARALL  = $(patsubst %,$(XB)/car/%.COM,$(CARCMDS)) $(patsubst %,$(XB)/car/%.COM,$(CARUNIX)) \
+          $(XB)/car/GREP.COM $(XB)/car/CMP.COM \
+          $(patsubst %,$(XB)/car/%.SYS,$(CARSYS)) $(XB)/car/XEP80.SYS \
+          $(patsubst %,$(XB)/car/%.OVL,$(CAROVL)) $(CARDATA)
 $(CARFS): $(XB)/boot.bin $(CARALL) tools/mkcarfs.py
 	$(PYTHON) tools/mkcarfs.py $@ $(XB)/boot.bin 9 $(CARALL)
 
@@ -159,6 +213,19 @@ $(XB)/car/%.OVL: $(XD)/carovl/%.asm $(XD)/carovl/%p.asm
 $(XB)/car/%.COM: $(XD)/carcmd/%.asm $(wildcard $(XD)/carcmd/*.icl)
 	@mkdir -p $(XB)/car
 	cd $(XD)/carcmd && $(MADS) $(notdir $<) $(MFLAGS) -o:$(abspath $@)
+$(XB)/car/VIM.COM: $(XD)/carcmd/ED.asm
+
+$(patsubst %,$(XB)/car/%.COM,$(CARUNIX)): $(XB)/car/%.COM: $(B)/etk/%.COM
+	@mkdir -p $(XB)/car
+	cp $< $@
+
+$(XB)/car/GREP.COM: $(B)/etk/FT.COM
+	@mkdir -p $(XB)/car
+	cp $< $@
+
+$(XB)/car/CMP.COM: $(XB)/car/COMP.COM
+	@mkdir -p $(XB)/car
+	cp $< $@
 
 $(XCAR): $(patsubst %,$(XB)/%.bin,$(XBANKS)) $(CARFS) tools/mkcarx.py
 	$(PYTHON) tools/mkcarx.py $@ $(patsubst %,$(XB)/%.bin,$(XBANKS)) $(CARFS)
@@ -247,7 +314,7 @@ flash: $(FLASHROMS)
 MAINT   := $(B)/EOSMAINT.atr
 maint: $(MAINT)
 $(MAINT): $(U1MBROM) $(XCAR) $(ETK) tools/mkmaint.py tools/emu.py \
-          tools/atrtool.py
+          tools/sdfs.py
 	$(PYTHON) tools/mkmaint.py $@
 mainttest: $(MAINT)
 	$(PYTHON) tools/maint_test.py
@@ -279,8 +346,12 @@ JOBS    ?= 3
 cartest: $(XCAR)
 	$(PYTHON) tools/prun.py -j $(JOBS) car
 
-# the same tests with EOS on EOSFS disks (SDX on SDFS as the oracle)
-eostest-eosfs: $(XCAR)
+# the EOSFS-native conversion matrix; archived SDX/SDFS ABI probes remain
+# individually runnable but are not native compatibility requirements
+resident-size: $(XB)/kernel.bin
+	$(PYTHON) tools/check_resident_size.py $(XB)/kernel.lab
+
+eostest-eosfs: resident-size $(XCAR) $(B)/EOSTK.atr
 	EOS_EOSFS=1 $(PYTHON) tools/prun.py -j $(JOBS) eos
 
 fmttest: $(XCAR)
@@ -293,7 +364,7 @@ mutineer: $(XCAR)
 
 # a smoke set for between steps (a few minutes); the full suites before a commit
 quick: $(XCAR)
-	$(PYTHON) tools/prun.py -j $(JOBS) eos boot-64K boot-320K reset type ciod ciob fsw fsw-512 dirs cfg ramdisk-320K use-banked-128K c4-files dos2-dd
+	$(PYTHON) tools/prun.py -j $(JOBS) eos boot-64K boot-320K reset type ciod ciob fsw fsw-512 dirs cfg ramdisk-320K use-banked-128K c4-files fsinfo-foreign
 	$(PYTHON) tools/prun.py -j $(JOBS) car dev:format-ram dev:ramdisk-three disk:chkdsk-1 files:copy-1
 
 # T1: EOS inside itself, every CAR: command and driver in each
@@ -301,7 +372,7 @@ quick: $(XCAR)
 eosall: $(XCAR)
 	$(PYTHON) tools/eosall.py
 
-eostest: $(XCAR)
+eostest: $(XCAR) $(B)/EOSTK.atr
 	$(PYTHON) tools/prun.py -j $(JOBS) eos
 
 # exBASIC programs (tests/exbasic) on EOS against SDX: the eostest cases
@@ -314,11 +385,14 @@ xbtest: $(XCAR)
 ETK     := $(patsubst toolkit/%.asm,$(B)/etk/%.COM,$(wildcard toolkit/[A-Z]*.asm))
 toolkit: $(B)/EOSTK.atr
 $(B)/EOSTK.atr: $(ETK) $(wildcard toolkit/man/*.txt) tools/mketk.py \
-                 tools/atrtool.py
+		 tools/sdfs.py
 	$(PYTHON) tools/mketk.py $@
 $(B)/etk/%.COM: toolkit/%.asm $(wildcard toolkit/*.icl)
 	@mkdir -p $(B)/etk
-	cd toolkit && $(MADS) $(notdir $<) $(MFLAGS) -i:$(abspath $(B)) -o:$(abspath $@)
+	cd toolkit && $(MADS) $(notdir $<) $(MFLAGS) -i:$(abspath $(B)) \
+		-i:$(abspath $(XD)/carcmd) -o:$(abspath $@)
+$(B)/etk/ED.COM: $(XD)/carcmd/ED.asm
+$(B)/etk/ARC.COM: $(XD)/carcmd/ARC.asm $(wildcard $(XD)/carcmd/ARC*.icl)
 $(B)/etk/XVER.COM: $(VERSION_ICL)
 tktest: $(XCAR) $(ETK)
 	$(PYTHON) tools/prun.py -j $(JOBS) tk

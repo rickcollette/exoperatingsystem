@@ -25,7 +25,7 @@ addpos   equ $0782
 bytbuf   equ $0785
 memreix  equ $0787
 dentry   equ $0789
-path     equ $07A0
+path     equ $0640
 MEMTOP   equ $02E5
 MEMLO    equ $02E7
 EOL      equ $9B
@@ -85,7 +85,7 @@ p_end   ldx plen               ; a directory: it ends with : > or backslash
         lda spec-1,x
         cmp #':'
         jeq g1
-        cmp #'>'
+        cmp #'/'
         jeq g1
         cmp #'<'
         jeq g1

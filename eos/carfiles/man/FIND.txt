@@ -7,8 +7,8 @@ Looks for files matching the name (wildcards allowed) in all directories of all 
 
 Example:
  FIND *.DAT
- A:>SUPER.DAT
- B:>TESTS>TEST.DAT
+ A:/SUPER.DAT
+ B:/TESTS/TEST.DAT
  2 matches found
 
 See also: DIR

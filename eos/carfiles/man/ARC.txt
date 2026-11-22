@@ -30,5 +30,5 @@ Entries are kept in alphabetical order without paths. Methods used: stored, pack
 Examples:
  ARC A DOCS *.DOC D2:*.TXT
  ARC L DOCS
- ARC XH DOCS D3:>OUT>*.*
+ ARC XH DOCS D3:/OUT/*.*
  ARC AGSECRET SAFE NOTES.TXT

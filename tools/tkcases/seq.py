@@ -17,7 +17,7 @@ def seq(first, step, last):
 
 CASES = {
     'seq': case(None, ['SEQ 3', 'SEQ 4 6', 'SEQ 1 3 10', 'SEQ 5 2', 'SEQ 10 4 1', 'SEQ 0',
-                       'SEQ 0 0', 'SEQ $FE $101'],
+                       'SEQ 0 0', "SEQ '$FE' '$101'"],
                 files={}, prog='SEQ.COM',
                 want=seq(1, 1, 3) + seq(4, 1, 6) + seq(1, 3, 10) + seq(5, 1, 2) + seq(10, 4, 1)
                 + seq(0, 1, 0) + seq(254, 1, 257)),

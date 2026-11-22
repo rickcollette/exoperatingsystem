@@ -1,0 +1,7 @@
+ED
+
+ED [file]
+
+Legacy full-screen EOS text editor. It is retained on the Toolkit disk for
+users who prefer its direct editing keys. The default CAR environment ships
+the modal VIM editor instead.

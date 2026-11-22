@@ -9,9 +9,11 @@ the 64K CPU view to the host (see docs/history/EOS_PLAN.md, "Test oracle").
 usage: eos_test.py [test ...]
 """
 import os
+import io
 import re
 import subprocess
 import sys
+import tarfile
 import time
 from pathlib import Path
 
@@ -23,6 +25,7 @@ import sdfs  # noqa: E402
 OUT = emu.BUILD / 'eos-results'
 CAR = emu.BUILD / 'EOS.car'
 LABELS = emu.BUILD / 'eos'
+VERSION = (emu.ROOT / 'VERSION').read_text().strip()
 
 
 def label(name, module='kernel'):
@@ -130,7 +133,7 @@ def t_boot(memsize, reset=False):
     """The cart boots to a prompt: banner, fixed addresses, MEMLO; also after
     a warm reset (Altirra F5) when reset is set."""
     then = (lambda wid: emu.keys(wid, 'F5')) if reset else None
-    m = dump_at('boot-' + memsize + '-reset' * reset, label('k_getline'), memsize=memsize,
+    m = dump_at('boot-' + memsize + '-reset' * reset, label('k_prompt'), memsize=memsize,
                 then=then)
     if m is None:
         return False, 'no breakpoint hit'
@@ -140,8 +143,9 @@ def t_boot(memsize, reset=False):
     check(m[0x0700] == ord('S') and m[0x0701] == 0x45, 'page 7 signature', e)
     check(word(m, 0x2E7) <= 0x18FF, 'MEMLO $%04X' % word(m, 0x2E7), e)
     text = screen(m)
-    check(any('EOS' in s for s in text), 'no banner', e)
-    check(text and any(s == 'D1:' for s in text), 'no prompt', e)
+    banner = 'EOS v%s (c)2026 Rick Collette' % VERSION
+    check(any(s == banner for s in text), 'no exact banner', e)
+    check(text and any(s == '[D1:/]' for s in text), 'no prompt', e)
     return not e, ', '.join(e) or 'MEMLO $%04X' % word(m, 0x2E7)
 
 
@@ -157,20 +161,20 @@ def t_boot_ideplus(reset=False):
     }}]
     then = (lambda wid: emu.keys(wid, 'F5')) if reset else None
     name = 'boot-ideplus-reset' if reset else 'boot-ideplus'
-    m = dump_at(name, label('k_getline'), then=then, devices=devices)
+    m = dump_at(name, label('k_prompt'), then=then, devices=devices)
     if m is None:
         return False, 'no EOS prompt breakpoint with IDE2.0PLUS enabled'
     e = []
     check(word(m, 0x0A) == 0x0A3A, 'DOSVEC $%04X' % word(m, 0x0A), e)
-    check(screen(m) and any(s == 'D1:' for s in screen(m)), 'no prompt', e)
+    check(screen(m) and any(s == '[D1:/]' for s in screen(m)), 'no prompt', e)
     return not e, ', '.join(e) or ('EOS prompt after IDE2.0PLUS reset' if reset else
                                    'EOS prompt with IDE2.0PLUS enabled')
 
 
 def t_hardware_man(page, title):
     """Check that a target-specific hardware page is available through MAN."""
-    with Dumper('man-' + page.lower(), label('k_getline')) as d:
-        m = d.step(lambda wid: emu.type_line(wid, 'MAN ' + page))
+    with Dumper('man-' + page.lower(), label('k_prompt')) as d:
+        m = d.step(lambda wid: emu.type_line(wid, 'man ' + page.lower() + ' /P'))
     if m is None:
         return False, 'MAN did not return to the command prompt'
     lines = screen(m)
@@ -192,6 +196,19 @@ def disk(name, files, size=92160, geo=None):
         geo = (int(n), int(sz))
     if EOSFS and '-sdx' not in name:
         atr = OUT / (name + '.atr')
+        # EOSFS is exact-case and EOS's default startup names are lowercase.
+        # Keep test payload names as authored (many cases deliberately test
+        # uppercase names), but install the four automatically opened files
+        # under their native v2 names.
+        startup = {'CONFIG.SYS': 'config.sys', 'EOSSYS.SYS': 'eossys.sys',
+                   'AUTOEXEC.BAT': 'autoexec.bat', 'EOSAUTO.BAT': 'eosauto.bat'}
+
+        def native_name(path):
+            if path in startup:
+                return startup[path]
+            return path
+
+        files = {native_name(p): data for p, data in files.items()}
         sdfs.build(str(atr), *(geo or (size // 128, 128)), files, eosfs=True)
         return atr
     if geo:
@@ -313,16 +330,29 @@ def our_lines(name, files, commands, geo=None, timeout=60, d2=None, memsize='64K
     """Run commands from AUTOEXEC.BAT on EOS after a CLS; the output lines
     up to the next prompt (blank lines dropped), or None."""
     files = dict(files)
+    # Bare executable lookup defaults to lowercase, while arbitrary filenames
+    # (including data with a .COM suffix) remain exact.  Install only programs
+    # actually invoked by this test under that default name.
+    invoked = {line.lstrip().split(None, 1)[0].lstrip('+-').lower()
+               for line in commands if line.strip()}
+    native = {}
+    for path, data in files.items():
+        stem = Path(path).stem.lower()
+        full = Path(path).name.lower()
+        if '/' not in path and (stem in invoked or full in invoked):
+            path = path.lower()
+        native[path] = data
+    files = native
     # a blank line where SDX's batch has SDXPROBE: the same length
     files['AUTOEXEC.BAT'] = emu.atascii(['CLS'] + list(commands) + [' ' * 8])
     files['SDXPROBE.COM'] = sdxprobe.PROBE.read_bytes()   # same free space as on SDX
     atr = disk(name, files, geo=geo)
     disks = [atr] + ([d2_disk(name + '-d2', d2)] if d2 is not None else [])
-    with Dumper(name, label('k_getline'), disks=disks, timeout=timeout, memsize=memsize) as d:
+    with Dumper(name, label('k_prompt'), disks=disks, timeout=timeout, memsize=memsize) as d:
         m = d.first
     if m is None:
         return None
-    return [s for s in screen(m) if s and s != 'D1:']
+    return [s for s in screen(m) if s and s != '[D1:/]']
 
 
 def disk_tree(atr):
@@ -331,6 +361,275 @@ def disk_tree(atr):
     v = sdfs.Volume(str(atr))
     ents = v.check()
     return {p: (e['status'] & 0x67, e.get('data')) for p, e in ents}, v.errors, v.free
+
+
+def t_tar_native():
+    """CAR:TAR creates real USTAR and reads host-created USTAR."""
+    files = {'Mixed Case.txt': emu.atascii(['hello']), 'second.bin': b'abc'}
+    got = our_lines('tar-native', files,
+                    ['tar c files.tar "Mixed Case.txt" second.bin',
+                     'tar t files.tar', 'rm "Mixed Case.txt"',
+                     'tar x files.tar', 'type "Mixed Case.txt"'])
+    want = ['Mixed Case.txt', 'second.bin',
+            'Skipping existing file: second.bin', 'hello']
+    if got != want:
+        return False, 'Atari create/extract output %r' % got
+    tree, errors, _ = disk_tree(OUT / 'tar-native.atr')
+    archive = tree.get('/files.tar', (0, None))[1]
+    if errors or archive is None:
+        return False, 'archive missing or EOSFS errors %r' % errors
+    try:
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tf:
+            members = [(m.name, m.size, tf.extractfile(m).read()) for m in tf]
+    except tarfile.TarError as exc:
+        return False, 'host rejected USTAR: %s' % exc
+    expected = [('Mixed Case.txt', 6, b'hello\x9b'), ('second.bin', 3, b'abc')]
+    if members != expected:
+        return False, 'host read %r' % (members,)
+
+    out = io.BytesIO()
+    with tarfile.open(fileobj=out, mode='w', format=tarfile.USTAR_FORMAT) as tf:
+        info = tarfile.TarInfo('Host Name.txt')
+        payload = b'from host\x9b'
+        info.size = len(payload)
+        info.mtime = 0
+        tf.addfile(info, io.BytesIO(payload))
+    got = our_lines('tar-host', {'host.tar': out.getvalue()},
+                    ['tar t host.tar', 'tar x host.tar', 'type "Host Name.txt"'])
+    if got != ['Host Name.txt', 'from host']:
+        return False, 'host USTAR read output %r' % got
+
+    # Native recursive creation writes explicit directory members and keeps
+    # the tree rooted at the argument's basename.
+    tree_files = {'tree/one.txt': b'one', 'tree/sub/two.bin': b'two'}
+    got = our_lines('tar-tree', tree_files, ['tar c tree.tar tree', 'tar t tree.tar'])
+    if got != ['tree', 'tree/one.txt', 'tree/sub', 'tree/sub/two.bin']:
+        return False, 'recursive list output %r' % got
+    image, errors, _ = disk_tree(OUT / 'tar-tree.atr')
+    raw = image.get('/tree.tar', (0, None))[1]
+    if errors or raw is None:
+        return False, 'recursive archive missing/errors %r' % errors
+    try:
+        with tarfile.open(fileobj=io.BytesIO(raw)) as tf:
+            names = [(m.name, m.isdir(), m.mtime) for m in tf]
+            payloads = {m.name: tf.extractfile(m).read() for m in tf if m.isfile()}
+    except tarfile.TarError as exc:
+        return False, 'recursive archive rejected: %s' % exc
+    if names[:4] != [('tree', True, names[0][2]),
+                     ('tree/one.txt', False, names[1][2]),
+                     ('tree/sub', True, names[2][2]),
+                     ('tree/sub/two.bin', False, names[3][2])]:
+        return False, 'recursive members %r' % (names,)
+    if payloads != {'tree/one.txt': b'one', 'tree/sub/two.bin': b'two'}:
+        return False, 'recursive payloads %r' % payloads
+    if not all(mtime > 0 for _, _, mtime in names):
+        return False, 'creation timestamps were not emitted: %r' % (names,)
+
+    # Host directory entries and timestamps are restored on EOSFS.
+    out = io.BytesIO()
+    stamp = 1_704_164_645       # 2024-01-02 03:04:05 UTC
+    with tarfile.open(fileobj=out, mode='w', format=tarfile.USTAR_FORMAT) as tf:
+        di = tarfile.TarInfo('hostdir')
+        di.type = tarfile.DIRTYPE
+        di.mtime = stamp
+        tf.addfile(di)
+        fi = tarfile.TarInfo('hostdir/file.txt')
+        fi.size = 4
+        fi.mtime = stamp
+        tf.addfile(fi, io.BytesIO(b'data'))
+    got = our_lines('tar-host-tree', {'tree.tar': out.getvalue()},
+                    ['tar x tree.tar', 'type hostdir/file.txt'])
+    if got != ['data']:
+        return False, 'host tree extraction output %r' % got
+    extracted, errors, _ = disk_tree(OUT / 'tar-host-tree.atr')
+    if errors or extracted.get('/hostdir/file.txt', (0, None))[1] != b'data':
+        return False, 'host tree extraction errors %r' % errors
+    v = sdfs.Volume(str(OUT / 'tar-host-tree.atr'))
+    entries = dict(v.check())
+    if entries['/hostdir/file.txt']['date'] != (2, 1, 24) or \
+            entries['/hostdir/file.txt']['time'] != (3, 4, 5):
+        return False, 'timestamp not restored: %r %r' % (
+            entries['/hostdir/file.txt']['date'], entries['/hostdir/file.txt']['time'])
+
+    def v7(name, data=b'', mtime=stamp, kind=b'0'):
+        h = bytearray(512)
+        h[:len(name)] = name.encode('ascii')
+        h[100:108] = b'0000644\0'
+        h[108:116] = b'0000000\0'
+        h[116:124] = b'0000000\0'
+        h[124:136] = ('%011o\0' % len(data)).encode('ascii')
+        h[136:148] = ('%011o\0' % mtime).encode('ascii')
+        h[148:156] = b'        '
+        h[156:157] = kind
+        h[148:156] = ('%06o\0 ' % sum(h)).encode('ascii')
+        return bytes(h) + data + bytes((-len(data)) % 512)
+
+    old = v7('old.txt', b'v7') + bytes(1024)
+    got = our_lines('tar-v7', {'old.tar': old},
+                    ['tar t old.tar', 'tar x old.tar', 'type old.txt'])
+    if got != ['old.txt', 'v7']:
+        return False, 'V7 read output %r' % got
+
+    # Unsafe paths, collisions, checksum damage, and truncation are all
+    # explicit and must not create or replace anything.
+    hostile = (v7('../escape', b'bad') + v7('/absolute', b'bad') +
+               v7('safe.txt', b'replace') + bytes(1024))
+    got = our_lines('tar-unsafe', {'unsafe.tar': hostile, 'safe.txt': b'keep'},
+                    ['tar x unsafe.tar'])
+    if got != ['Skipping unsafe name: ../escape',
+               'Skipping unsafe name: /absolute',
+               'Skipping existing file: safe.txt']:
+        return False, 'unsafe/collision output %r' % got
+    unsafe_tree, errors, _ = disk_tree(OUT / 'tar-unsafe.atr')
+    if errors or unsafe_tree.get('/safe.txt', (0, None))[1] != b'keep' or \
+            '/escape' in unsafe_tree or '/absolute' in unsafe_tree:
+        return False, 'unsafe extraction changed disk: %r' % errors
+    damaged = bytearray(v7('bad.txt', b'x') + bytes(1024))
+    damaged[0] ^= 1
+    got = our_lines('tar-malformed', {'bad.tar': bytes(damaged),
+                                      'short.tar': v7('short.txt', b'x')[:700]},
+                    ['tar t bad.tar', 'tar t short.tar'])
+    if got != ['Invalid tar archive', 'short.txt', 'Invalid tar archive']:
+        return False, 'malformed archive output %r' % got
+    return True, ('USTAR trees/extraction/collisions/timestamps, V7, and '
+                  'malformed/unsafe regressions pass')
+
+
+def t_toolkit_disk():
+    """The shipped Toolkit is native EOSFS and a lowercase program loads from D1:."""
+    atr = emu.BUILD / 'EOSTK.atr'
+    volume = sdfs.Volume(str(atr))
+    entries = dict(volume.check())
+    if not volume.eosfs or volume.errors:
+        return False, 'not clean EOSFS: eosfs=%s errors=%r' % (volume.eosfs, volume.errors)
+    if '/basename.com' not in entries or '/man/ed.man' not in entries:
+        return False, 'native lowercase Toolkit entries missing'
+    with Dumper('toolkit-disk', label('k_prompt'), disks=[atr], memsize='64K') as d:
+        if d.first is None:
+            return False, 'Toolkit disk did not reach the EOS prompt'
+        m = d.step(lambda wid: emu.type_keys(wid, 'D1:basename /alpha/beta.txt'))
+    lines = [x for x in screen(m) if x] if m else []
+    if 'beta.txt' not in lines:
+        return False, 'D1: program load failed: %r' % lines
+    return True, 'native EOSFS image mounted and D1:basename executed'
+
+
+def t_vim_interactive():
+    """Drive the real modal editor through Altirra's keyboard on a 64K EOSFS boot."""
+    lines = ['line%02d\tvalue' % i for i in range(1, 31)]
+
+    files = {
+        'lines.txt': ('\n'.join(lines) + '\n').encode('ascii'),
+        'ops.txt': b'ab\ncd\n',
+        'keep.txt': b'keep\r\nthis\r\n',
+        'bad.txt': b'bad\x00text\n',
+        'too-long.txt': b'x' * 256 + b'\n',
+        'limit.txt': b'l' * 255 + b'\n',
+        'AUTOEXEC.BAT': emu.atascii(['CLS']),
+    }
+    atr = disk('vim-interactive', files, geo=(1440, 128))
+
+    def chars(wid, text):
+        for c in text:
+            if c == '\n':
+                emu.keys(wid, 'Return')
+            elif c in emu.KEYSYM:
+                emu.keys(wid, emu.KEYSYM[c])
+            else:
+                subprocess.run(['xdotool', 'type', '--window', wid, c],
+                               capture_output=True)
+                time.sleep(0.12)
+
+    def command(wid, text, confirm=False):
+        # Altirra/X11 intermittently drops SHIFT from ':'.  VIM accepts the
+        # same physical key unshifted for automation; real ':' remains the
+        # documented command key.
+        emu.keys(wid, 'semicolon')
+        chars(wid, text)
+        emu.keys(wid, 'Return')
+        time.sleep(0.8)
+        if confirm:
+            emu.keys(wid, 'y')
+
+    def edit_new(wid):
+        emu.type_line(wid, 'vim new.txt')
+        time.sleep(1)
+        emu.keys(wid, 'i')
+        chars(wid, 'alpha')
+        emu.keys(wid, 'Tab')
+        chars(wid, 'tab\nbeta')
+        emu.keys(wid, 'Escape')
+        command(wid, 'wq')
+
+    def edit_ops(wid):
+        emu.type_line(wid, 'vim ops.txt')
+        time.sleep(1)
+        # x deleting a newline, x deleting a byte, dd, o, and a multiline
+        # INSERT session must each be completely reversible by one u.
+        emu.keys(wid, 'shift+4', 'x', 'u', '0', 'x', 'u', 'd', 'd', 'u', 'o')
+        chars(wid, 'new')
+        emu.keys(wid, 'Escape', 'u', 'i')
+        chars(wid, 'X\nY')
+        emu.keys(wid, 'Escape', 'u', '0', 'a', 'z', 'Escape', 'u',
+                 'Right', 'Down', 'Up', 'Left', 'i', 'Right', 'Left',
+                 'Down', 'Up', 'Escape')
+        command(wid, 'w')
+        emu.keys(wid, 'n')             # cancellation must retain dirty state
+        time.sleep(0.5)
+        command(wid, 'wq', confirm=True)
+
+    def edit_lines(wid):
+        emu.type_line(wid, 'vim lines.txt')
+        time.sleep(1)
+        emu.keys(wid, 'shift+g', '0', 'i')
+        chars(wid, 'last-')
+        emu.keys(wid, 'Escape', 'g', 'g', 'y', 'y', 'p', 'd', 'd', 'u')
+        emu.type_keys(wid, '/last-line30')
+        emu.keys(wid, 'n')             # wraps to the same sole match
+        command(wid, 'wq', confirm=True)
+
+    def failed_edit(wid):
+        emu.type_line(wid, 'vim keep.txt')
+        time.sleep(1)
+        command(wid, 'e bad.txt')      # validation failure must change nothing
+        command(wid, 'e too-long.txt') # the 255-byte line limit is transactional
+        command(wid, 'wq', confirm=True)
+
+    def line_limit(wid):
+        emu.type_line(wid, 'vim limit.txt')
+        time.sleep(1)
+        emu.keys(wid, 'shift+4', 'i', 'z', 'Escape')
+        command(wid, 'wq', confirm=True)
+
+    with Dumper('vim-interactive', label('k_prompt'), disks=[atr], memsize='64K',
+                timeout=90) as d:
+        if d.first is None:
+            return False, 'no initial 64K command prompt'
+        for action in (edit_new, edit_ops, edit_lines, failed_edit, line_limit):
+            if d.step(action) is None:
+                return False, 'editor did not return to the command prompt'
+
+    tree, errors, _ = disk_tree(atr)
+    if errors:
+        return False, 'EOSFS errors: %r' % errors
+    got_new = tree.get('/new.txt', (0, None))[1]
+    got_ops = tree.get('/ops.txt', (0, None))[1]
+    got_keep = tree.get('/keep.txt', (0, None))[1]
+    got_bad = tree.get('/bad.txt', (0, None))[1]
+    got_lines = tree.get('/lines.txt', (0, None))[1]
+    got_limit = tree.get('/limit.txt', (0, None))[1]
+    want_lines = ('line01\tvalue\nline01\tvalue\n' +
+                  '\n'.join(lines[1:-1]) + '\nlast-line30\tvalue\n').encode('ascii')
+    expected = [(got_new, b'alpha\ttab\nbeta\n', 'new LF/tab file'),
+                (got_ops, b'ab\ncd\n', 'undo operations'),
+                (got_keep, b'keep\r\nthis\r\n', 'failed :e/CRLF'),
+                (got_bad, b'bad\x00text\n', 'rejected input'),
+                (got_limit, b'l' * 255 + b'\n', '255-byte/full-line handling'),
+                (got_lines, want_lines, 'normal/search/scroll/tab')]
+    for got, want, what in expected:
+        if got != want:
+            return False, '%s: got %r, want %r' % (what, got, want)
+    return True, '64K live keyboard modal/edit/undo/search/scroll/LF/CRLF acceptance'
 
 
 def multi(name, files, groups, **kw):
@@ -359,7 +658,7 @@ def oracle(name, files, commands, disk=False, geo=None, d2=None, memsize='64K', 
     if disk and want is not None and got is not None:
         st, se, sfree = disk_tree(OUT / (name + '-sdx.atr'))
         ot, oe, ofree = disk_tree(OUT / (name + '.atr'))
-        for p in ('/SDXPROBE.COM', '/AUTOEXEC.BAT'):
+        for p in ('/SDXPROBE.COM', '/AUTOEXEC.BAT', '/autoexec.bat'):
             st.pop(p, None)
             ot.pop(p, None)
         if oe:
@@ -388,12 +687,22 @@ def oracle(name, files, commands, disk=False, geo=None, d2=None, memsize='64K', 
     return True, '%d lines' % len(want)
 
 
+def native_output(name, files, commands, want, memsize='64K'):
+    """Check behavior that is intentionally native EOS, with no SDX oracle."""
+    got = our_lines(name, files, commands, memsize=memsize)
+    if got == want:
+        return True, '%d lines' % len(want)
+    (OUT / (name + '.diff')).write_text('EXPECTED:\n%s\nEOS:\n%s\n' %
+                                         ('\n'.join(want), '\n'.join(got or [])))
+    return False, 'output differs, see %s.diff' % name
+
+
 TYPE_FILES = {
     'HELLO.TXT': emu.atascii(['Hello from D1', 'second line', 'third']),
     'SUB/INNER.TXT': emu.atascii(['inner file']),
     'SUB/DEEP/LAST.TXT': emu.atascii(['two levels down']),
 }
-TYPE_CMDS = ['TYPE HELLO.TXT', 'TYPE SUB>INNER.TXT', 'TYPE >SUB>DEEP>LAST.TXT',
+TYPE_CMDS = ['TYPE HELLO.TXT', 'TYPE SUB/INNER.TXT', 'TYPE /SUB/DEEP/LAST.TXT',
              'TYPE NONE.TXT', 'TYPE D2:X']
 
 
@@ -417,7 +726,7 @@ MILESTONE_FILES = {
     'WC.COM': tk('UTILS/FILEUTIL/WC/WC.COM'),
     'HELLO.TXT': TEXT,
 }
-MILESTONE_CMDS = ['HEXDEC 1234', 'HEXDEC $FF', 'HEXDEC 4294967295', 'HEXDEC',
+MILESTONE_CMDS = ['HEXDEC 1234', 'HEXDEC 255', 'HEXDEC 4294967295', 'HEXDEC',
                   'WC HELLO.TXT', 'WC /L HELLO.TXT', 'WC /CW HELLO.TXT']
 
 
@@ -457,10 +766,28 @@ CUR_CMDS = ['B:', 'TYPE ONLY2.TXT', 'HEXDEC 4660', 'TYPE SUB>IN2.TXT', 'A:',
             'DA:', 'TYPE HELLO.TXT']
 
 def t_prompt():
-    """The prompt after a drive change, as SDX's default $PROMPT (D$N) shows
-    it on real SDX (screenshots, 2026-11-02): DJ: for drive 10, DCAR1:."""
+    """The bracketed prompt includes the active drive and directory."""
     got = [our_lines('prompt-' + c[:-1], {}, [c]) for c in ('J:', 'CAR:')]
-    return got == [['DJ:'], ['DCAR1:']], repr(got)
+    nested = our_lines('prompt-dir', {}, ['mkdir rick', 'cd rick', 'pwd'])
+    want = [['[DJ:/]'], ['[DCAR1:/]']]
+    return got == want and nested == ['D1:/rick/', '[D1:/rick/]'], repr((got, nested))
+
+
+def t_mem_bytes():
+    """Plain MEM reports main RAM and each free extended bank in bytes."""
+    results = []
+    for size in ('64K', '320K'):
+        lines = our_lines('mem-bytes-' + size.lower(), {}, ['mem'], memsize=size)
+        main = next((re.fullmatch(r'Free: (\d+) main bytes', x) for x in (lines or [])
+                     if x.startswith('Free: ')), None)
+        banks = next((re.fullmatch(r'(\d+) Ext banks free \((\d+) bytes\)', x)
+                      for x in (lines or []) if 'Ext banks free' in x), None)
+        if not main or int(main.group(1)) <= 0 or not banks:
+            return False, '%s output %r' % (size, lines)
+        if int(banks.group(2)) != int(banks.group(1)) * 16384:
+            return False, '%s bank conversion %r' % (size, banks.groups())
+        results.append((size, main.group(1), banks.groups()))
+    return True, repr(results)
 
 
 DIRS_FILES = {
@@ -597,7 +924,7 @@ def t_eosdirty():
                 '30 GOTO 30', 'RUN']
         files = {'GO.TXT': emu.atascii(prog), 'AUTOEXEC.BAT': emu.atascii(['BASIC /I <<D1:GO.TXT'])}
         atr = disk('eosdirty-1', files, geo=(720, 256))
-        with Dumper('eosdirty-1', label('k_getline'), disks=[atr], timeout=40):
+        with Dumper('eosdirty-1', label('k_prompt'), disks=[atr], timeout=40):
             pass
         img = bytearray(atr.read_bytes())
         if img[16 + 32] != 0x46:
@@ -610,7 +937,7 @@ def t_eosdirty():
         img3[16 + 32] = 0x46
         img3[16 + 13] = (img3[16 + 13] + 7) & 0xFF
         atr3.write_bytes(bytes(img3))
-        with Dumper('eosdirty-2', label('k_getline'), disks=[atr3], timeout=60) as d:
+        with Dumper('eosdirty-2', label('k_prompt'), disks=[atr3], timeout=60) as d:
             m = d.first
         if m is None:
             return False, 'no prompt after the checked mount'
@@ -682,14 +1009,28 @@ def t_runext():
     return True, '%d lines' % len(got)
 
 
+def t_history_default():
+    """Four Up presses reach the oldest entry in the default history."""
+    atr = disk('history-default', {}, geo=(720, 256))
+    with Dumper('history-default', label('k_prompt'), disks=[atr], timeout=30) as d:
+        if d.first is None:
+            return False, 'no initial prompt'
+        for n in range(1, 5):
+            if d.step(lambda wid, n=n: emu.type_keys(wid, 'echo history-%d' % n)) is None:
+                return False, 'command %d did not return' % n
+        m = d.step(lambda wid: emu.keys(wid, 'Up', 'Up', 'Up', 'Up', 'Return'))
+    lines = [x for x in screen(m) if x] if m else []
+    count = lines.count('history-1')
+    return count == 2, '%d oldest-entry outputs: %r' % (count, lines[-8:])
+
+
 def t_doskey():
     """C5: CAR:DOSKEY.SYS: a typed line recalled with the up arrow runs
     again; an alias (aliases file) runs its command; with /X an empty line
-    lists the directory; TAB completes TYPE AL to TYPE AL.INI (the screen
-    checked after that, the rest in doskey's earlier screenshot). Typed into a live prompt, the screen read from a
+    lists the directory. Typed into a live prompt, the screen is read from a
     dump taken at the vertical blank."""
-    files = {'AL.INI': emu.atascii(['E1=ECHO aliased']),
-             'AUTOEXEC.BAT': emu.atascii(['DOSKEY.SYS AL.INI /X'])}
+    files = {'al.ini': emu.atascii(['e1=echo aliased >alias.out']),
+             'AUTOEXEC.BAT': emu.atascii(['doskey.sys al.ini /X'])}
     atr = disk('doskey', files, geo=(720, 256))
     mem = OUT / 'doskey.bin'
     mem.unlink(missing_ok=True)
@@ -710,31 +1051,28 @@ def t_doskey():
         time.sleep(4)
         emu.type_line(wid, 'CLS')
         time.sleep(2)
-        for c in 'TYPE AL':            # a key at a time: under load, a faster
-            subprocess.run(['xdotool', 'type', '--window', wid, c],   # burst loses keys
-                           capture_output=True)
-            time.sleep(0.15)
-        emu.keys(wid, 'Tab')
-        emu.keys(wid, 'Return')
+        emu.type_line(wid, 'type alias.out')
         time.sleep(3)
         emu.screenshot(OUT / 'doskey.png')
         m = wait_dump(mem, 10)
     if m is None:
         return False, 'no dump'
     lines = [x for x in screen(m) if x]
-    ok = any('TYPE AL.INI' in x.upper() for x in lines) and 'E1=ECHO aliased' in lines
+    ok = any('TYPE ALIAS.OUT' in x.upper() for x in lines) and 'aliased' in lines
     return ok, '%r' % lines
 
 
 def t_builddir():
     """BUILDDIR (13.2): a soft format of D2: with a label, through EOS's
-    CAR:FORMAT; DIR D2: then shows an empty disk with that volume name."""
-    got = our_lines('builddir', {'BLD.COM': ours('BLD.COM')}, ['BLD', 'DIR D2:'],
+    CAR:FORMAT; the result is a clean empty EOSFS v2 image."""
+    got = our_lines('builddir', {'bld.com': ours('BLD.COM')}, ['bld'],
                     geo=(720, 256), d2={'OLD.TXT': TEXT})
     if got is None:
         return False, 'no result'
-    ok = 'done' in got and any('TESTLAB' in x for x in got) and not any('OLD' in x for x in got)
-    return ok, '%r' % got[-8:]
+    vol = sdfs.Volume(str(OUT / 'builddir-d2.atr'))
+    entries = vol.check()
+    ok = 'done' in got and vol.eosfs and vol.name == 'TESTLAB' and not entries and not vol.errors
+    return ok, 'output=%r label=%r entries=%r errors=%r' % (got, vol.name, entries, vol.errors)
 
 
 def t_hssio():
@@ -766,7 +1104,7 @@ def t_hssio():
 
 def t_rs232_850():
     """CAR:RS232 downloads and initializes R: from an emulated Atari 850."""
-    m = dump_at('rs232-850', label('k_getline'), timeout=60,
+    m = dump_at('rs232-850', label('k_prompt'), timeout=60,
                 then=lambda wid: emu.type_line(wid, 'RS232'),
                 devices=[{'tag': '850', 'params': {'baudex': True, 'emulevel': 2}}])
     if m is None:
@@ -790,7 +1128,7 @@ def xf_sio(name, emu_mode, word):
     # (the log closed at the prompt: k_getline's second instruction, as
     # the first has our_lines's breakpoint)
     os.environ['EMU_DBG'] = '.logopen %s|lfe diskcmd|bp $%04X ".logclose; g"' % (
-        emu.win(log), label('k_getline') + 2)
+        emu.win(log), label('k_prompt'))
     try:
         got = our_lines(name, {'A.TXT': TEXT, 'BIO.COM': ours('BIO.COM')},
                         ['SIOSET 1 ' + word, 'TYPE A.TXT', 'COPY A.TXT B.TXT', 'BIO'],
@@ -844,7 +1182,7 @@ def t_xep80():
     atr = disk('xep80', files, geo=(720, 256))
     st = OUT / 'xep80.atstate2'
     st.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".savestate %s"' % (label('k_getline'), emu.win(st))]
+    cmds = ['bp $%04X ".savestate %s"' % (label('k_prompt'), emu.win(st))]
     with emu.Session(OUT, [atr], cart=CAR, name='xep80', debugcmds=cmds,
                      devices=[{'tag': 'xep80', 'params': {'port': 2}}]):
         deadline = time.monotonic() + 60
@@ -858,7 +1196,7 @@ def t_xep80():
     rows = [bytes(c & 0x7F for c in vram[r:r + 80]).decode('latin-1').rstrip('\x1b\x00 ')
             for r in range(0, len(vram), 256)]
     rows = [r for r in rows if r.strip()]
-    want = ['for SpartaDOS X loaded', 'HELLO FROM EOS', 'AUTOEXEC BAT', 'FREE SECTORS', 'D1:']
+    want = ['for SpartaDOS X loaded', 'HELLO FROM EOS', 'AUTOEXEC BAT', 'FREE SECTORS', '[D1:/]']
     miss = [w for w in want if not any(w in r for r in rows)]
     return not miss, 'missing %r in %r' % (miss, rows[:6]) if miss else '%d rows' % len(rows)
 
@@ -880,6 +1218,280 @@ def t_pipes():
     return free(want) == free(got), '%r' % got
 
 
+def t_pipe_cleanup():
+    """Every shell-owned pipeline file is removed after parser, loader,
+    command, and disk-full failures.  Inspect the resulting EOSFS image so a
+    hidden or partially-created temporary cannot evade a directory wildcard.
+    """
+    cases = [
+        ('parse', {}, ['echo "bad | cat', 'echo end'], '182 Path too long'),
+        ('load', {}, ['echo ok | nosuch', 'echo end'], '170 File not found'),
+        ('command', {}, ['cat missing | cat', 'echo end'], '170 File not found'),
+        ('full', {'fill.bin': b'x' * 90500},
+         ['echo 1234567890 | cat', 'echo end'], '162 Disk full'),
+    ]
+    failures = []
+    for label_, files, commands, expected in cases:
+        name = 'pipe-cleanup-' + label_
+        got = our_lines(name, files, commands)
+        paths = disk_tree(OUT / (name + '.atr'))[0]
+        leaked = [p for p in paths if p.rsplit('/', 1)[-1].lower().startswith('pipe')]
+        if got is None or expected not in got or not got or got[-1] != 'end' or leaked:
+            failures.append('%s: output=%r leaked=%r' % (label_, got, leaked))
+    return not failures, '; '.join(failures) if failures else 'parse/load/command/full clean'
+
+
+def t_fsinfo_foreign():
+    """The transient inspector bypasses the resident EOSFS mount and walks
+    nested DOS2/MyDOS and SDFS directories through physical raw reads."""
+    import dos2
+    com = (emu.BUILD / 'etk/FSINFO.COM').read_bytes()
+    tree = {'A.TXT': b'a', 'SUB/IN.TXT': b'i', 'SUB/DEEP/LAST.DAT': b'z'}
+    cases = []
+    mydos = OUT / 'fsinfo-mydos-src.atr'
+    dos2.build(str(mydos), 720, 128, tree)
+    cases.append(('mydos', mydos, 'MyDOS, VTOC revision 2'))
+    sparta = OUT / 'fsinfo-sdfs-src.atr'
+    sdfs.build(str(sparta), 720, 128, tree, eosfs=False)
+    cases.append(('sdfs', sparta, 'SDFS revision $21'))
+    tail = ['A.TXT', 'SUB/', 'SUB/IN.TXT', 'SUB/DEEP/', 'SUB/DEEP/LAST.DAT']
+    failures = []
+    for label_, image, heading in cases:
+        got = our_lines('fsinfo-' + label_, {'fsinfo.com': com},
+                        ['fsinfo D2:'], d2=image)
+        if got is None or heading not in got or got[-5:] != tail:
+            failures.append('%s: %r' % (label_, got))
+    return not failures, '; '.join(failures) if failures else 'DOS/MyDOS and SDFS recursive'
+
+
+def t_fscheck_foreign():
+    """Transient structural checking accepts clean media and refuses a
+    deliberately cross-linked data sector in both foreign formats."""
+    import dos2
+
+    def sector_offset(seclen, sector):
+        if seclen <= 256 and sector <= 3:
+            return 16 + (sector - 1) * 128
+        if seclen <= 256:
+            return 16 + 384 + (sector - 4) * seclen
+        return 16 + (sector - 1) * seclen
+
+    com = (emu.BUILD / 'etk/FSINFO.COM').read_bytes()
+    images = []
+
+    dp = OUT / 'fscheck-dos-src.atr'
+    dos2.build(str(dp), 720, 128, {'A.TXT': b'a', 'B.TXT': b'b'})
+    raw = bytearray(dp.read_bytes())
+    root = sector_offset(128, 361)
+    raw[root + 16 + 3:root + 16 + 5] = raw[root + 3:root + 5]
+    dp.write_bytes(raw)
+    images.append(('dos-crosslink', dp, 'cross-linked'))
+
+    sp = OUT / 'fscheck-sdfs-src.atr'
+    sdfs.build(str(sp), 720, 128, {'A.TXT': b'a', 'B.TXT': b'b'}, eosfs=False)
+    vol = sdfs.Volume(str(sp))
+    maps = [e['map'] for _, e in vol.walk() if not e['status'] & sdfs.ST_DIR]
+    raw = bytearray(sp.read_bytes())
+    a = sector_offset(128, maps[0]) + 4
+    b = sector_offset(128, maps[1]) + 4
+    raw[b:b + 2] = raw[a:a + 2]
+    sp.write_bytes(raw)
+    images.append(('sdfs-crosslink', sp, 'cross-linked'))
+
+    dl = OUT / 'fscheck-dos-loop-src.atr'
+    dos2.build(str(dl), 720, 128, {'LOOP.DAT': bytes(300)})
+    dv = dos2.Dos2(dl)
+    index, entry = next(dv.entries())
+    first = entry[3] | entry[4] << 8
+    raw = bytearray(dl.read_bytes())
+    o = sector_offset(128, first)
+    raw[o + 125] = (index << 2) | (first >> 8)
+    raw[o + 126] = first & 0xff
+    dl.write_bytes(raw)
+    images.append(('dos-loop', dl, 'loop'))
+
+    sl = OUT / 'fscheck-sdfs-loop-src.atr'
+    sdfs.build(str(sl), 720, 128, {'LOOP.DAT': bytes(300)}, eosfs=False)
+    sv = sdfs.Volume(str(sl))
+    fmap = next(e['map'] for _, e in sv.walk() if not e['status'] & sdfs.ST_DIR)
+    raw = bytearray(sl.read_bytes())
+    o = sector_offset(128, fmap)
+    raw[o:o + 2] = bytes((fmap & 0xff, fmap >> 8))
+    sl.write_bytes(raw)
+    images.append(('sdfs-loop', sl, 'loop'))
+
+    failures = []
+    for label_, image, expected in images:
+        got = our_lines('fscheck-' + label_, {'fsinfo.com': com},
+                        ['fsinfo --check D2:'], d2=image, timeout=30)
+        joined = ' '.join(got or [])
+        if expected not in joined or 'Filesystem OK' in joined:
+            failures.append('%s: %r' % (label_, got))
+    return not failures, ('; '.join(failures) if failures else
+                          'cross-links and map/data loops rejected')
+
+
+def t_fsimport_foreign():
+    """Import nested trees from both foreign formats and refuse to overwrite
+    an existing exact EOSFS destination."""
+    import dos2
+    com = (emu.BUILD / 'etk/FSINFO.COM').read_bytes()
+    tree = {'A.TXT': emu.atascii(['alpha']),
+            'SUB/IN.TXT': emu.atascii(['inner'])}
+    images = []
+    dp = OUT / 'fsimport-dos-src.atr'
+    dos2.build(str(dp), 720, 128, tree)
+    images.append(('dos', dp))
+    sp = OUT / 'fsimport-sdfs-src.atr'
+    sdfs.build(str(sp), 720, 128, tree, eosfs=False)
+    images.append(('sdfs', sp))
+    failures = []
+    for label_, image in images:
+        got = our_lines('fsimport-' + label_, {'fsinfo.com': com},
+                        ['mkdir imported', 'fsinfo --import D2: imported',
+                         'type imported/A.TXT', 'type imported/SUB/IN.TXT'],
+                        d2=image, timeout=40)
+        if got is None or got[-2:] != ['alpha', 'inner']:
+            failures.append('%s: %r' % (label_, got))
+    got = our_lines('fsimport-collision', {'fsinfo.com': com},
+                    ['mkdir imported', 'echo local >imported/A.TXT',
+                     'fsinfo --import D2: imported', 'type imported/A.TXT'],
+                    d2=dp, timeout=40)
+    if got is None or 'Import collision: imported/A.TXT' not in got or got[-1] != 'local':
+        failures.append('collision: %r' % got)
+    return not failures, '; '.join(failures) if failures else 'trees imported; collision refused'
+
+
+def t_fsexport_foreign():
+    """Explicit transient export writes one root file to clean DOS2/MyDOS
+    and SDFS media, reports a lossy 8.3 mapping before the write, refuses a
+    collision, and leaves unsupported sector geometry byte-for-byte intact.
+    """
+    import dos2
+    com = (emu.BUILD / 'etk/FSEXPORT.COM').read_bytes()
+    source = 'MixedLongName.txt'
+    payload = bytes((i * 37 + 11) & 0xff for i in range(400))
+    files = {'fsexport.com': com, source: payload}
+    failures = []
+
+    dp = OUT / 'fsexport-dos-src.atr'
+    dos2.build(str(dp), 720, 128, {})
+    got = our_lines('fsexport-dos', files, ['fsexport "' + source + '" D2:'],
+                    d2=dp, timeout=40)
+    dout = OUT / 'fsexport-dos-d2.atr'
+    dvol = dos2.Dos2(dout)
+    dent = {p: e for p, _, e in dvol.walk()}
+    data = (b''.join(x for _, x, _ in dvol.chain(dent['MIXEDLON.TXT']))
+            if 'MIXEDLON.TXT' in dent else None)
+    joined = ''.join(got or [])
+    if (got is None or ('Lossy export name: ' + source + ' -> MIXEDLON.TXT') not in joined or
+            'Export as MIXEDLON.TXT to DOS2/MyDOS' not in joined or
+            data != payload or dvol.check()):
+        failures.append('DOS: output=%r data=%r check=%r' %
+                        (got, None if data is None else len(data), dvol.check()))
+
+    sp = OUT / 'fsexport-sdfs-src.atr'
+    sdfs.build(str(sp), 720, 128, {}, eosfs=False)
+    got = our_lines('fsexport-sdfs', files, ['fsexport "' + source + '" D2:'],
+                    d2=sp, timeout=40)
+    sout = OUT / 'fsexport-sdfs-d2.atr'
+    svol = sdfs.Volume(str(sout))
+    sent = {p: e for p, e in svol.check()}
+    joined = ''.join(got or [])
+    if (got is None or ('Lossy export name: ' + source + ' -> MIXEDLON.TXT') not in joined or
+            'Export as MIXEDLON.TXT to SDFS' not in joined or
+            sent.get('/MIXEDLON.TXT', {}).get('data') != payload or svol.errors):
+        failures.append('SDFS: output=%r entries=%r errors=%r' %
+                        (got, sorted(sent), svol.errors))
+
+    cp = OUT / 'fsexport-collision-src.atr'
+    dos2.build(str(cp), 720, 128, {'MIXEDLON.TXT': b'foreign'})
+    before = cp.read_bytes()
+    got = our_lines('fsexport-collision', files,
+                    ['fsexport "' + source + '" D2:'], d2=cp, timeout=40)
+    after = (OUT / 'fsexport-collision-d2.atr').read_bytes()
+    if got is None or 'Export collision: MIXEDLON.TXT' not in got or after != before:
+        failures.append('collision: output=%r changed=%s' % (got, after != before))
+
+    gp = OUT / 'fsexport-geometry-src.atr'
+    sdfs.build(str(gp), 720, 256, {}, eosfs=False)
+    before = gp.read_bytes()
+    got = our_lines('fsexport-geometry', files,
+                    ['fsexport "' + source + '" D2:'], d2=gp, timeout=40)
+    after = (OUT / 'fsexport-geometry-d2.atr').read_bytes()
+    if (got is None or 'Only 128-byte foreign media can be exported' not in ''.join(got) or
+            after != before):
+        failures.append('geometry: output=%r changed=%s' % (got, after != before))
+    return not failures, ('; '.join(failures) if failures else
+                          'DOS/SDFS export, mapping, collision, geometry refusal')
+
+
+def t_fscreate_foreign():
+    """The explicit transient creator makes clean empty 720x128 DOS2 and
+    SDFS volumes and refuses a different geometry without changing it."""
+    import dos2
+    com = (emu.BUILD / 'etk/FSCREATE.COM').read_bytes()
+    files = {'fscreate.com': com}
+    failures = []
+
+    dp = OUT / 'fscreate-dos-src.atr'
+    sdfs.build(str(dp), 720, 128, {'OLD.DAT': b'old'}, eosfs=False)
+    got = our_lines('fscreate-dos', files, ['fscreate --dos2 D2:'], d2=dp,
+                    timeout=40)
+    dvol = dos2.Dos2(OUT / 'fscreate-dos-d2.atr')
+    if (got is None or 'Filesystem created' not in got or list(dvol.walk()) or
+            dvol.check()):
+        failures.append('DOS: output=%r entries=%r check=%r' %
+                        (got, list(dvol.walk()), dvol.check()))
+
+    sp = OUT / 'fscreate-sdfs-src.atr'
+    dos2.build(str(sp), 720, 128, {'OLD.DAT': b'old'})
+    got = our_lines('fscreate-sdfs', files, ['fscreate --sdfs D2:'], d2=sp,
+                    timeout=40)
+    svol = sdfs.Volume(str(OUT / 'fscreate-sdfs-d2.atr'))
+    entries = svol.check()
+    if got is None or 'Filesystem created' not in got or entries or svol.errors:
+        failures.append('SDFS: output=%r entries=%r errors=%r' %
+                        (got, entries, svol.errors))
+
+    gp = OUT / 'fscreate-geometry-src.atr'
+    sdfs.build(str(gp), 720, 256, {'OLD.DAT': b'old'}, eosfs=False)
+    before = gp.read_bytes()
+    got = our_lines('fscreate-geometry', files, ['fscreate --sdfs D2:'], d2=gp,
+                    timeout=40)
+    after = (OUT / 'fscreate-geometry-d2.atr').read_bytes()
+    if (got is None or 'Refusing create: drive is not 720 x 128 bytes' not in
+            ''.join(got) or after != before):
+        failures.append('geometry: output=%r changed=%s' % (got, after != before))
+    return not failures, ('; '.join(failures) if failures else
+                          'clean DOS/SDFS creation; geometry refusal')
+
+
+def t_fsw_native(geo=None, suffix=''):
+    """Native EOSFS create/append/update/tree/rename/delete/large-file path,
+    using exact command casing and slash paths rather than an SDFS oracle."""
+    expected = ['1 created', '2 appended', '3 updated', '4 length 307',
+                'sum 33360 of 307', '5 dir', '6 renamed', '7 deleted',
+                '8 length 9000', 'sum 53848 of 9000']
+    testname = 'fsw' + suffix
+    got = our_lines(testname, {'fsw.com': ours('FSW.COM')}, ['fsw'], geo=geo)
+    tree, errors, _ = disk_tree(OUT / (testname + '.atr'))
+    sizes = {p: len(v[1] or b'') for p, v in tree.items()}
+    want = {'/REN.TXT': 307, '/DIR': 0, '/DIR/IN.TXT': 6, '/BIG.DAT': 9000}
+    bad = {p: sizes.get(p) for p in want if sizes.get(p) != want[p]}
+    leftovers = [p for p in ('/NEW.TXT', '/DEL.TXT', '/EMPTY') if p in tree]
+    ok = got == expected and not errors and not bad and not leftovers
+    return ok, '%r errors=%r bad=%r leftovers=%r' % (got, errors, bad, leftovers)
+
+
+def t_fsinfo_native():
+    got = our_lines('fsinfo-native', {
+        'fsinfo.com': (emu.BUILD / 'etk/FSINFO.COM').read_bytes()}, ['fsinfo D1:'])
+    ok = bool(got and got[0] == 'EOSFS v2' and
+              re.fullmatch(r'128 bytes/sector, 720 total, \d+ free', got[1]))
+    return ok, repr(got)
+
+
 def t_ddrive():
     """Drive letters and CIO devices: D: at the prompt is always D1: (as CIO
     has it; SDX: drive letter D, D4:), whatever the current drive; E: is the
@@ -896,7 +1508,7 @@ def t_ddrive():
     names = [x[:4] for x in (df or [])[2:17]]
     want_names = ['A:  ', 'B:  ', 'D3: ', 'D4: ', 'D5: ', 'F:  ', 'G:  ', 'H:  ', 'I:  ',
                   'J:  ', 'DK: ', 'L:  ', 'M:  ', 'N:  ', 'O:  ']
-    ok = got == want and names == want_names and (df or [])[-2:] == ['A:>', 'B:>']
+    ok = got == want and names == want_names and (df or [])[-1:] == ['A:/']
     return ok, '%r; %r' % (got, df)
 
 
@@ -1244,7 +1856,7 @@ def keyed(name, files, commands, keys):
         d.timeout = 30
         want = d.step(lambda w: emu.type_line(w, 'SDXPROBE'))
     atr = disk(name, f)
-    with Dumper(name, label('k_getline'), disks=[atr], timeout=30) as d:
+    with Dumper(name, label('k_prompt'), disks=[atr], timeout=30) as d:
         got = d.first
         for k in keys:
             got = d.step(lambda w, k=k: emu.type_line(w, k))
@@ -1253,8 +1865,8 @@ def keyed(name, files, commands, keys):
     # SDX: SDXPROBE typed at its prompt (one more line, the screen scrolled
     # once more); EOS: stopped at its prompt. The common tail counts.
     want = [x for x in screen(want) if x and x != 'D1:' and not x.endswith('SDXPROBE')]
-    got = [x for x in screen(got) if x and x != 'D1:']
-    while got and got[-1] in ('>', 'D1:'):       # EOS waits at its prompt
+    got = [x for x in screen(got) if x and x != '[D1:/]']
+    while got and got[-1] in ('[>]', '[D1:/]'):  # EOS waits at its prompt
         got = got[:-1]
     n = min(len(want), len(got))
     want, got = want[len(want) - n:], got[len(got) - n:]
@@ -1383,13 +1995,16 @@ TESTS = {
     'boot-128K': lambda: t_boot('128K'),
     'boot-320K': lambda: t_boot('320K'),       # RAMBO 320K (Altirra's 320K)
     'reset': lambda: t_boot('64K', reset=True),
-    'type': lambda: oracle('type', TYPE_FILES, TYPE_CMDS),
+    'type': lambda: native_output(
+        'type', TYPE_FILES, TYPE_CMDS,
+        ['Hello from D1', 'second line', 'third', 'inner file',
+         'two levels down', '170 File not found', '138 Device does not respond']),
     'printf': lambda: oracle('printf', {'PRINTF.COM': ours('PRINTF.COM')}, ['PRINTF']),
     'milestone': lambda: oracle('milestone', MILESTONE_FILES, MILESTONE_CMDS),
     'ciod': lambda: oracle('ciod', {'CIOD.COM': ours('CIOD.COM'), 'HELLO.TXT': TEXT}, ['CIOD']),
     'ciob2': lambda: oracle('ciob2', {'CIOB2.COM': ours('CIOB2.COM'), 'B.COM': MSGSTORE.read_bytes()}, ['CIOB2'], geo=(720, 256)),
     'ciob': lambda: oracle('ciob', {'CIOB.COM': ours('CIOB.COM'), 'ABC.TXT': b'ABCDEFGHIJKLMNOPQRST'}, ['CIOB']),
-    'fsw': lambda: oracle('fsw', {'FSW.COM': ours('FSW.COM')}, ['FSW'], disk=True),
+    'fsw': t_fsw_native,
     'symlink': lambda: oracle('symlink', SYM_FILES, SYM_CMDS, disk=True),
     'curdrv': lambda: oracle('curdrv', {'HELLO.TXT': TEXT}, CUR_CMDS, d2=CUR_D2),
     'conio': lambda: multi('conio', {'CONIO.COM': ours('CONIO.COM'), 'LINES.TXT': emu.atascii(
@@ -1435,6 +2050,7 @@ TESTS = {
     'xep80': t_xep80,
     'xcomli': t_xcomli,
     'pipes': t_pipes,
+    'pipe-cleanup': t_pipe_cleanup,
     'ddrive': t_ddrive,
     # U_GETPAR: blanks, one comma after a parameter, a comma alone empty
     'getpar': lambda: multi('getpar', {'GETP.COM': ours('GETP.COM')},
@@ -1451,6 +2067,8 @@ TESTS = {
     'xfsio': t_xfsio,
     'indussio': t_indussio,
     'builddir': t_builddir,
+    'history-default': t_history_default,
+    'mem-bytes': t_mem_bytes,
     'doskey': t_doskey,
     'runext': t_runext,
     'comexe': t_comexe,
@@ -1461,10 +2079,80 @@ TESTS = {
     'con80': t_con80,
     'sc': t_sc,
     'uparm': lambda: oracle('uparm', {'UPARM.COM': ours('UPARM.COM')}, ['UPARM FOO B:X,Y  /Z']),
-    'pth': lambda: oracle('pth', {'PTH.COM': ours('PTH.COM'), 'SUB/PTH.COM': ours('PTH.COM'),
+    'argv': lambda: native_output('argv', {'argt.com': ours('ARGT.COM')},
+                                  ["argt plain 'two words' \"\" back\\ slash"],
+                                  ['5', '[argt]', '[plain]', '[two words]', '[]',
+                                   '[back slash]']),
+    'argv-long': lambda: native_output(
+        'argv-long', {'argt.com': ours('ARGT.COM')}, ['argt ' + 'x' * 100],
+        ['2', '[argt]', '[' + 'x' * 37, 'x' * 38, 'x' * 25 + ']']),
+    'argv-line-max': lambda: native_output(
+        'argv-line-max', {'argt.com': ours('ARGT.COM')}, ['argt ' + 'x' * 122],
+        ['2', '[argt]', '[' + 'x' * 37, 'x' * 38, 'x' * 38,
+         'x' * 9 + ']']),
+    'xcomli-max': lambda: native_output(
+        'xcomli-max', {'xcl.com': ours('XCL.COM')}, ['xcl'],
+        ['x' * 38, 'x' * 38, 'x' * 38, 'x' * 8]),
+    'pipe-long': lambda: native_output(
+        'pipe-long', {'argt.com': ours('ARGT.COM')},
+        ['echo ignored | argt ' + 'x' * 100],
+        ['2', '[argt]', '[' + 'x' * 37, 'x' * 38, 'x' * 25 + ']']),
+    'conditionals': lambda: native_output(
+        'conditionals', {},
+        ['echo a && echo b', 'nosuch && echo no',
+         'nosuch || echo recovered', 'echo ok || echo no',
+         'echo pipe | cat && echo after', 'nosuch | cat || echo failed'],
+        ['a', 'b', 'File nosuch.com', '170 File not found',
+         'File nosuch.com', '170 File not found', 'recovered', 'ok',
+         'pipe', '170 File not found', 'failed']),
+    'shell-vars': lambda: native_output(
+        'shell-vars', {'b.bat': emu.atascii(['echo $1 %1'])},
+        ['set X=hello', 'echo "$X" \'$X\' ${X}', 'nosuch',
+         'echo status=$?', '-b foo'],
+        ['HELLO $X HELLO', 'File nosuch.com', '170 File not found',
+         'status=170', 'FOO FOO']),
+    'legacy-long': lambda: native_output(
+        'legacy-long', {'lb.com': ours('LB.COM')}, ['lb ' + 'x' * 70],
+        ['182 Path too long']),
+    'redir-posix': lambda: native_output(
+        'redir-posix', {'rin.com': ours('RIN.COM')},
+        ['echo one >out.txt', 'echo two >>out.txt', 'type out.txt', 'rin <out.txt'],
+        ['one', 'two', '[one]', '[two]', 'end']),
+    'spaced-names': lambda: native_output(
+        'spaced-names', {},
+        ['echo spaced >"my file.txt"', 'cat "my file.txt"',
+         'echo again >>"my file.txt"', 'cp "my file.txt" "other file.txt"',
+         'type "other file.txt"', 'mv "other file.txt" "moved file.txt"',
+         'type "moved file.txt"', 'del "my file.txt"', 'del "moved file.txt"'],
+        ['spaced', 'spaced', 'again', 'spaced', 'again']),
+    'builtin-argv': lambda: native_output(
+        'builtin-argv', {},
+        ['mkdir "my dir"', 'cd "my dir"', 'cd', 'cd /',
+         'rmdir "my dir"', 'echo x >"old name"',
+         'rename "old name" "new name"', 'cat "new name"',
+         'rm "new name"', 'echo end'],
+        ['/my dir', 'x', 'end']),
+    'sparse-gap': lambda: native_output(
+        'sparse-gap', {'spg.com': ours('SPG.COM')}, ['spg'],
+        ['00 42 00 41']),
+    'core-unix': lambda: native_output(
+        'core-unix', {}, ['which ls', 'which cp', 'basename D1:/foo/bar.txt',
+                          'dirname D1:/foo/bar.txt', 'which vim', 'which tar'],
+        ['CAR:ls.com', 'cp: built-in', 'bar.txt', 'D1:/foo',
+         'CAR:vim.com', 'CAR:tar.com']),
+    'tar-native': t_tar_native,
+    'toolkit-disk': t_toolkit_disk,
+    'vim-interactive': t_vim_interactive,
+    'fsinfo-native': t_fsinfo_native,
+    'fsinfo-foreign': t_fsinfo_foreign,
+    'fscheck-foreign': t_fscheck_foreign,
+    'fsimport-foreign': t_fsimport_foreign,
+    'fsexport-foreign': t_fsexport_foreign,
+    'fscreate-foreign': t_fscreate_foreign,
+    'pth': lambda: native_output('pth', {'PTH.com': ours('PTH.COM'), 'SUB/PTH.com': ours('PTH.COM'),
                                   'SUB/DEEP.X/PTH.COM': ours('PTH.COM')},
-                          ['PTH', 'SUB>PTH', '>SUB>DEEP.X>PTH', 'D1:SUB>PTH', 'B:PTH'],
-                          d2={'PTH.COM': ours('PTH.COM')}),
+                          ['PTH', 'SUB/PTH', '/SUB/DEEP.X/PTH.COM'],
+                          ['p [/] 00', 'p [/SUB/] 00', 'p [/SUB/DEEP.X/] 00']),
     # Toolkit drivers that load into program extended memory (130XE banks)
     'con64-128K': lambda: oracle('con64-128K', {'CON64.SYS': tk_any('CON64.SYS')},
                                  ['CON64.SYS'], memsize='128K'),
@@ -1473,26 +2161,6 @@ TESTS = {
     'setboot': t_setboot,
     'dirw': lambda: oracle('dirw', {'DIRW.COM': ours('DIRW.COM'), 'SUB/AAA.TXT': TEXT,
                                     'SUB/BBB.TXT': TEXT}, ['DIRW'], disk=True, geo=(720, 128)),
-    # B9: Atari DOS 2 disks in D2 (SDX with CAR:ATARIDOS.SYS loaded first)
-    'dos2-dd': lambda: multi('dos2-dd', {'FDT.COM': ours('FDT.COM'), 'CPY.COM': ours('CPY.COM')}, [
-        ['FDT $81 F1.OUT D2:*.*'], ['FDT 0 F2.OUT D2:*.*'],
-        ['CPY D2:FMSEND.M65 A.M65', 'CPY D2:DOS.SYS B.SYS', 'CPY D2:DUPFIL.M65 C.M65']],
-        disk=True, d2=emu.MEDIA / 'dossrc-w.atr', sdx_pre=['CAR:ATARIDOS.SYS']),
-    'dos2-sd': lambda: multi('dos2-sd', {'FDT.COM': ours('FDT.COM'), 'CPY.COM': ours('CPY.COM')}, [
-        ['FDT $A8 F1.OUT D2:*.M65'], ['CPY D2:FMSEND.M65 A.M65', 'CPY D2:FMSEQU.M65 B.M65']],
-        disk=True, d2=emu.MEDIA / 'dossrc_a-w.atr', sdx_pre=['CAR:ATARIDOS.SYS']),
-    'dos2w': t_dos2w,
-    'dos2seek': t_dos2seek,
-    'mydos': lambda: multi('mydos', {'FDT.COM': ours('FDT.COM'), 'CPY.COM': ours('CPY.COM')}, [
-        ['FDT $81 F1.OUT D2:*.*', 'FDT $A8 F2.OUT D2:SUB>*.*', 'FDT 0 F3.OUT D2:SUB>DEEP>*.*'],
-        ['CPY D2:SUB>DEEP>LAST.DAT L.DAT', 'CPY D2:BIG.DAT B.DAT', 'CPY D2:SUB>IN.TXT I.TXT']],
-        disk=True, d2=mydos_img('mydos'), sdx_pre=['CAR:ATARIDOS.SYS']),
-    'mydos-sd': lambda: multi('mydos-sd', {'FDT.COM': ours('FDT.COM'), 'CPY.COM': ours('CPY.COM')}, [
-        ['FDT $81 F1.OUT D2:*.*', 'CPY D2:SUB>DEEP>LAST.DAT L.DAT']],
-        disk=True, d2=mydos_img('mydos-sd', 1040, 128), sdx_pre=['CAR:ATARIDOS.SYS']),
-    'mydos-wiki': t_mydos_wiki,
-    'mydosw': t_mydos_w,
-    'mydosd': t_mydos_dirs,
     'bat-par': c1('bat-par', ['-C1 one two']),
     'bat-env': c1('bat-env', ['SET X=1', 'SET Y=2', 'SET X=3', 'SET Z=4', 'SET Y', 'SET W=a b', 'SET',
                               'PATH', 'PATH a b', 'PATH'], ends=False),
@@ -1516,9 +2184,12 @@ TESTS = {
         'LB a Bc,d  "e f"', 'lb x', 'LB $PATH x$PATH', 'ECHO aB', 'LB a >>L.TXT b', 'TYPE L.TXT'],
         disk=True),
     'cfg': t_cfg,
-    # the default RAM disk (O:, USE BANKED above 128K), as SDX's standard setup
-    'ramdisk-320K': lambda: oracle('ramdisk-320K', {'A.TXT': emu.atascii(['hello ramdisk'])}, [
-        'SET', 'COPY A.TXT O:', 'DIRS O:', 'TYPE O:A.TXT'], memsize='320K'),
+    # the default RAM disk (O:, USE BANKED above 128K), formatted as EOSFS v2
+    'ramdisk-320K': lambda: native_output(
+        'ramdisk-320K', {'A.TXT': emu.atascii(['hello ramdisk'])},
+        ['cp A.TXT O:/A.TXT', 'cat O:/A.TXT', 'mkdir O:/sub',
+         'cp A.TXT O:/sub/copy.txt', 'cat O:/sub/copy.txt'],
+        ['hello ramdisk', 'hello ramdisk'], memsize='320K'),
     **{n: (lambda n=n: oracle(n, DIR_FILES, DIR_TESTS[n], geo=(720, 256), ends=True))
        for n in DIR_TESTS},
     'key-pause': lambda: keyed('key-pause', KEY_FILES, ['PAUSE', 'ECHO after'], ['']),
@@ -1536,16 +2207,12 @@ TESTS = {
     'use-default-128K': lambda: t_use('', '128K'),
     'redir3': c2('redir3', ['FAILN 170 >>F.TXT', 'TYPE F.TXT', 'ECHO x >>Q.TXT >>P.TXT', 'TYPE Q.TXT',
                             'TYPE P.TXT', 'ECHO h']),
-    # an enhanced density (1040 sectors) DOS 2.5 disk from the user's wiki copy
-    'dos2-ed': lambda: multi('dos2-ed', {'FDT.COM': ours('FDT.COM'), 'CPY.COM': ours('CPY.COM')}, [
-        ['FDT $81 F1.OUT D2:*.*', 'FDT 0 F2.OUT D2:*.*'], ['CPY D2:BANAL.BAS A.BAS']],
-        disk=True, d2=WIKI_ED, sdx_pre=['CAR:ATARIDOS.SYS']),
     'prompt': t_prompt,
     'full': lambda: oracle('full', full_files(False), ['FULL'], disk=True),
     'full-map': lambda: oracle('full-map', full_files(True), ['FULL'], disk=True),
-    'fsw-dd': lambda: oracle('fsw-dd', GEO_FILES, GEO_CMDS, disk=True, geo=(720, 256)),
-    'fsw-512': lambda: oracle('fsw-512', GEO_FILES, GEO_CMDS, disk=True, geo=(1440, 512)),
-    'fsw-hd': lambda: oracle('fsw-hd', GEO_FILES, GEO_CMDS, disk=True, geo=(8192, 256)),
+    'fsw-dd': lambda: t_fsw_native((720, 256), '-dd'),
+    'fsw-512': lambda: t_fsw_native((1440, 512), '-512'),
+    'fsw-hd': lambda: t_fsw_native((8192, 256), '-hd'),
 }
 TESTS.update(XB_TESTS)
 
@@ -1556,11 +2223,30 @@ EOSFS_SKIP = {'fdir-sd': 'FDT lists the free sectors (no map sectors on EOSFS)',
               'full': 'more fits than on SDFS (no map sectors)',
               'full-map': 'more fits than on SDFS (no map sectors)'}
 
+# Complete native conversion matrix.  The remaining TESTS are retained as an
+# SDX/SDFS ABI regression archive; many intentionally inspect 23-byte 8.3
+# records or compare SDFS allocation byte-for-byte and are not EOSFS tests.
+EOSFS_ACTIVE = [
+    'boot-64K', 'boot-ideplus', 'boot-ideplus-reset',
+    'man-u1mb', 'man-ideplus', 'man-apt', 'boot-128K', 'boot-320K', 'reset',
+    'type', 'printf', 'milestone', 'ciod', 'ciob2', 'ciob',
+    'fsw', 'fsw-dd', 'fsw-512', 'fsw-hd', 'pipe-cleanup', 'builddir',
+    'argv', 'argv-long', 'argv-line-max', 'xcomli-max', 'pipe-long',
+    'conditionals', 'shell-vars', 'legacy-long', 'redir-posix',
+    'spaced-names', 'builtin-argv', 'sparse-gap', 'core-unix', 'tar-native',
+    'prompt', 'history-default', 'mem-bytes',
+    'toolkit-disk',
+    'vim-interactive',
+    'fsinfo-native', 'fsinfo-foreign', 'fscheck-foreign', 'fsimport-foreign',
+    'fsexport-foreign', 'fscreate-foreign', 'pth', 'ramdisk-320K',
+    'use-banked-128K',
+]
+
 
 def main():
     emu.ensure_display()
     OUT.mkdir(parents=True, exist_ok=True)
-    names = sys.argv[1:] or list(TESTS)
+    names = sys.argv[1:] or (EOSFS_ACTIVE if EOSFS else list(TESTS))
     failed = 0
     for n in names:
         if EOSFS and n in EOSFS_SKIP:

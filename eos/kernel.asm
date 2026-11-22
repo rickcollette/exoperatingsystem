@@ -315,8 +315,10 @@ k_misc  jsr farcall
 setme   jmp k_setme            ; V_setme / V_popme: after COMTAB
 popme   jmp k_popme
 
-* read a command line from E: into LBUF; returns the CIO status in Y
+* read a command line from E: into the 128 contiguous COMTAB line bytes;
+* returns the CIO status in Y
 * (tools/eos_test.py breaks here: the prompt is on the screen)
+k_prompt rts                    ; command prompt ready (stable test/debug hook)
 k_getline ldx #0
         lda #C_GETR
         sta IOCB0+ICCOM
@@ -324,7 +326,7 @@ k_getline ldx #0
         sta IOCB0+ICBAL
         lda #>(COMTAB+CT_LBUF)
         sta IOCB0+ICBAH
-        lda #64
+        lda #128
         sta IOCB0+ICBLL
         lda #0
         sta IOCB0+ICBLH
@@ -1235,7 +1237,7 @@ k_memlo equ *
         ert <ke_adr=$FF        ; 6502 would take the high byte from $xx00)
 
 * the FMS's data under the OS ROM, after ENVBUF and CMDNAME
-        org $C200
+        org $C280                ; $C200-$C27F is the shell argv byte buffer
         icl 'fmsdata.icl'
 bk_szl  .ds 16                 ; jblock_io: each unit's sector size (bm_set)
 bk_szh  .ds 16
@@ -1246,17 +1248,6 @@ hs_ref  .ds 1                  ; SIOSET REFRESH (128: a unit that fails is asked
 hs_tab  .ds 16                 ; high speed SIO (dev.asm hs.icl): each unit's
                                ; POKEY divisor, 0 not asked yet, $80 none,
                                ; $81 NORMAL; hs_tab+0: SIOSET WAITACK
-ix_m    .ds 2                  ; EOSFS directory index (dos2i.icl): its list,
-ix_f    .ds 1                  ; $FF there is one (header +20..22, open_dir)
-ix_k    .ds 2
-ix_h    .ds 1
-ix_n    .ds 2
-ix_t    .ds 2
-ix_p    .ds 2
-ix_csi  .ds 2
-ix_cs   .ds 2
-ix_l    .ds 2
-ix_v    .ds 1
-ix_b    .ds 1
+CP_CONDBUF .ds 128             ; shell &&/|| continuation, EOL ended
 fms_end equ *
         ert fms_end>BF_DAT2

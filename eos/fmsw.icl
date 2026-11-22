@@ -48,7 +48,7 @@ fw_d    lda #0                 ; dateset clears after use
         bne fow_ret
         jsr nowild             ; create it
         bcs fow_ret
-        ldx #10                ; not with the name of a directory
+        ldx #EOS_NAME_SIZE-1   ; not with the name of a directory
 fow0    lda name,x
         sta fs_cname,x
         dex
@@ -152,7 +152,7 @@ fow_ent lda fs_dmap
 * ent_pos: fs_epos = position of the entry the internal FCB just read
 ent_pos sec
         lda fc_pos0+NFCB
-        sbc #23
+        sbc #EOS_DIRENT_SIZE
         sta fs_epos
         lda fc_pos1+NFCB
         sbc #0
@@ -160,15 +160,34 @@ ent_pos sec
         rts
 
 * nowild: C=1, A = 163 when name has a wildcard
-nowild  ldx #10
+nowild  lda name
+        bne nw0
+        lda #E_BADNAME
+        sec
+        rts
+nw0     ldx #0
 nw1     lda name,x
+        beq nw_ok
+        cmp #' '
+        bcc nw_namebad
+        cmp #$7F
+        bcs nw_namebad
+        cmp #'/'
+        beq nw_namebad
         cmp #'?'
         beq nw_bad
-        dex
-        bpl nw1
+        cmp #'*'
+        beq nw_bad
+        inx
+        cpx #EOS_NAME_SIZE
+        bcc nw1
+nw_ok
         clc
         rts
 nw_bad  lda #E_WILD
+        sec
+        rts
+nw_namebad lda #E_BADNAME
         sec
         rts
 
@@ -177,10 +196,7 @@ nw_bad  lda #E_WILD
 * entry gets the map, the length and the time, then all of the drive's
 * changes go to the disk
 cl_write lda fc_flg,x          ; a directory written in place (mode $1C):
-        bpl clwx               ; only the changed sectors go out (EOSFS:
-        jsr farcall            ; its name index is dropped)
-        dta b(BK_DOS2),a(CARTLO+$1B)
-        jmp clw1
+        jmi clw1               ; only the changed sectors go out
 clwx
         jsr trim
         jcs clw_ret
@@ -290,23 +306,18 @@ frn1    jsr scan_next
         and #ST_PROT           ; 170 when nothing else matched)
         bne frn1
         jsr ent_pos
-        ldx #10                ; the new name
+        ldx #EOS_NAME_SIZE-1   ; the new exact-case name
 frn2    lda x_name,x
-        cmp #'?'
-        bne frn3
-        lda fs_ent+6,x
-frn3    sta fs_cname,x
+        sta fs_cname,x
         dex
         bpl frn2
+        jsr valid_cname
+        jcs frn_ret
         jsr name_taken         ; not the name of another entry
         jcs frn_ret
         jsr ent_read
         jcs frn_ret
-        ldx #10
-frn4    lda fs_cname,x
-        sta fs_ent+6,x
-        dex
-        bpl frn4
+        jsr set_ent_name
         jsr ent_write
         bcs frn_ret
         lda fs_ent             ; a directory: its own header (entry 0 of
@@ -329,11 +340,7 @@ frn4    lda fs_cname,x
         sta fs_epos+1
         jsr ent_read
         bcs frn5
-        ldx #10
-frn4a   lda fs_cname,x
-        sta fs_ent+6,x
-        dex
-        bpl frn4a
+        jsr set_ent_name
         jsr ent_write
 frn5    php                    ; the parent again, at the renamed entry
         pha
@@ -357,6 +364,30 @@ frn_end cmp #E_EOF
         bne frn_ret
         jmp hits_done
 frn_ret rts
+
+* valid_cname: the internal NUL-ended fs_cname is a storable v2 name.
+valid_cname lda fs_cname
+        beq vcn_bad
+        ldx #0
+vcn1    lda fs_cname,x
+        beq vcn_ok
+        cmp #' '
+        bcc vcn_bad
+        cmp #$7F
+        bcs vcn_bad
+        cmp #'/'
+        beq vcn_bad
+        cmp #'?'
+        beq vcn_wild
+        cmp #'*'
+        beq vcn_wild
+        inx
+        cpx #EOS_NAME_SIZE
+        bcc vcn1
+vcn_bad jmp nw_namebad
+vcn_wild jmp nw_bad
+vcn_ok  clc
+        rts
 
 * ---- 13 kd_setatr: attr bits 0-2 set P H A, bits 4-6 clear them; bit 7
 * (EOS) stamps the entries with the current date and time (or date/time
@@ -413,7 +444,7 @@ f_credir jsr setdrv
         jcs fcd_ret
         jsr nowild
         jcs fcd_ret
-        ldx #10
+        ldx #EOS_NAME_SIZE-1
 fcd0    lda name,x
         sta fs_cname,x
         dex
@@ -422,9 +453,6 @@ fcd0    lda name,x
         jcs fcd_ret
         lda #ST_USED|ST_DIR
         jsr mk_entry
-        jcs fcd_ret
-        jsr farcall            ; EOSFS: its name index, an empty list
-        dta b(BK_DOS2),a(CARTLO+$15) ; (ix_cs; 0 none)
         jcs fcd_ret
         jsr alloc              ; its sector map
         jcs fcd_ret
@@ -450,12 +478,10 @@ fcd0    lda name,x
         iny
         lda al_s+1
         sta (zp_p),y
-        jsr is_x               ; EOSFS: an extent of one sector
-        bne fcd_m
         ldy #6
         lda #1
         sta (zp_p),y
-fcd_m   lda #$FF
+        lda #$FF
         sta bf_dirty,x
         lda al_s
         sta fs_sec
@@ -463,8 +489,8 @@ fcd_m   lda #$FF
         sta fs_sec+1
         jsr newsec
         bcs fcd_ret
-        ldy #22                ; the header: the new entry as its parent
-fcd1    lda fs_ent,y           ; holds it, the parent's map, length 23
+        ldy #EOS_DIRENT_SIZE-1 ; the header: the new entry as its parent
+fcd1    lda fs_ent,y           ; holds it, the parent's map, length 44
         sta (zp_p),y
         dey
         bpl fcd1
@@ -475,26 +501,13 @@ fcd1    lda fs_ent,y           ; holds it, the parent's map, length 23
         lda fs_dmap+1
         sta (zp_p),y
         iny
-        lda #23
+        lda #EOS_DIRENT_SIZE
         sta (zp_p),y
-        lda ix_cs              ; the index at +20..22 (for the time's
-        ora ix_cs+1            ; seconds: $FF)
-        beq fcd_n2
-        ldy #20
-        lda ix_cs
-        sta (zp_p),y
-        iny
-        lda ix_cs+1
-        sta (zp_p),y
-        iny
-        lda #$FF
-        sta (zp_p),y
-fcd_n2
-        lda cd_map               ; the parent's entry: map, length 23
+        lda cd_map             ; the parent's entry: map, length 44
         sta fs_ent+1
         lda cd_map+1
         sta fs_ent+2
-        lda #23
+        lda #EOS_DIRENT_SIZE
         sta fs_ent+3
         jsr ent_write
         bcs fcd_ret
@@ -506,7 +519,7 @@ f_deldir jsr setdrv
         jcs fdd_ret
         jsr resolve
         bcs fdd_ret
-        ldx #10
+        ldx #EOS_NAME_SIZE-1
 fdd0    lda name,x
         sta fs_cname,x
         dex
@@ -526,9 +539,6 @@ fdd1    jsr dir_next           ; nothing may be left in it
         rts
 fdd2    cmp #E_EOF
         bne fdd_ret
-        jsr farcall            ; EOSFS: its name index goes too
-        dta b(BK_DOS2),a(CARTLO+$18)
-        jcs fdd_ret
         ldx fs_drv             ; the current directory goes: main again
         lda fs_dmap
         sta tr_m
@@ -625,7 +635,7 @@ scan_init lda #0
         sta fs_fcb
         jsr open_dir
         bcs si_ret
-        ldx #10
+        ldx #EOS_NAME_SIZE-1
 si1     lda name,x
         sta fs_pat,x
         dex
@@ -645,7 +655,7 @@ sx_ret  rts
 * scan_back: the internal FCB to the entry after fs_epos (it was moved)
 scan_back clc
         lda fs_epos
-        adc #23
+        adc #EOS_DIRENT_SIZE
         sta fc_pos0+NFCB
         lda fs_epos+1
         adc #0
@@ -677,12 +687,17 @@ name_taken lda fc_pos0+NFCB
         bcs nt_err
 nt1     jsr dir_next
         bcs nt_end
-        ldx #10
-nt2     lda fs_ent+6,x
-        cmp fs_cname,x
+        ldy #0
+nt2     lda fs_cname,y
+        beq nt2e
+        cpy fs_ent+6
+        bcs nt1
+        cmp fs_ent+7,y
         bne nt1
-        dex
-        bpl nt2
+        iny
+        bne nt2
+nt2e    cpy fs_ent+6
+        bne nt1
         lda #E_EXISTS
         bne nt_err
 nt_end  cmp #E_EOF
@@ -707,14 +722,14 @@ nt_err  tax
 ent_read jsr ent_seek
         bcs er_ret
         jmp dir_read
-ent_write ldx #22               ; open_dir reads the header to fs_ent
+ent_write ldx #EOS_DIRENT_SIZE-1 ; open_dir reads the header to fs_ent
 ew1     lda fs_ent,x
         sta fs_ent2,x
         dex
         bpl ew1
         jsr ent_seek
         bcs er_ret
-        ldx #22
+        ldx #EOS_DIRENT_SIZE-1
 ew2     lda fs_ent2,x
         sta fs_ent,x
         dex
@@ -723,18 +738,12 @@ ew2     lda fs_ent2,x
         sta zp_q
         lda #>fs_ent2
         sta zp_q+1
-        lda #23
+        lda #EOS_DIRENT_SIZE
         sta fs_cnt
         lda #0
         sta fs_cnt+1
         jsr wr_core
         bcs ew_ret
-        lda fs_epos            ; EOSFS: the name index too
-        sta ix_p
-        lda fs_epos+1
-        sta ix_p+1
-        jsr farcall
-        dta b(BK_DOS2),a(CARTLO+$12)
 ew_ret  rts
 ent_seek lda #NFCB
         sta fs_fcb
@@ -774,18 +783,21 @@ mk_end  cmp #E_EOF
         sta fs_epos
         lda fc_len1+NFCB
         sta fs_epos+1
-mk_have lda fs_st
-        sta fs_ent
-        ldx #4
+mk_have ldx #EOS_DIRENT_SIZE-1
         lda #0
-mk2     sta fs_ent+1,x
+mk2     sta fs_ent,x
         dex
         bpl mk2
-        ldx #10
-mk3     lda name,x
-        sta fs_ent+6,x
-        dex
-        bpl mk3
+        lda fs_st
+        sta fs_ent
+        ldy #0
+mk3     lda name,y
+        beq mk3e
+        sta fs_ent+7,y
+        iny
+        cpy #EOS_NAME_MAX
+        bcc mk3
+mk3e    sty fs_ent+6
         jsr stamp
         jsr ent_write
         bcs mk_ret
@@ -828,9 +840,25 @@ mk_err  sec
 * stamp: the current date and time into fs_ent
 stamp   ldx #5
 st1     lda date,x
-        sta fs_ent+17,x
+        sta fs_ent+38,x
         dex
         bpl st1
+        rts
+
+* set_ent_name: replace fs_ent's name with fs_cname and update its length.
+set_ent_name ldx #EOS_NAME_MAX-1
+        lda #0
+sen0    sta fs_ent+7,x
+        dex
+        bpl sen0
+        ldy #0
+sen1    lda fs_cname,y
+        beq sen2
+        sta fs_ent+7,y
+        iny
+        cpy #EOS_NAME_MAX
+        bcc sen1
+sen2    sty fs_ent+6
         rts
 
 * ---- writing data ----------------------------------------------------------
@@ -876,7 +904,7 @@ wc1     lda #$FF
         cmp dv_szhi,y
         bne wcz
         jsr farcall            ; whole: straight from the caller's buffer
-        dta b(BK_DOS2),a(CARTLO+$24) ; when it is in main memory (dos2)
+        dta b(BK_EOSX),a(CARTLO+$24) ; when it is in main memory (EOSFS helper)
         inx
         beq wcn                ; (X=$FF: it is not)
         cmp #$80
@@ -900,7 +928,7 @@ wc3     jcs wc_ret
         adc fs_off+1
         sta zp_p+1
         jsr farcall            ; copy_w: fs_n bytes from (zp_q) to (zp_p),
-        dta b(BK_DOS2),a(CARTLO+$27) ; zp_q past them (dos2 bank)
+        dta b(BK_EOSX),a(CARTLO+$27) ; zp_q past them (EOSFS helper bank)
         jsr used_up
 wc_dn   ldx fs_fcb
         clc
@@ -1158,85 +1186,13 @@ bp_mlo  dta b($7F,$FF,$FF)       ; offset masks for shift 7, 8, 9
 bp_mhi  dta b(0,0,1)
 bp_bits dta b($80,$40,$20,$10,$08,$04,$02,$01)
 
-* free_chain: free a file's sectors: every data sector and sector map of the
-* chain starting at map tr_m
-free_chain jsr is_x            ; EOSFS: extents (dos2x.icl)
-        bne fc_sd
+* free_chain: free every data and list sector in the EOSFS extent chain
+free_chain jsr is_x
         jsr farcall
-        dta b(BK_DOS2),a(CARTLO+3)
+        dta b(BK_EOSX),a(CARTLO+3)
         rts
-fc_sd   lda tr_m
-        ora tr_m+1
-        bne fc0
-        clc
-        rts
-fc0     lda #0
-        sta tr_i
-fc1     jsr tr_ent             ; entry tr_i of map tr_m
-        bcs fc_err
-        ldy #0
-        lda (zp_t),y
-        sta al_s
-        iny
-        lda (zp_t),y
-        sta al_s+1
-        ora al_s
-        beq fc2
-        jsr free_sec
-        bcs fc_err
-fc2     inc tr_i
-        lda tr_i
-        ldy fs_drv
-        cmp dv_ments,y
-        bcc fc1
-        lda tr_m               ; the map itself, then the next one
-        sta fs_sec
-        lda tr_m+1
-        sta fs_sec+1
-        jsr getsec
-        bcs fc_err
-        lda tr_m
-        sta al_s
-        lda tr_m+1
-        sta al_s+1
-        ldy #0
-        lda (zp_p),y
-        sta tr_m
-        iny
-        lda (zp_p),y
-        sta tr_m+1
-        jsr free_sec
-        bcs fc_err
-        jmp free_chain
-fc_err  rts
 
-* tr_ent: zp_t = entry tr_i of map sector tr_m (map + 4 + 2 * tr_i)
-tr_ent  lda tr_m
-        sta fs_sec
-        lda tr_m+1
-        sta fs_sec+1
-        jsr getsec
-        bcs te_ret
-        lda tr_i
-        asl @
-        sta zp_t
-        lda #0
-        rol @
-        sta zp_t+1
-        clc
-        lda zp_t
-        adc #4
-        bcc te1
-        inc zp_t+1
-        clc
-te1     adc zp_p
-        sta zp_t
-        lda zp_t+1
-        adc zp_p+1
-        sta zp_t+1
-        clc
-te_ret  rts
-
+* trim: free the sectors of FCB fs_fcb that lie past its length: data
 * trim: free the sectors of FCB fs_fcb that lie past its length: data
 * sectors from index ceil(length / sector size) on, and the maps that then
 * hold none. C=1, A = status.
@@ -1270,105 +1226,10 @@ tm1     lsr fs_l
         ror tr_need
         dex
         bne tm1
-        jsr is_x               ; EOSFS: extents (dos2x.icl)
-        bne tm1a
+        jsr is_x
         jsr farcall
-        dta b(BK_DOS2),a(CARTLO+6)
+        dta b(BK_EOSX),a(CARTLO+6)
         jcs tm_ret
-        jmp tm_done
-tm1a
-        ldx fs_fcb
-        lda fc_maplo,x
-        sta tr_m
-        lda fc_maphi,x
-        sta tr_m+1
-        lda tr_need
-        ora tr_need+1
-        bne tm2
-        jsr free_chain         ; no data at all: no map either
-        jcs tm_ret
-        ldx fs_fcb
-        lda #0
-        sta fc_maplo,x
-        sta fc_maphi,x
-        jmp tm_done
-tm2     lda tr_m               ; walk to the map with the last needed entry
-        ora tr_m+1
-        jeq tm_done
-        ldy fs_drv
-        lda tr_need+1
-        bne tm3
-        lda tr_need
-        cmp dv_ments,y
-        bcc tm4
-        beq tm4
-tm3     sec                    ; not in this map: on to the next
-        lda tr_need
-        sbc dv_ments,y
-        sta tr_need
-        bcs tm3a
-        dec tr_need+1
-tm3a    lda tr_m
-        sta fs_sec
-        lda tr_m+1
-        sta fs_sec+1
-        jsr getsec
-        jcs tm_ret
-        ldy #0
-        lda (zp_p),y
-        sta tr_m
-        iny
-        lda (zp_p),y
-        sta tr_m+1
-        jmp tm2
-tm4     lda tr_need            ; this map keeps entries 0 .. tr_need-1
-        sta tr_i
-tm5     ldy fs_drv
-        lda tr_i
-        cmp dv_ments,y
-        bcs tm6
-        jsr tr_ent
-        bcs tm_ret
-        ldy #0
-        lda (zp_t),y
-        sta al_s
-        iny
-        lda (zp_t),y
-        sta al_s+1
-        ora al_s
-        beq tm5a
-        lda #0                 ; out of the map, then free
-        sta (zp_t),y
-        dey
-        sta (zp_t),y
-        lda #$FF
-        sta bf_dirty,x
-        jsr free_sec
-        bcs tm_ret
-tm5a    inc tr_i
-        jmp tm5
-tm6     lda tr_m               ; and the maps after it
-        sta fs_sec
-        lda tr_m+1
-        sta fs_sec+1
-        jsr getsec
-        bcs tm_ret
-        ldy #0
-        lda (zp_p),y
-        pha
-        lda #0
-        sta (zp_p),y
-        iny
-        lda (zp_p),y
-        sta tr_m+1
-        lda #0
-        sta (zp_p),y
-        lda #$FF
-        sta bf_dirty,x
-        pla
-        sta tr_m
-        jsr free_chain
-        bcs tm_ret
 tm_done ldx fs_fcb             ; the position may lie past the end now
         lda #0
         sta fc_cmlo,x
@@ -1460,7 +1321,7 @@ fl_ret  pha                    ; (keeps A and C)
 * wr_buf: buffer X to its disk; keeps X
 wr_buf  stx fs_x
         jsr farcall            ; EOSFS: the header's dirty flag first
-        dta b(BK_DOS2),a(CARTLO+$2A)
+        dta b(BK_EOSX),a(CARTLO+$2A)
         ldx fs_x
         lda k_wrtcmd           ; P, or W to verify (the VERIFY command)
         jsr sio_io

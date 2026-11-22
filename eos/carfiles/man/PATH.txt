@@ -9,7 +9,7 @@ A lone : or an empty entry means the current directory. The current directory is
 
 Examples:
  PATH
- PATH CAR:;A:>;D2:>DOS
+ PATH CAR:;A:/;D2:/DOS
  PATH ;CAR:
 
 See also: APPEND, SET

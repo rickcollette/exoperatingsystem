@@ -1,10 +1,10 @@
 ; EOS Toolkit: BASENAME, the name part of a path
 ;   BASENAME path [suffix]
-; Shows what follows the path's last separator (: > < or backslash),
-; after a > or backslash at its end is dropped (D1:>DIR>SUB> gives SUB);
-; with suffix, without it at the end when the name is longer. A device or
-; the main directory alone (D1:, D1:>) gives an empty line.
+; Shows what follows the path's last separator (: or /). A trailing slash is
+; dropped (D1:/DIR/SUB/ gives SUB). With suffix, removes it at the end when
+; the name is longer. A device or root alone (D1:, D1:/) gives an empty line.
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
 PUTC     smb 'PUTC'
 PRINTF   smb 'PRINTF'
 COMTAB   smb 'COMTAB'
@@ -14,7 +14,9 @@ EOL      equ $9B
 BSLASH   equ $5C
 
         blk reloc main
-start   jsr U_GETPAR
+start   lda #$FF
+        jsr U_ARGV
+        jsr U_GETPAR
         jeq usage
         ldx #0                 ; the path
 b1      lda COMTAB+COMFNAM,x
@@ -38,13 +40,12 @@ b2      lda COMTAB+COMFNAM,x
         stx slen
         jsr U_GETPAR
         jne usage
-b3      ldx len                ; a > or \ at the end goes
+b3      ldx len                ; a trailing slash goes
 b4      cpx #2
         bcc b5
         lda path-1,x
-        cmp #'>'
+        cmp #'/'
         beq b4a
-        cmp #BSLASH
         bne b5
 b4a     lda path-2,x
         jsr issep
@@ -101,14 +102,10 @@ usage   jsr PRINTF
         dta c'Use: basename path [suffix]',EOL,0
         rts
 
-* issep: Z=1 when A is a separator (: > < or backslash)
+* issep: Z=1 when A is a native separator (: or /)
 issep   cmp #':'
         beq is1
-        cmp #'>'
-        beq is1
-        cmp #'<'
-        beq is1
-        cmp #BSLASH
+        cmp #'/'
 is1     rts
 
 len     dta 0

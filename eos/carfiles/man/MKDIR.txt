@@ -9,6 +9,6 @@ Creates a new directory. The last name in the path is the one created; the direc
 
 Examples:
  MD TEST
- MKDIR D3:>MODEM>TEST
+ mkdir D3:/MODEM/TEST
 
 See also: CHDIR, RMDIR, RENDIR

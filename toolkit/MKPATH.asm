@@ -18,7 +18,7 @@ COMTAB   smb 'COMTAB'
 
 COMFNAM  equ $21               ; (COMTAB+: the parameter and its length)
 FILLEN   equ $1A
-name     equ $0762             ; (U_GEFINA: the name, 8+3)
+name     equ $0762             ; (U_GEFINA: exact NUL-ended name)
 ext      equ $076A
 EOL      equ $9B
 

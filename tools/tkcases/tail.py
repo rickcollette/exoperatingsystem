@@ -27,7 +27,7 @@ def rows(lines):
 
 
 CASES = {
-    'tail': case(None, ['TAIL N.TXT', 'TAIL -n 3 N.TXT', 'TAIL -n2 A.TXT', 'TAIL -1 SUB>S.TXT',
+    'tail': case(None, ['TAIL N.TXT', 'TAIL -n 3 N.TXT', 'TAIL -n2 A.TXT', 'TAIL -1 SUB/S.TXT',
                         'TAIL -n 0 N.TXT', 'TAIL -5 A.TXT', 'TAIL E.TXT'],
                  files=FILES, prog='TAIL.COM',
                  want=rows(N[-10:] + N[-3:] + A[-2:] + A[-1:] + A)),

@@ -46,6 +46,44 @@ FILLEN  equ COMTAB+CT_FILLEN
         jmp u_getnum           ; $A03F U_GETNUM
         jmp renm               ; $A042 RENAME returning the status (CIO D:)
         jmp drvname            ; $A045 _DRVNAME: drive A's name to dv_nm
+        jmp tolower            ; $A048 TOLOWER
+
+* ---- Native shell argument sidecar --------------------------------------
+* U_ARGC: A = number of words, including argv[0].
+* U_ARGV: A = index; C=0 with AX = address and Y = byte length, or C=1.
+* U_ARGV copies the selected bytes from the under-ROM command store to the
+* public 128-byte path scratch. Callers use Y, or add a terminator before an
+* old API. The address remains valid until the next U_ARGV or path operation.
+u_argc  lda CP_ARGC
+        rts
+u_argv  cmp CP_ARGC
+        bcs uav_no
+        tay
+        lda CP_ARGOFF,y
+        clc
+        adc #<CP_ARGBUF
+        sta fadr
+        lda #>CP_ARGBUF
+        adc #0
+        sta fadr+1
+        lda CP_ARGLEN,y
+        sta cp_d
+        jsr k_romoff
+        ldy #0
+uav_cp  cpy cp_d
+        beq uav_end
+        lda (fadr),y
+        sta path,y
+        iny
+        bne uav_cp
+uav_end jsr k_romon
+        ldy cp_d
+        lda #<path
+        ldx #>path
+        clc
+        rts
+uav_no  sec
+        rts
 
 * ---- U_LOAD: the loader lives in its own bank ------------------------------
 u_load  jsr farcall
@@ -168,7 +206,7 @@ fmt5     lda lb_save,x
         jsr k_romon
         lda #1
         rts
-ff_name dta c'CAR:FORMAT.COM',b(EOL)
+ff_name dta c'CAR:format.com',b(EOL)
 ff_cmd  dta c'FORMAT'
 bd_cmd  dta c' /QQ '
 bd_cmd_end equ *
@@ -177,31 +215,76 @@ bd_cmd_end equ *
 * Z=1 when there is none; else X = FILLEN = its length, FILE_P -> COMFNAM.
 * As on SDX: blanks before it are skipped, after it the blanks and one
 * comma; a comma where a parameter would start is an empty one (A,,B: A,
-* nothing, B).
+* nothing, B). EOS keeps case so names reach the case-sensitive filesystems
+* unchanged. Quotes and backslash use the native shell rules, so old compact
+* tools can address spaced EOSFS names without needing a second parser.  A
+* /switch is folded to upper case for command compatibility.
 u_getpar ldy BUFOFF
 gp1     lda LBUF,y
         cmp #' '
-        beq gp_skip
+        jeq gp_skip
         cmp #','
-        beq gp_empty
+        jeq gp_empty
         cmp #EOL
-        beq gp_none
+        jeq gp_none
         ldx #0
-gp2     cmp #'a'               ; in capitals, as on SDX (LBUF keeps the case)
-        bcc gp2a
-        cmp #'z'+1
-        bcs gp2a
-        and #$DF
-gp2a    sta COMFNAM,x
-        inx
-        iny
-        lda LBUF,y
+        stx cp_fl              ; 0 plain, 1 single quote, 2 double quote
+gp2     lda LBUF,y
+        pha
+        lda cp_fl
+        beq gp_plain
+        cmp #1
+        beq gp_single
+        pla
+        cmp #'"'
+        beq gp_qend
+        cmp #BSLASH
+        beq gp_escape
+        bne gp_copy
+gp_single pla
+        cmp #39
+        beq gp_qend
+        bne gp_copy
+gp_plain pla
         cmp #' '
         beq gp_end
         cmp #','
         beq gp_end
         cmp #EOL
+        beq gp_end
+        cmp #39
+        beq gp_sq
+        cmp #'"'
+        beq gp_dq
+        cmp #BSLASH
+        beq gp_escape
+gp_copy cpx #0                 ; switches remain convenient with lower-case
+        beq gp2a               ; input; other parameters retain their case
+        pha
+        lda COMFNAM
+        cmp #'/'
+        pla
+        bne gp2a
+        jsr toupper
+gp2a    sta COMFNAM,x
+        inx
+        iny
         bne gp2
+gp_sq   lda #1
+        bne gp_qset
+gp_dq   lda #2
+gp_qset sta cp_fl
+        iny
+        bne gp2
+gp_qend lda #0
+        sta cp_fl
+        iny
+        bne gp2
+gp_escape iny
+        lda LBUF,y
+        cmp #EOL
+        beq gp_end
+        bne gp_copy
 gp_end  lda #EOL
         sta COMFNAM,x
 gp_e0   lda LBUF,y             ; BUFOFF goes past the blanks and one comma
@@ -221,7 +304,7 @@ gp_e1   sty BUFOFF
         txa
         rts
 gp_skip iny
-        bne gp1
+        jne gp1
 gp_empty iny                   ; (past the comma: nothing, Z=1)
         ldx #0
         lda #EOL
@@ -237,8 +320,9 @@ gp_none sty BUFOFF
 * An optional device ends with ':' and is a drive letter A-O, D1-D15, or a
 * device name from DEVNAME with an optional unit (DSK2, CAR). Without one the
 * current device CURDEV is used. The rest goes to path; the directory part
-* stays there, $00 terminated, and the file name is converted to name
-* (8+3, space padded, '*' filled with '?').
+* stays there, $00 terminated, and the final component is copied to name.
+* EOSFS names are exact-case, NUL terminated and at most 31 bytes. Wildcards
+* remain in their compact form for the filesystem matcher.
 u_gefina jsr gefina
         bcc ug_ret
         jmp u_fail
@@ -267,10 +351,9 @@ ge_cur  lda CURDEV
         sta device
         ldy #0
 ge_rest ldx #0
+        sty ge_start
 gr1     lda (fadr),y
         beq gr1e               ; a NUL ends it too (SC's names)
-        cmp #' '               ; a space or comma ends the specification
-        beq gr1e               ; (RENAME: the new name follows)
         cmp #','
         bne gr1a
 gr1e    lda #EOL
@@ -279,7 +362,7 @@ gr1a    sta path,x
         beq gr2
         iny
         inx
-        cpx #64
+        cpx #127
         bcc gr1
         lda #E_PATHLEN
         sec
@@ -288,24 +371,14 @@ ge_bad  lda #E_NODEV
         sec
         rts
 gr2     sty ge_stop
-        txa                    ; a copy of the whole path for U_GEPATH
-        tay
-gr2a    lda path,y
-        sta ge_rawp,y
-        dey
-        bpl gr2a
-        stx ge_end             ; the name starts after the last >, backslash or <
+        stx ge_end             ; the name starts after the last slash
         ldx #0
         stx ge_ns
 gr3     cpx ge_end
         beq gr4
         lda path,x
         inx
-        cmp #'>'
-        beq gr3s
-        cmp #BSLASH
-        beq gr3s
-        cmp #'<'
+        cmp #'/'
         bne gr3
 gr3s    stx ge_ns
         jmp gr3
@@ -323,50 +396,37 @@ gr4     ldx ge_ns              ; a final . or .. belongs to the path
         bne gr5
 gr4p    lda ge_end
         sta ge_ns
-gr5     ldx #10                ; name
-        lda #' '
+gr5     ldx #EOS_NAME_MAX      ; clear the 31-byte name and its terminator
+        lda #0
 gr6     sta name,x
         dex
         bpl gr6
         ldy ge_ns
         ldx #0
-        lda #8
-        sta ge_lim
 gn1     lda path,y
         cmp #EOL
         beq gn_end
         iny
-        cmp #'.'
-        beq gn_dot
-        cmp #'*'
-        beq gn_star
-        cpx ge_lim
-        bcs gn1
+        cpx #EOS_NAME_MAX
+        bcs gn_bad
         sta name,x
         inx
         bne gn1
-gn_star lda #'?'
-gn_s1   cpx ge_lim
-        bcs gn1
+gn_end  lda #0
         sta name,x
-        inx
-        bne gn_s1
-gn_dot  lda ge_lim             ; a second dot ends the name
-        cmp #8
-        bne gn_end
-        ldx #8
-        lda #11
-        sta ge_lim
-        bne gn1
-gn_end  ldx ge_ns
+        ldx ge_ns
         lda #0
         sta path,x
         clc
         rts
+gn_bad  lda #165               ; Bad filename
+        sec
+        rts
 
 * drvchar: the drive letter A-O or digit 1-9 in A as a drive number in A;
 * C=1 when it is neither
-drvchar cmp #'1'
+drvchar jsr toupper
+        cmp #'1'
         bcc dc_bad
         cmp #'9'+1
         bcs dc_l
@@ -403,7 +463,8 @@ cl_yes  clc
 * drvlet (_DRVLET): the drive letter in A (A-O) as a drive (1-15) in A,
 * C=0; as in names, D is D1 and a letter CIO has another device for is not
 * a drive: C=1 (also outside A-O). Keeps Y.
-drvlet  cmp #'D'
+drvlet  jsr toupper
+        cmp #'D'
         beq dl_d
         jsr ciolet
         bcc dl_no
@@ -460,6 +521,7 @@ parsedev cpy #0
 ds1     sty ge_n
         ldy #0
         lda (fadr),y
+        jsr toupper
         ldx ge_n
         cpx #1
         bne ds2
@@ -497,6 +559,7 @@ ds3n    cpx #3                 ; a device name from DEVNAME
         ldx #0
 ds4     ldy #0
 ds5     lda (fadr),y
+        jsr toupper
         cmp DEVNAME,x
         bne ds6
         inx
@@ -534,6 +597,7 @@ ds_bad  ldy ge_n
 * unitnum: the unit from (fadr),Y up to ge_n: decimal 1-15, or one letter
 * A-O (SDX: DSKA: is DSK1:); A = unit, C=1 bad
 unitnum lda (fadr),y
+        jsr toupper
         cmp #'A'
         bcc un0
         cmp #'O'+1
@@ -579,10 +643,16 @@ isdigit cmp #'0'
         rts
 isalnum jsr isdigit
         bcc is_ret
+        cmp #'a'
+        bcc is_up
+        cmp #'z'+1
+        bcc is_yes
+is_up
         cmp #'A'
         bcc is_no
         cmp #'Z'+1
         bcs is_no
+is_yes
         clc
         rts
 is_no   sec
@@ -731,17 +801,15 @@ ffname  lda FILE_P
         sta fadr
         lda FILE_P+1
         sta fadr+1
-        ldy #0                 ; the name only: after the last : > or
-        ldx #0                 ; backslash (SDX: File X.DAT for SUB>X.DAT)
+        ldy #0                 ; the name only: after the last : or /
+        ldx #0
 ff0     lda (fadr),y
         jsr ffend
         beq ff0e
         iny
         cmp #':'
         beq ff0s
-        cmp #'>'
-        beq ff0s
-        cmp #BSLASH
+        cmp #'/'
         bne ff0
 ff0s    tya
         tax
@@ -794,18 +862,25 @@ fn_ok   rts
 
 * U_GEPATH (5.12): FILE_P to device and the whole path in path
 u_gepath jsr u_gefina
+        ldy ge_start           ; rebuild it from the caller instead of keeping
         ldx #0
-gp_c    lda ge_rawp,x          ; the path as given, name included
-        sta path,x
-        inx
+gp_c    lda (fadr),y           ; a second resident 128-byte copy
+        beq gp_e
+        cmp #','
+        beq gp_e
         cmp #EOL
+        beq gp_e
+        sta path,x
+        iny
+        inx
         bne gp_c
-        dex
+gp_e
         lda #0
         sta path,x
         rts
 
-* RENAME: "old new" at FILE_P (a space or comma between them)
+* RENAME: "old,new" at FILE_P.  Comma is the separator so spaces remain
+* ordinary bytes in either exact EOSFS name.
 * RENDIR (12.2): RENAME for a directory
 rendir  lda #$08
         sta scan
@@ -824,52 +899,45 @@ rn0     lda FILE_P             ; the new name follows the first one
         sta fadr+1
         ldy ge_stop
 rn1     lda (fadr),y
-        cmp #' '
-        beq rn2
         cmp #','
         bne rn3
-rn2     iny
-        bne rn1
-rn3     ldx #10                ; to x_name as U_GEFINA makes a name
-        lda #' '
+        iny
+rn3     ldx #EOS_NAME_MAX      ; to x_name as U_GEFINA makes a name
+        lda #0
 rn4     sta x_name,x
         dex
         bpl rn4
         ldx #0
-        lda #8
-        sta ge_lim
 rn5     lda (fadr),y
         cmp #EOL
-        beq rn_end
-        cmp #' '
         beq rn_end
         cmp #','
         beq rn_end
         iny
-        cmp #'.'
-        beq rn_dot
+        cpx #EOS_NAME_MAX
+        bcs rn_bad
+        sta x_name,x
+        inx
+        bne rn5
+rn_end  lda #0
+        sta x_name,x
+        cpx #0
+        beq rn_bad
+        ldy #0
+rn_ck   lda x_name,y
+        cmp #'?'
+        beq rn_wild
         cmp #'*'
-        beq rn_star
-        cpx ge_lim
-        bcs rn5
-        sta x_name,x
-        inx
-        bne rn5
-rn_star lda #'?'
-rn_s1   cpx ge_lim
-        bcs rn5
-        sta x_name,x
-        inx
-        bne rn_s1
-rn_dot  lda ge_lim
-        cmp #8
-        bne rn_end
-        ldx #8
-        lda #11
-        sta ge_lim
-        bne rn5
-rn_end  ldy #11                ; kd_rename
+        beq rn_wild
+        iny
+        cpy #EOS_NAME_MAX
+        bcc rn_ck
+        ldy #11                ; kd_rename
         jmp jkernel
+rn_bad  lda #165               ; Bad filename (N=1)
+        rts
+rn_wild lda #163               ; Illegal wildcard in name
+        rts
 
 * ---- PUTC: a character to standard output (COMTAB+6); keeps A, X, Y and
 * the page 7 parameters ------------------------------------------------------
@@ -2112,6 +2180,7 @@ gs1     lda COMFNAM,y
         beq gs2
         cpx #8
         jcs gnm_bad
+        jsr toupper            ; symbols, unlike file names, are case-neutral
         sta ld_name,x
         iny
         inx
@@ -2377,17 +2446,16 @@ ua8     sty BUFOFF
         lda #1                 ; Z=0
         rts
 
-* ---- PRO_NAME (6.2): the name at (bufadr)+Y+1 to name, 8+3 ('*' fills with
-* '?', longer parts cut); it ends at EOL, a space, a comma or a path
-* separator. A = that character, Y = its offset; Z=1 when name is blank.
-pro_name ldx #10
-        lda #' '
+* ---- PRO_NAME (6.2): the name at (bufadr)+Y+1 to name, exact-case and NUL
+* terminated. It ends at EOL, a space, a comma or a path separator. A = that
+* character, Y = its offset; Z=1 when name is blank. Longer input is consumed
+* but only the first 31 bytes fit in the public name buffer.
+pro_name ldx #EOS_NAME_MAX
+        lda #0
 pq1     sta name,x
         dex
         bpl pq1
         ldx #0
-        lda #8
-        sta ge_lim
 pq2     iny
         lda (fadr),y
         cmp #EOL
@@ -2398,33 +2466,14 @@ pq2     iny
         beq pq_end
         jsr ckspec
         beq pq_end
-        cmp #'.'
-        beq pq_dot
-        cmp #'*'
-        beq pq_star
-        cpx ge_lim
+        cpx #EOS_NAME_MAX
         bcs pq2
         sta name,x
         inx
-        bne pq2
-pq_star lda #'?'
-pq_s1   cpx ge_lim
-        bcs pq2
-        sta name,x
-        inx
-        bne pq_s1
-pq_dot  ldx #8                 ; the extension
-        lda #11
-        sta ge_lim
         bne pq2
 pq_end  pha
-        ldx #10                ; Z: name blank
-pq3     lda name,x
-        cmp #' '
-        bne pq4
-        dex
-        bpl pq3
-pq4     inx                    ; X+1 = 0 when blank
+        lda #0
+        sta name,x
         stx ge_n
         pla
         ldx ge_n
@@ -2460,6 +2509,7 @@ gf_let  lda COMFNAM+1          ; one of the letters alone: C=1
         bne gf_no
         ldx #3
         lda COMFNAM
+        jsr toupper
 gf1     cmp gf_lets,x
         beq gf2
         dex
@@ -2480,6 +2530,7 @@ u_gonoff jsr u_getpar
         beq go_bad
         ldx #2
 go1     lda COMFNAM,x          ; ON
+        jsr toupper
         cmp go_on,x
         bne go2
         dex
@@ -2488,6 +2539,7 @@ go1     lda COMFNAM,x          ; ON
         rts
 go2     ldx #3
 go3     lda COMFNAM,x          ; OFF
+        jsr toupper
         cmp go_off,x
         bne go_bad
         dex
@@ -2512,7 +2564,10 @@ tk1     ldx #0
         beq tk_no
 tk2     lda (fadr),y
         and #$7F
-        cmp COMFNAM,x
+        sta gn_d
+        lda COMFNAM,x
+        jsr toupper
+        cmp gn_d
         bne tk_skip
         lda (fadr),y
         iny
@@ -2663,18 +2718,24 @@ toupper cmp #'a'
         and #$DF
 tu_ret  rts
 
-* CKSPEC (14.3): Z=1 when A is a path separator : > backslash <
+* tolower: remove the display/inverse bit and fold A-Z to a-z.  Callers use
+* this for case-neutral command and option tokens, never stored EOSFS names.
+tolower and #$7F
+        cmp #'A'
+        bcc tl_ret
+        cmp #'Z'+1
+        bcs tl_ret
+        ora #$20
+tl_ret  rts
+
+* CKSPEC: Z=1 when A is a device or native path separator (: or /)
 ckspec  cmp #':'
         beq ck_ret
-        cmp #'>'
-        beq ck_ret
-        cmp #BSLASH
-        beq ck_ret
-        cmp #'<'
+        cmp #'/'
 ck_ret  rts
 
 * U_FSPEC (5.14): a parameter in COMFNAM that ends with a separator gets
-* the mask *.*, FILLEN follows
+* the native match-all mask *, FILLEN follows
 u_fspec ldx FILLEN
         beq fsp_ret
         lda COMFNAM-1,x
@@ -2685,12 +2746,12 @@ fsp1    lda fsp_all,y
         sta COMFNAM,x
         inx
         iny
-        cpy #4
+        cpy #2
         bcc fsp1
         dex
         stx FILLEN
 fsp_ret rts
-fsp_all dta c'*.*',b(EOL)
+fsp_all dta c'*',b(EOL)
 
 * U_PATH (6.4): device and path back to text at AX+Y, EOL ended; Y = the
 * EOL's offset. The device: a drive's name (A: ... O:, or Dn: when CIO has
@@ -3106,55 +3167,21 @@ ux1     pla
         plp
         rts
 
-* ---- U_EXPAND: name (8+3) as NAME.EXT and EOL at AX + Y; Y = the EOL.
-* ?s up to the end of the name or of the extension come out as one * (as
-* on SDX: Sparta Commander shows its mask ????????.??? as *.*) ----
+* ---- U_EXPAND: the NUL-ended exact-case name and EOL at AX + Y;
+* Y = the EOL offset. -------------------------------------------------------
 u_expand sta fadr
         stx fadr+1
         ldx #0
-        lda #8
-        jsr ue_fld
-        lda name+8
-        cmp #' '
-        beq ue4
-        lda #'.'
+ue1     lda name,x
+        beq ue2
         sta (fadr),y
         iny
-        ldx #8
-        lda #11
-        jsr ue_fld
-ue4     lda #EOL
+        inx
+        cpx #EOS_NAME_SIZE
+        bcc ue1
+ue2     lda #EOL
         sta (fadr),y
         rts
-* ue_fld: name+X .. name+A-1 without its blanks; trailing ?s as *
-ue_fld  sta ue_end
-        stx ue_st
-        tax
-uef1     cpx ue_st
-        beq uef2
-        lda name-1,x
-        cmp #'?'
-        bne uef2
-        dex
-        jmp uef1
-uef2     stx ue_q
-        ldx ue_st
-uef3     cpx ue_q
-        bcs uef4
-        lda name,x
-        cmp #' '
-        beq uef3a
-        sta (fadr),y
-        iny
-uef3a    inx
-        bne uef3
-uef4     lda ue_q
-        cmp ue_end
-        beq uef5
-        lda #'*'
-        sta (fadr),y
-        iny
-uef5     rts
 
 * ---- U_GETATR: +X / -X attribute parameters, then a file name ------------
 * A: the default search mask; out: scan, and the name as U_GETPAR gives it

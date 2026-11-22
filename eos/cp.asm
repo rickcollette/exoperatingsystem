@@ -22,13 +22,12 @@
 E_BADPARM equ 156
 E_NODEV equ 130
 E_NOTFOUND equ 170
+E_PATHLEN equ 182
 
 COMFNAM equ COMTAB+CT_COMFNAM
 BUFOFF  equ COMTAB+CT_BUFOFF
 LBUF    equ COMTAB+CT_LBUF
 FILLEN  equ COMTAB+CT_FILLEN
-CP_NAME equ LBUFF+64           ; a batch file's or command's name
-
         org CARTLO
         jmp cp_main            ; $A000 enter from DOSVEC (k_cp)
         jmp rdcmd              ; $A003 RAMDISK (_EOSDRV 3, CAR:RAMDISK.SYS)
@@ -52,7 +51,9 @@ cm_n    ldx #$FF
         jsr farcall            ; a program that ended with JMP (DOSVEC) or
         dta b(BK_LD),a(LD_RESET) ; failed: free what it had
         jsr closeall
-        lda cp_fail            ; an error: does it end the batch file?
+        lda cp_fail            ; publish the completed command's status
+        pha
+                                ; an error: does it end the batch file?
         beq cm_ok
         jsr pp_abort           ; (and a pipe: its files go)
         ldx #0
@@ -75,7 +76,9 @@ cm_e1   ldx cp_inb             ; the command processor's own: 130, 156
         cmp #E_BADPARM
         bne cm_ok
 cm_end  jsr batend
-cm_ok   jsr nocmd
+cm_ok   pla
+        sta cp_d
+        jsr nocmd
         lda #0
         sta cp_inb
         lda cp_cold
@@ -107,7 +110,16 @@ cp_loop lda IOCB0+ICAX1        ; E: reads and writes again: a program may
         jsr farcall
         dta b(BK_LIB),a(L_XDIVIO)
         jsr pp_next            ; a pipe's next stage
-        jcs cp_line
+        jcs cond_line
+        bit cp_inb             ; a resident built-in returned directly
+        bpl cond_next
+        lda #0
+        sta cp_d
+cond_next
+        jsr farcall
+        dta b(BK_LIB2),a(L2_CONDNEXT)
+        cmp #1
+        jeq cond_line
         bit cp_xone            ; XCOMLI's line done: back to the caller
         jmi cp_oret
         bit cp_cfg
@@ -147,6 +159,7 @@ cp_int2 jsr mkprompt
         lda #0
         sta IOCB0+ICBLH
         jsr CIOV
+        jsr k_prompt           ; stable prompt-ready hook before either editor
         bit dk_on              ; DOSKEY.SYS: its own command line
         bpl ci_e
         jsr farcall
@@ -155,16 +168,26 @@ cp_int2 jsr mkprompt
 ci_e    jsr k_getline
 ci_y    tya
         jmi cp_loop
-cp_sub  jsr subst
-cp_line jsr pp_split           ; A | B: this stage, the rest waits
+cp_sub  lda #0
+        sta cp_cond
+        jsr farcall
+        dta b(BK_LIB2),a(L2_SUBST)
+        jsr farcall
+        dta b(BK_LIB2),a(L2_CONDSPLIT)
+cond_line
+        jsr pp_split           ; A | B: this stage, the rest waits
+cp_line lda #0                 ; assume success; U_FAIL replaces this status
+        sta cp_d
         lda #$80               ; errors from here on are the command processor's
         sta cp_inb
         jsr redir
+        jsr arg_parse          ; publish the quote-aware sidecar for new tools
 cl_parse lda #0
         sta BUFOFF
         jsr farcall
         dta b(BK_LIB),a(L_GETPAR)
         jeq cp_loop
+        jsr keepcmd            ; fold for built-ins, but retain typed spelling
         jsr upname
         bit cp_front           ; the startup batch file's _01 goes to the end
         bpl cl2                ; with the first command that has parameters
@@ -178,7 +201,10 @@ cl_parse lda #0
 cl1a    jsr mv01
 cl2     lda COMFNAM            ; -NAME: a batch file
         cmp #'-'
-        jeq c_bat
+        bne cl2a
+        jsr rawcmd
+        jmp c_bat
+cl2a
         ldx FILLEN             ; a device alone (C:, D8:) makes it current
         lda COMFNAM-1,x
         cmp #':'
@@ -223,7 +249,8 @@ cm_skip lda (fadr),y           ; next entry: past the EOL and the address
         bne cm1
 * not a built-in command: load and run the program, NAME.COM when the name
 * has no extension; the current directory, then $PATH
-cm_none lda COMFNAM            ; +NAME: past COMEXE
+cm_none jsr rawcmd             ; external names are case-sensitive
+        lda COMFNAM            ; +NAME: past COMEXE
         cmp #'+'
         bne cx0
         ldx #0
@@ -244,6 +271,9 @@ cx0a    bit cx_on
         jmp cx_x
 cx_com  lda #<dotcom
         ldx #>dotcom
+        ldy #0
+        sty cp_lflag
+        jmp runprg2
 * runprg: COMFNAM (extension AX when it has none) loaded and run (cp_lflag:
 * the loader's FLAG; runprg runs it); runnm: the same for CP_NAME
 runprg  ldy #0
@@ -341,13 +371,47 @@ cp_oend lda #0
 * pp_split: a | in LBUF ends this command there, the rest goes to PIPEBUF;
 * the first one takes $TEMP
 pp_split ldy #0
-pips1     lda LBUF,y
+        sty cp_fl              ; quote state: 0 plain, 1 single, 2 double
+pips1  lda LBUF,y
         cmp #EOL
         beq pipsnone
+        ldx cp_fl
+        beq pipsplain
+        cpx #1
+        beq pipssq
+        cmp #'"'
+        beq pipsqend
+        cmp #BSLASH
+        beq pipsesc
+        bne pipsnext
+pipssq  cmp #39
+        beq pipsqend
+        bne pipsnext
+pipsplain cmp #39
+        beq pipssq0
+        cmp #'"'
+        beq pipsdq0
+        cmp #BSLASH
+        beq pipsesc
         cmp #'|'
         beq pips2
+pipsnext
         iny
         bne pips1
+pipssq0 lda #1
+        sta cp_fl
+        bne pipsnext
+pipsdq0 lda #2
+        sta cp_fl
+        bne pipsnext
+pipsqend lda #0
+        sta cp_fl
+        beq pipsnext
+pipsesc iny                    ; the escaped byte is never an operator
+        lda LBUF,y
+        cmp #EOL
+        beq pipsnone
+        bne pipsnext
 pipsnone jsr k_romoff
         lda #0
         sta P_MORE
@@ -432,7 +496,9 @@ piprin   lda P_N
         jsr k_romon
         jmp pp_dash
 piproff  jmp k_romon
-* pp_dash: the first parameter - in LBUF becomes the name at LBUFF+32
+* pp_dash: the first parameter - in LBUF becomes the name at LBUFF+32.
+* CP_ARGBUF is safe temporary storage here: arg_parse has not published the
+* current command yet.  This avoids the old pair of 32-byte slices in LBUFF.
 pp_dash ldy #1
 pipd1     lda LBUF,y
         cmp #EOL
@@ -450,10 +516,11 @@ pipd1     lda LBUF,y
 pipd2     iny
         bne pipd1
 pipdret  rts
-pipd3     sty cp_y               ; the rest after it aside (LBUFF+64)
+pipd3     sty cp_y               ; keep the rest under ROM
+        jsr k_romoff
         ldx #0
 pipd4     lda LBUF+1,y
-        sta LBUFF+64,x
+        sta CP_ARGBUF,x
         iny
         inx
         cmp #EOL
@@ -463,24 +530,29 @@ pipd4     lda LBUF+1,y
 pipd5     lda LBUFF,x
         cmp #EOL
         beq pipd6
-        sta LBUF,y
-        inx
-        iny
-        cpy #63
-        bcc pipd5
+        cpy #127
         bcs pipdlong
-pipd6     ldx #0                 ; then the rest
-pipd7     lda LBUFF+64,x
         sta LBUF,y
-        cmp #EOL
-        beq pipdret
         inx
         iny
-        cpy #63
-        bcc pipd7
-pipdlong lda #EOL               ; too long for the line: as far as it goes
+        bne pipd5
+pipd6     ldx #0                 ; then the rest
+pipd7     lda CP_ARGBUF,x
+        cmp #EOL
+        beq pipdok
+        cpy #127
+        bcs pipdlong
         sta LBUF,y
-        rts
+        inx
+        iny
+        bne pipd7
+pipdok   sta LBUF,y
+        jmp k_romon
+pipdlong lda #EOL               ; expanded line exceeds its public limit
+        sta LBUF,y
+        jsr k_romon
+        lda #E_PATHLEN
+        jmp fail
 * pp_name: the file of command A ($TEMP, PIPEn.TMP) to LBUFF+X, with
 * the ROM off (P_TMP)
 pp_name sta cp_d
@@ -575,15 +647,15 @@ pipdl1    lda cp_pct
 pipdlend jmp k_romon
 pp_temp dta c'TEMP',b(EOL)
 pp_pipe dta c'PIPE'
-pp_ext  dta c'.TMP',b(EOL)
+pp_ext  dta c'.tmp',b(EOL)
 
 * nocmd: no program's name for U_FAIL
 nocmd   jsr k_romoff
         lda #EOL
         sta CMDNAME
         jmp k_romon
-dotcom  dta c'.COM',b(EOL)
-dotexe  dta c'.EXE',b(EOL)
+dotcom  dta c'.com',b(EOL)
+dotexe  dta c'.exe',b(EOL)
 
 * cx_exe (COMEXE): C=0 when COMFNAM is a NAME.EXE to run through X (no
 * extension: NAME.COM first, then NAME.EXE: cx_add $80, .EXE to add).
@@ -601,11 +673,10 @@ cxe2    lda COMFNAM,x
         bne cxe2a
         txa
         tay
-cxe2a   cmp #'>'
+cxe2a   cmp #'/'
         beq cxe2b
         cmp #':'
         beq cxe2b
-        cmp #BSLASH
         bne cxe2
 cxe2b   ldy #0
         beq cxe2
@@ -699,7 +770,7 @@ cxx3    lda LBUF,y
         beq cxx4
         iny
         inx
-        cpx #63
+        cpx #127
         bcc cxx3
         lda #EOL
         sta LBUFF,x
@@ -710,17 +781,19 @@ cxx5    lda LBUFF,x
         cmp #EOL
         bne cxx5
         jmp cl_parse
-dotbat  dta c'.BAT',b(EOL)
-dotsys  dta c'.SYS',b(EOL)
-dotcfg  dta c'.CFG',b(EOL)
+dotbat  dta c'.bat',b(EOL)
+dotsys  dta c'.sys',b(EOL)
+dotcfg  dta c'.cfg',b(EOL)
 
 fail    jsr farcall
         dta b(BK_LIB),a(L_FAIL)
 
 * built-in commands: name, EOL, address-1
 cmdtab  dta c'TYPE',b(EOL),a(c_type-1)
+        dta c'CAT',b(EOL),a(c_cat-1)
         dta c'RUNEXT',b(EOL),a(c_runext-1)
         dta c'CLS',b(EOL),a(c_cls-1)
+        dta c'CLEAR',b(EOL),a(c_cls-1)
         dta c'ECHO',b(EOL),a(c_echo-1)
         dta c'SET',b(EOL),a(c_set-1)
         dta c'PATH',b(EOL),a(c_path-1)
@@ -738,6 +811,7 @@ cmdtab  dta c'TYPE',b(EOL),a(c_type-1)
         dta c'REN',b(EOL),a(c_ren-1)
         dta c'RENAME',b(EOL),a(c_ren-1)
         dta c'DEL',b(EOL),a(c_del-1)
+        dta c'RM',b(EOL),a(c_del-1)
         dta c'DELETE',b(EOL),a(c_del-1)
         dta c'ERASE',b(EOL),a(c_del-1)
         dta c'ATR',b(EOL),a(c_atr-1)
@@ -757,6 +831,7 @@ cmdtab  dta c'TYPE',b(EOL),a(c_type-1)
         dta c'VER',b(EOL),a(c_ver-1)
         dta c'FI',b(EOL),a(cp_loop-1)
         dta c'COPY',b(EOL),a(c_copy-1)
+        dta c'CP',b(EOL),a(c_cp-1)
         dta b(0)
 
 * upname: COMFNAM in capitals
@@ -775,6 +850,128 @@ upper   cmp #'a'
         bcs up1
         and #$DF
 up1     rts
+
+* Retain the command exactly as typed while COMFNAM is used for the built-in
+* command table. CP_NAME is free at this point and runprg replaces it later.
+keepcmd ldx #0
+kc_cmd1 lda COMFNAM,x
+        sta CP_NAME,x
+        inx
+        cmp #EOL
+        bne kc_cmd1
+        rts
+rawcmd  ldx #0
+rc_cmd1 lda CP_NAME,x
+        sta COMFNAM,x
+        inx
+        cmp #EOL
+        bne rc_cmd1
+        rts
+
+* arg_parse: publish this command as argc plus offset/length argv entries.
+* The old COMTAB line is unchanged; new programs use U_ARGC/U_ARGV. Parsing is
+* bounded in CP_ARGBUF: quotes are removed, quoted blanks retained,
+* and backslash quotes the following byte. Operators have already been taken
+* by the command processor. A maximum of 16 words and 127 output bytes keeps
+* all storage fixed.
+arg_parse jsr k_romoff
+        lda #0
+        sta CP_ARGC
+        sta cp_y               ; input offset
+        ldx #0                 ; output offset
+ap_skip ldy cp_y
+        lda LBUF,y
+        cmp #' '
+        jeq ap_sk1
+        cmp #','               ; retain the inexpensive legacy separator
+        jeq ap_sk1
+        cmp #EOL
+        jeq ap_done
+        lda CP_ARGC
+        cmp #16
+        bcs ap_bad
+        tay
+        txa
+        sta CP_ARGOFF,y
+        sta cp_d               ; this word's output start
+        lda #0
+        sta cp_fl              ; 0 plain, 1 single quote, 2 double quote
+ap_char ldy cp_y
+        lda LBUF,y
+        cmp #EOL
+        beq ap_eol
+        lda cp_fl
+        beq ap_plain
+        cmp #1
+        beq ap_single
+* double quoted
+        lda LBUF,y
+        cmp #'"'
+        beq ap_qend
+        cmp #BSLASH
+        beq ap_escape
+        bne ap_copy
+ap_single lda LBUF,y
+        cmp #39                ; single quote
+        beq ap_qend
+        bne ap_copy
+ap_plain lda LBUF,y
+        cmp #' '
+        beq ap_word
+        cmp #','
+        beq ap_word
+        cmp #39
+        beq ap_sq
+        cmp #'"'
+        beq ap_dq
+        cmp #BSLASH
+        beq ap_escape
+ap_copy cpx #127
+        bcs ap_bad
+        sta CP_ARGBUF,x
+        inx
+ap_next inc cp_y
+        bne ap_char
+ap_bad lda #E_PATHLEN
+        jsr k_romon
+        jmp fail
+ap_sq   lda #1
+        sta cp_fl
+        bne ap_next
+ap_dq   lda #2
+        sta cp_fl
+        bne ap_next
+ap_qend lda #0
+        sta cp_fl
+        beq ap_next
+ap_escape inc cp_y
+        ldy cp_y
+        lda LBUF,y
+        cmp #EOL
+        beq ap_bad
+        bne ap_copy
+ap_eol  lda cp_fl
+        bne ap_bad
+ap_word lda #EOL
+        sta CP_ARGBUF,x
+        txa
+        sec
+        sbc cp_d
+        ldy CP_ARGC
+        sta CP_ARGLEN,y
+        inc CP_ARGC
+        ldy cp_y
+        lda LBUF,y
+        cmp #EOL
+        beq ap_done
+        cpx #127
+        bcs ap_bad
+        inx
+ap_sk1  inc cp_y
+        jmp ap_skip
+ap_done lda #EOL
+        sta CP_ARGBUF,x
+        jmp k_romon
 
 * ---- CLS -----------------------------------------------------------------------
 * ---- RUNEXT: the associations RUNEXT.SYS read --------------------------------
@@ -797,35 +994,87 @@ ce0     jsr onoff
         bcs ce1
         sta cp_echo
         jmp cp_loop
-ce1     lda #0                 ; /N: no EOL at the end
-        sta cp_fl
-        lda LBUF,y
+ce1     lda #0                 ; print the parsed argv, joining words once
+        sta cp_fl              ; (/N: no EOL at the end)
+        lda #1
+        sta cp_i
+        cmp CP_ARGC
+        bcs ce3
+        jsr cp_argv
+        cpy #2
+        bne ce_loop
+        lda path
         cmp #'/'
-        bne ce3
-        lda LBUF+1,y
+        bne ce_loop
+        lda path+1
         jsr upper
         cmp #'N'
-        bne ce3
-        lda LBUF+2,y
-        cmp #' '
-        beq ce2
-        cmp #EOL
-        bne ce3
-ce2     lda #$80
+        bne ce_loop
+        lda #$80
         sta cp_fl
-        iny
-        iny
-ce2a    lda LBUF,y
-        cmp #' '
-        bne ce3
-        iny
-        bne ce2a
-ce3     jsr prtext
+        inc cp_i
+ce_loop lda cp_i
+        cmp CP_ARGC
+        bcs ce3
+        jsr cp_argv
+        ldx #0
+ce_chars cpx cp_lim
+        beq ce_next
+        lda path,x
+        jsr putc
+        inx
+        bne ce_chars
+ce_next inc cp_i
+        lda cp_i
+        cmp CP_ARGC
+        bcs ce3
+        lda #' '
+        jsr putc
+        jmp ce_loop
+ce3
         bit cp_fl
         bmi ce4
         lda #EOL
         jsr putc
 ce4     jmp cp_loop
+
+* cp_argv: native argument A copied from the under-ROM sidecar to path;
+* cp_lim is its length.  The sidecar is known valid after arg_parse.
+cp_argv tay
+        lda CP_ARGOFF,y
+        clc
+        adc #<CP_ARGBUF
+        sta fadr
+        lda #>CP_ARGBUF
+        adc #0
+        sta fadr+1
+        lda CP_ARGLEN,y
+        sta cp_lim
+        jsr k_romoff
+        ldy #0
+cav1    cpy cp_lim
+        beq cav2
+        lda (fadr),y
+        sta path,y
+        iny
+        bne cav1
+cav2    jsr k_romon
+        ldy cp_lim
+        rts
+
+* argvcom: native argument A copied to COMFNAM and EOL-terminated.  Filesystem
+* built-ins use this after arg_parse instead of reparsing the legacy LBUF.
+argvcom jsr cp_argv
+        ldx #0
+avc1    cpx cp_lim
+        beq avc2
+        lda path,x
+        sta COMFNAM,x
+        inx
+        bne avc1
+avc2    lda #EOL
+        sta COMFNAM,x
+        rts
 
 * onoff: ON or OFF (any case) alone at LBUF+Y: C=0, A = $80 or 0; keeps Y
 onoff   lda LBUF,y
@@ -965,7 +1214,7 @@ np1     lda nmpath,x
 * read); ; comments; ? before a line (SDX asks, EOS does it). Other lines
 * and errors do not stop it. DEVICE with one of SDX's drivers that EOS has
 * built in does nothing; another is loaded as a program (.SYS). After it:
-* BOOT=A:>, the banner, then $BATCH or the startup batch file.
+* BOOT=A:/, the banner, then $BATCH or the startup batch file.
 
 * cfgopen: C=0 the file is open (cp_bat), cp_cfg set; C=1 none
 cfgopen lda CONSOL
@@ -997,8 +1246,8 @@ co3     lda file_id
         sta cp_cfg
         clc
         rts
-cfgnames dta c'D1:EOSSYS.SYS',b(EOL)
-        dta c'D1:CONFIG.SYS',b(EOL)
+cfgnames dta c'D1:eossys.sys',b(EOL)
+        dta c'D1:config.sys',b(EOL)
         dta b(0)
 
 * cfgdone: after EOSSYS.SYS (or none)
@@ -1030,11 +1279,11 @@ cd2     lda nmbatch,x
         jcc cd3
         jsr autoexec
 cd3     rts
-nmboot  dta c'BOOT=A:>',b(EOL)
+nmboot  dta c'BOOT=A:/',b(EOL)
 cpbanner dta b(EOL)
-        dta c'EOS '
+        dta c'EOS v'
         icl 'version.icl'
-        dta c' Extendable Operating System',b(EOL)
+        dta c' (c)2026 Rick Collette',b(EOL)
 cpbanner_end equ *
 
 * cfgline: the next line of EOSSYS.SYS
@@ -1140,7 +1389,7 @@ cv2     lda drvtab,x
         iny
         cmp #EOL
         bne cv2
-        cpx #11                ; SIO (after SPARTA): /A or /C
+        cpx #4                 ; SIO: /A or /C
         bne cv2x
         jsr sio_a
 cv2x    jmp cp_loop
@@ -1181,7 +1430,7 @@ sa_off  lda #0
         sta DDEVIC
         jmp k_hsdrv
 sa_x    rts
-drvtab  dta c'SPARTA',b(EOL),c'SIO',b(EOL),c'ATARIDOS',b(EOL),c'INDUS',b(EOL)
+drvtab  dta c'SIO',b(EOL)
         dta b(0)
 clknm   dta c'RTIME8',b(EOL),c'JIFFY',b(EOL)
 * cmpnm: Z=1 when COMFNAM is the name at clknm+X (EOL ended)
@@ -1324,9 +1573,7 @@ bn1     lda CP_NAME,y
         iny
         cmp #':'
         beq bn2
-        cmp #'>'
-        beq bn2
-        cmp #BSLASH
+        cmp #'/'
         bne bn3
 bn2     ldx #0                 ; a separator: the name starts again
         beq bn1
@@ -1341,9 +1588,7 @@ bn3b    lda CP_NAME,y          ; until a separator restarts it
         iny
         cmp #':'
         beq bn2
-        cmp #'>'
-        beq bn2
-        cmp #BSLASH
+        cmp #'/'
         beq bn2
         bne bn3b
 bn3a    jsr upper
@@ -1402,11 +1647,15 @@ cb_1    lda nmbatch,x
         sta cp_nm,x
         dex
         bpl cb_1
-        ldx #64
+        ldx #0
         jsr envget
         jcs ck_ret
-        lda #EOL
-        sta CP_NAME-64,x
+        ldy #0
+cb_2    lda LBUFF,y
+        sta CP_NAME,y
+        iny
+        cmp #EOL
+        bne cb_2
         lda #<cp_nm            ; deleted
         ldx #>cp_nm
         jsr putenv
@@ -1455,8 +1704,8 @@ ae3     inx
         lda autonames,x
         bne ae1
         rts
-autonames dta c'D1:EOSAUTO.BAT',b(EOL)
-        dta c'D1:AUTOEXEC.BAT',b(EOL)
+autonames dta c'D1:eosauto.bat',b(EOL)
+        dta c'D1:autoexec.bat',b(EOL)
         dta b(0)
 
 * mv01: _01 deleted and set again (now the last variable)
@@ -1509,7 +1758,7 @@ bl2     txa                    ; into the last place up to its EOL)
         lda LBUF,x
         cmp #EOL
         beq bl_ok
-        cpx #62
+        cpx #127
         bcs bl1
         inc cp_i
         bne bl1
@@ -1522,147 +1771,87 @@ bl_ok   clc
 bl_eof  jsr batend
         sec
         rts
-* bl_x: X = where the next byte of the line goes: cp_i, at most 62 (SDX
-* keeps 62 characters of a longer line)
+* bl_x: X = where the next byte of the line goes: cp_i, at most 127
 bl_x    ldx cp_i
-        cpx #62
+        cpx #127
         bcc blx1
-        ldx #62
+        ldx #127
 blx1    rts
 
 * ---- the command line ------------------------------------------------------------
 
-* subst: LBUF with $NAME, $NAME$ (variables), backslash-$ and, in batch lines, %0-%9
-* replaced, through LBUFF (63 characters kept)
-subst   ldy #0
-        ldx #0
-su1     lda LBUF,y
-        cmp #EOL
-        jeq su_end
-        cmp #BSLASH            ; backslash-$: a $
-        bne su2
-        lda LBUF+1,y
-        cmp #'$'
-        bne su_bs
-        iny
-        jne su_lit
-su_bs   lda #BSLASH
-        jne su_lit
-su2     cmp #'%'
-        bne su3
-        bit cp_pct
-        jpl su_lit
-        lda LBUF+1,y
-        cmp #'0'
-        bcc su_pc
-        cmp #'9'+1
-        bcs su_pc
-        sta cp_nm+1            ; _d1
-        lda #'_'
-        sta cp_nm
-        lda #'1'
-        sta cp_nm+2
-        lda #EOL
-        sta cp_nm+3
-        iny
-        iny
-        sty cp_y
-        jsr envget             ; (none: nothing)
-        ldy cp_y
-        jmp su1
-su_pc   lda #'%'
-        bne su_lit
-su3     cmp #'$'
-        bne su_lit
-        sty cp_y               ; $NAME: letters, digits, _
-        stx cp_x
-        ldx #0
-su4     lda LBUF+1,y
-        jsr upper
-        cmp #'_'
-        beq su5
-        cmp #'0'
-        bcc su6
-        cmp #'9'+1
-        bcc su5
-        cmp #'A'
-        bcc su6
-        cmp #'Z'+1
-        bcs su6
-su5     cpx #9
-        bcs su6
-        sta cp_nm,x
-        inx
-        iny
-        bne su4
-su6     lda #EOL
-        sta cp_nm,x
-        txa
-        beq su_no
-        lda LBUF+1,y           ; $NAME$: the $ ends it
-        cmp #'$'
-        bne su7
-        iny
-su7     iny
-        sty cp_d
-        ldx cp_x
-        jsr envget
-        bcs su_no
-        ldy cp_d
-        jmp su1
-su_no   ldy cp_y               ; no such variable: the $ as typed
-        ldx cp_x
-        lda #'$'
-su_lit  cpx #127
-        bcs su8
-        sta LBUFF,x
-        inx
-su8     iny
-        jmp su1
-su_end  cpx #63                ; back to LBUF
-        bcc su9
-        ldx #63
-su9     lda #EOL
-        sta LBUFF,x
-su10    lda LBUFF,x
-        sta LBUF,x
-        dex
-        bpl su10
-        rts
-
-* redir: >>NAME and <<NAME words (at the start of a word only) taken out
-* of LBUF with the blank before them; the first of each kind redirects
-* standard output (written anew) or input for this command. As on SDX: a
-* later one is ignored, an empty name is 163 (output) or 170 (input).
+* redir: >NAME (truncate), >>NAME (append), <NAME and the old <<NAME input
+* alias, at the start of a word. Quoted or escaped markers are ordinary
+* bytes. The first of each kind wins; an empty name is an error.
 redir   lda #0
         sta cp_ro
         sta cp_ri
+        sta cp_fl              ; quote state
         ldy #0
 rd1     lda LBUF,y
         cmp #EOL
-        beq rd_go
+        jeq rd_go
+        ldx cp_fl
+        beq rd_plain
+        cpx #1
+        beq rd_sq
+        cmp #'"'
+        beq rd_qend
+        cmp #BSLASH
+        beq rd_esc
+        bne rd_nx
+rd_sq   cmp #39
+        beq rd_qend
+        bne rd_nx
+rd_plain cmp #39
+        beq rd_sq0
+        cmp #'"'
+        beq rd_dq0
+        cmp #BSLASH
+        beq rd_esc
         cmp #'>'
-        beq rd2
+        beq rd_mark
         cmp #'<'
         bne rd_nx
-rd2     cmp LBUF+1,y
-        bne rd_nx
+rd_mark sta cp_d               ; marker and its width
         cpy #0                 ; a word's start?
-        beq rd3
+        beq rd2
         ldx LBUF-1,y
         cpx #' '
         bne rd_nx
+rd2     lda #1
+        sta cp_lim
+        lda LBUF+1,y
+        cmp cp_d
+        bne rd3
+        inc cp_lim
 rd3     sty cp_y               ; the word: Y ... its end
         ldx #0                 ; > : LBUFF, < : LBUFF+32
+        lda cp_d
         cmp #'>'
         beq rd4
         ldx #32
 rd4     stx cp_x
         jmp rd_w
+rd_sq0  lda #1
+        sta cp_fl
+        bne rd_nx
+rd_dq0  lda #2
+        sta cp_fl
+        bne rd_nx
+rd_qend lda #0
+        sta cp_fl
+        beq rd_nx
+rd_esc  iny
+        lda LBUF,y
+        cmp #EOL
+        beq rd_go
 rd_nx   iny
-        bne rd1
+        jmp rd1
 rd_go   jsr pp_redir           ; (a pipe stage: its files)
         lda cp_ro              ; output first
+        beq rd_in
+        cmp #$40               ; explicit output was opened while parsing
         beq rd_in
         lda LBUFF
         cmp #EOL
@@ -1672,9 +1861,16 @@ rd_go   jsr pp_redir           ; (a pipe stage: its files)
 rd_o1   ldx #0
         jsr rd_cp
         ldy #0
+        lda cp_ro
+        cmp #2
+        bne rd_omode
+        ldy #2
+rd_omode
         jsr farcall
         dta b(BK_LIB),a(L_DIVIO)
 rd_in   lda cp_ri
+        beq rd_ret
+        cmp #$40               ; explicit input was opened while parsing
         beq rd_ret
         lda LBUFF+32
         cmp #EOL
@@ -1700,61 +1896,90 @@ rc1     lda LBUFF,x
         lda #>COMFNAM
         sta FILE_P+1
         rts
-* rd_w: the word at cp_y; its name kept when it is the first of its kind
-* (cp_x: 0 output, 32 input), then the word and the blank before it go
-rd_w    ldx cp_x
+* rd_w: parse and open the redirection operand immediately.  U_GETPAR
+* removes quotes and escapes into the full 128-byte COMFNAM, so redirection
+* names have the same 127-byte path limit as ordinary arguments.  $40 marks
+* an explicit stream already opened; $80 remains a pending pipeline stream.
+rd_w    ldx cp_x               ; 0 output, 32 input
+        stx cp_d
+        lda #0
+        sta cp_i               ; bit 7: this is the first of its direction
+        cpx #0
         bne rw_i
         lda cp_ro
-        jmp rw0
-rw_i    lda cp_ri
-rw0     bne rw2                ; not the first: dropped
+        bne rw_parse
         lda #$80
-        cpx #0
-        bne rw0a
+        sta cp_i
+        lda #1                 ; truncate, or append for a double >
+        ldy cp_lim
+        cpy #2
+        bne rw_os
+        lda #2
+rw_os   sta cp_ro
+        bne rw_parse
+rw_i    lda cp_ri
+        bne rw_parse
+        lda #$80
+        sta cp_i
+        lda #1
+        sta cp_ri
+rw_parse ldy cp_y              ; parse immediately after the marker(s)
+rw_m    iny
+        dec cp_lim
+        bne rw_m
+        sty BUFOFF
+        jsr farcall
+        dta b(BK_LIB),a(L_GETPAR)
+        beq rw_bad
+        bit cp_i
+        bpl rw_remove          ; later redirect of this kind is just dropped
+        ldx cp_d
+        bne rw_openi
+        lda cp_ro
+        ldy #0
+        cmp #2
+        bne rw_open
+        ldy #2
+        bne rw_open
+rw_openi ldy #1
+rw_open jsr farcall
+        dta b(BK_LIB),a(L_DIVIO)
+        lda #$40
+        ldx cp_d
+        bne rw_marki
         sta cp_ro
-        jmp rw0b
-rw0a    sta cp_ri
-rw0b    ldy cp_y
-        iny
-        iny
-rw1     lda LBUF,y
+        bne rw_remove
+rw_marki sta cp_ri
+rw_remove ldy BUFOFF           ; remove marker and operand
+        ldx cp_y
+        lda LBUF,y             ; at end, remove its preceding blank too;
+        cmp #EOL               ; before another word that blank separates it
+        bne rw_mv
+        cpx #0
+        beq rw_mv
+        lda LBUF-1,x
         cmp #' '
-        beq rw1a
-        cmp #EOL
-        beq rw1a
-        sta LBUFF,x
-        inx
-        iny
-        bne rw1
-rw1a    lda #EOL
-        sta LBUFF,x
-rw2     ldy cp_y               ; the word's end
-rw3     lda LBUF,y
-        cmp #' '
-        beq rw4
-        cmp #EOL
-        beq rw4
-        iny
-        bne rw3
-rw4     ldx cp_y               ; from the blank before it (if any)
-        beq rw5
+        bne rw_mv
         dex
-rw5     stx cp_x
-rw6     lda LBUF,y             ; the rest moves down
+rw_mv   lda LBUF,y
         sta LBUF,x
         inx
         iny
         cmp #EOL
-        bne rw6
-        ldy cp_x
+        bne rw_mv
+        lda #0                 ; rescan quote state after the edit
+        sta cp_fl
+        ldy #0
         jmp rd1
+rw_bad  lda #163
+        jmp fail
 
 * envget: the value of variable cp_nm (EOL ended) to LBUFF+X: C=0, X past
 * it; C=1 none (X kept). It stops at LBUFF+63 when X starts below 64 (to
 * keep CP_NAME), else at LBUFF+127.
 envget  stx cp_x
         txa
-        ora #63
+        ora #127
         sta cp_lim
         jsr farcall            ; (lib2: env.icl)
         dta b(BK_LIB2),a(L2_ENGETX)
@@ -1773,9 +1998,7 @@ ad1     lda CP_NAME,x
         txa
         tay
         iny
-ad2     cmp #'>'
-        beq ad2s
-        cmp #BSLASH
+ad2     cmp #'/'
         beq ad2s
         cmp #':'
         bne ad2n
@@ -1803,9 +2026,8 @@ fi0     lda CP_NAME,y
         iny
         cmp #':'
         beq fi0a
-        cmp #'>'
+        cmp #'/'
         beq fi0a
-        cmp #BSLASH
         bne fi0
 fi0a    dec cp_fl
         bne fi0
@@ -1844,11 +2066,9 @@ fi5     sty cp_d
         lda COMFNAM-1,x
         cmp #':'
         beq fi6
-        cmp #'>'
+        cmp #'/'
         beq fi6
-        cmp #BSLASH
-        beq fi6
-        lda #'>'
+        lda #'/'
         sta COMFNAM,x
         inx
 fi6     jsr try
@@ -1860,6 +2080,13 @@ fi_no   sec
 * try: COMFNAM+X = CP_NAME, opened for reading: C=0 file_id; C=1 not there
 try     ldy #0
 tr1     lda CP_NAME,y
+        cmp #EOL
+        beq tr1a
+        bit cp_fl              ; bare command names use the lowercase default;
+        bmi tr1a               ; an explicit device/path remains exact-case
+        jsr farcall
+        dta b(BK_LIB),a(L_TOLOWER)
+tr1a
         sta COMFNAM,x
         inx
         iny
@@ -1942,16 +2169,20 @@ ca2     dex
 * C4: the other internal commands of SDX's COMMAND.COM (outputs measured on
 * SDX, PROGRESS.md C4)
 
-* fsone: kernel function Y on the file named by the next parameter;
-* fsone2: on COMFNAM as it is
+* fsone: kernel function Y on native argv[1]; fsone2: on COMFNAM as it is.
 fsone   sty cp_d
-        jsr farcall
-        dta b(BK_LIB),a(L_GETPAR)
+        lda CP_ARGC
+        cmp #2
+        bne fs_bad
+        lda #1
+        jsr argvcom
 fsone2  jsr gefina
         ldy cp_d
         jsr jkernel
         jmi fail
         jmp cp_loop
+fs_bad  lda #E_BADPARM
+        jmp fail
 * gefina: U_GEFINA of COMFNAM (an empty one: the current directory)
 gefina  lda #<COMFNAM
         sta FILE_P
@@ -1962,9 +2193,13 @@ gefina  lda #<COMFNAM
         rts
 
 * ---- CD [path]: alone, the current directory (backslash SUB; nothing for the main)
-c_cd    jsr farcall
-        dta b(BK_LIB),a(L_GETPAR)
-        jeq cw1
+c_cd    lda CP_ARGC
+        cmp #1
+        beq cw1
+        cmp #2
+        bne fs_bad
+        lda #1
+        jsr argvcom
         ldy #16                ; kd_chdir
         sty cp_d
         jmp fsone2
@@ -1983,33 +2218,42 @@ cw3     lda #EOL
         jmp cp_loop
 
 * ---- MD, RD, BOOT --------------------------------------------------------------
-c_md    jsr farcall
-        dta b(BK_LIB),a(L_GETPAR)
-        bne md1
+c_md    lda CP_ARGC
+        cmp #2
+        beq md1
         lda #163               ; no name (SDX)
         jmp fail
 md1     ldy #14                ; kd_credir
-        sty cp_d
-        jmp fsone2
+        jmp fsone
 c_rd    ldy #15                ; kd_deldir
         jmp fsone
 c_boot  ldy #18                ; kd_boot
         jmp fsone
 
 * ---- REN old new, RENDIR old new: 165 without the new name ---------------------
+* Parse both words separately.  The old packed "old new" library interface
+* cannot represent spaces in either EOSFS name.
 c_ren   lda #$80               ; files
         sta scan
         jsr twonm
         jsr farcall
         dta b(BK_LIB),a(L_RENAME)
         jmp cp_loop
-c_rendir jsr twonm
+c_rendir lda #$08              ; directories
+        sta scan
+        jsr twonm
         jsr farcall
         dta b(BK_LIB),a(L_RENDIR)
         jmp cp_loop
-* twonm: the next two parameters as OLD NEW at LBUFF, FILE_P at it
-twonm   jsr farcall
-        dta b(BK_LIB),a(L_GETPAR)
+
+* twonm: the next two dequoted parameters as OLD,NEW at LBUFF.  Native
+* RENAME uses comma as its unambiguous separator, leaving spaces available
+* inside either exact EOSFS name.
+twonm   lda CP_ARGC
+        cmp #3
+        bne ren_bad
+        lda #1
+        jsr argvcom
         ldx #0
 tn1     lda COMFNAM,x
         sta LBUFF,x
@@ -2017,33 +2261,35 @@ tn1     lda COMFNAM,x
         cmp #EOL
         bne tn1
         stx cp_x
-        jsr farcall
-        dta b(BK_LIB),a(L_GETPAR)
-        bne tn2
-        lda #165               ; no new name (SDX)
-        jmp fail
-tn2     ldx cp_x
-        lda #' '
+        lda #2
+        jsr argvcom
+        ldx cp_x
+        lda #','
         sta LBUFF-1,x
         ldy #0
-tn3     lda COMFNAM,y
+tn2     lda COMFNAM,y
         sta LBUFF,x
         inx
         iny
         cmp #EOL
-        bne tn3
+        bne tn2
         lda #<LBUFF
         sta FILE_P
         lda #>LBUFF
         sta FILE_P+1
         rts
+ren_bad
+        lda #165               ; no new name (SDX)
+        jmp fail
 
 * ---- DEL name: all wild cards ask first ---------------------------------------
-c_del   jsr farcall
-        dta b(BK_LIB),a(L_GETPAR)
-        bne dl0
+c_del   lda CP_ARGC
+        cmp #2
+        beq dl_arg
         lda #E_NOTFOUND
         jmp fail
+dl_arg  lda #1
+        jsr argvcom
 dl0     jsr gefina
         ldx #10
 dl1     lda name,x
@@ -2486,7 +2732,7 @@ cs3     lda LBUFF,x
         inx
         cmp #EOL
         beq cs4
-        cpx #63
+        cpx #127
         bcc cs3
         lda #EOL
         sta LBUF,x
@@ -2529,6 +2775,30 @@ lo1     lda #$80               ; FLAG: no execution
 noext   dta b(EOL)
 
 * ---- COPY: $COPY, or CAR:COPY.COM, with the parameters ---------------------------
+c_cp    ldx #10
+cpnative1 lda carcp,x
+        sta CP_NAME,x
+        dex
+        bpl cpnative1
+        lda #0
+        sta cp_lflag
+        lda #<dotcom
+        ldx #>dotcom
+        jmp runnm
+carcp   dta c'CAR:cp.com',b(EOL)
+
+c_cat   ldx #11
+catn1   lda carcat,x
+        sta CP_NAME,x
+        dex
+        bpl catn1
+        lda #0
+        sta cp_lflag
+        lda #<dotcom
+        ldx #>dotcom
+        jmp runnm
+carcat  dta c'CAR:cat.com',b(EOL)
+
 c_copy  ldx #4
 cy1     lda nmcopy,x
         sta cp_nm,x
@@ -2551,7 +2821,7 @@ cy4     lda #0
         ldx #>dotcom
         jmp runnm
 nmcopy  dta c'COPY',b(EOL)
-carcopy dta c'CAR:COPY.COM',b(EOL)
+carcopy dta c'CAR:copy.com',b(EOL)
 
 * ---- CLR: the variables starting with _ deleted ---------------------------------
 c_clr   lda #0
@@ -2627,7 +2897,8 @@ vr1     lda cpbanner,x
         jmp cp_loop
 
 * mkprompt: the prompt from $PROMPT to LBUFF, X = its length (an EOL
-* first): $L the drive letter and a colon, $N its number (J-O above 9; for
+* first). The rendered prompt is always enclosed in []: $L the drive letter
+* and a colon, $N its number (J-O above 9; for
 * another device its name and unit), $P its directory, $R an EOL, _ a
 * blank; $D and $T (date and time) show nothing yet (no clock). No
 * $PROMPT: >.
@@ -2642,8 +2913,10 @@ mkprompt jsr nm_prm
 mk0     lda #EOL
         sta LBUFF,x
         sta LBUFF
+        lda #'['
+        sta LBUFF+1
         ldy #64
-        ldx #1
+        ldx #2
 mk1     lda LBUFF,y
         cmp #EOL
         beq mk_end
@@ -2672,12 +2945,17 @@ mk3     cmp #'D'
         beq mk1
         cmp #'T'
         beq mk1
-mk_put  cpx #63
+mk_put  cpx #127
         bcs mk1
         sta LBUFF,x
         inx
         jmp mk1
-mk_end  rts
+mk_end  cpx #127
+        bcs mk_done
+        lda #']'
+        sta LBUFF,x
+        inx
+mk_done rts
 mk_l    lda CURDEV             ; a drive: its name (A:, or Dn: when CIO
         cmp #$10               ; has a device with its letter)
         bcs mk_dev
@@ -2690,7 +2968,7 @@ mk_l    lda CURDEV             ; a drive: its name (A:, or Dn: when CIO
 mk_l1   lda dv_nm,y
         cmp #EOL
         beq mk_l2
-        cpx #63
+        cpx #127
         bcs mk_l2
         sta LBUFF,x
         inx
@@ -2758,7 +3036,7 @@ mk_p2   ldy cp_y
 * RAMDISK.SYS: drive O: and all banks but four (kept for 130XE programs)
 * unless given; the top free banks, taken from NBANKS. Its sectors (256
 * bytes, 64 to a bank) are read and written by the FMS (rdio). One RAM
-* disk (SDX allows three). An SDFS 2.1 disk ("X Disk O") is built in it,
+* disk (SDX allows three). An EOSFS v2 disk ("X Disk O") is built in it,
 * unless one of the same size is there already ("Ramdisk preserved",
 * after COLD). $RAMDISK, $BASIC, $CAR and $TEMP are set when not set.
 rdcmd   lda #0                 ; RAMDISK.SYS, DEVICE RAMDISK: with messages
@@ -2960,7 +3238,7 @@ rd_end  lda #$FF
         sta PORTB
         rts
 
-* rd_old: C=1 the banks hold this RAM disk already (SDFS 2.1 header,
+* rd_old: C=1 the banks hold this RAM disk already (EOSFS v2 header,
 * its size, its volume name)
 rd_old  lda #1
         sta rd_k
@@ -2969,8 +3247,11 @@ rd_old  lda #1
         jsr rd_sec
         ldy #32
         lda (fadr),y
-        cmp #$21
+        cmp #$47
+        beq ro_ver
+        cmp #$48
         bne ro_no
+ro_ver
         ldy #11
         lda (fadr),y
         cmp rd_tot
@@ -3005,8 +3286,8 @@ rv2     lda rdvol,x
         sta LBUFF+7
         rts
 
-* rd_fmt: an empty SDFS 2.1 disk: boot sectors 1-3 (the header), the
-* bitmap from 4, the main directory's map, then its sector
+* rd_fmt: an empty EOSFS v2 disk: boot sectors 1-3 (the header), the
+* bitmap from 4, the main directory's extent list, then its data sector
 rd_fmt  lda #1                 ; the first sectors cleared
         sta rd_k
         lda #0
@@ -3081,16 +3362,16 @@ rf4     lda LBUFF-22,y
         cpy #22
         bcs rf4
         ldy #30
-        lda #1                 ; tracks 1, 256-byte sectors, version 2.1
+        lda #1                 ; tracks 1, 256-byte sectors, EOSFS v2
         sta (fadr),y
         ldy #32
-        lda #$21
+        lda #$47
         sta (fadr),y
         ldy #34
         lda #1
         sta (fadr),y
         iny
-        lda #126
+        lda #63                ; (256 - 4) / 4 extents
         sta (fadr),y
         ldy #37
         lda #1
@@ -3098,7 +3379,7 @@ rf4     lda LBUFF-22,y
         ldy #39
         lda RANDOM
         sta (fadr),y
-        lda rd_dm              ; the map: the directory's sector next
+        lda rd_dm              ; extent list: one run of one directory sector
         sta rd_k
         jsr rd_sec
         ldy #4
@@ -3106,14 +3387,17 @@ rf4     lda LBUFF-22,y
         clc
         adc #1
         sta (fadr),y
+        ldy #6
+        lda #1
+        sta (fadr),y
         inc rd_k               ; the directory: its own entry
         jsr rd_sec
-        ldy #22
+        ldy #10
 rf5     lda rddir,y
         sta (fadr),y
         dey
         bpl rf5
-        ldy #17                ; created now (the date and time registers)
+        ldy #38                ; created now (the date and time registers)
         ldx #0
 rf6     lda $077B,x
         sta (fadr),y
@@ -3233,9 +3517,9 @@ re7     lda rdenv,x
 rdname  dta c'RAMDISK',b(EOL)
 rdvol   dta c'X Disk O'
 rdboot  dta b($00,$03,$00,$30,$E0,$07,$4C,$80,$30)
-rddir   dta b($28,0,0,23,0,0),c'MAIN       ',b(0,0,0,0,0,0)
-rdenv   dta c'RAMDISK=?:>',b(EOL),c'BASIC=?:>BASIC.SAV',b(EOL)
-        dta c'CAR=?:>CAR.SAV',b(EOL),c'TEMP=?:>',b(EOL),b(0)
+rddir   dta b($28,0,0,44,0,0,4),c'main'
+rdenv   dta c'RAMDISK=?:/',b(EOL),c'BASIC=?:/basic.sav',b(EOL)
+        dta c'CAR=?:/car.sav',b(EOL),c'TEMP=?:/',b(EOL),b(0)
 rdkept  dta c'Ramdisk preserved',b(EOL)
 rdkept_end equ *
 rdno    dta c'Ramdisk not installed',b(EOL)

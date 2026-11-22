@@ -9,6 +9,6 @@ Removes an empty directory (the last name in the path). If it still holds files,
 
 Examples:
  RD TEST
- DELDIR D3:>MODEM>TEST
+ rmdir D3:/MODEM/TEST
 
 See also: DELTREE, MKDIR, CHDIR

@@ -55,7 +55,7 @@ def run(name):
     emu.mkatr(atr, tree, ['EOSAUTO.BAT', 'WRITE.IN'], 92160)
     mem = OUT / (name + '.bin')
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (label(labels, 'k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (label(labels, 'k_prompt'), emu.win(mem))]
     with emu.Session(OUT, [atr], cart=car, name=name, turbo=True, debugcmds=cmds):
         m = T.wait_dump(mem, 90)
         if m is None:

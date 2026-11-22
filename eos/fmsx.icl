@@ -1,15 +1,11 @@
-* EOSFS (docs/EOSFS.md): files as extents. An EOSFS disk is an SDFS disk
-* whose sector maps are extent lists: a list sector holds the next and the
-* previous list sector (as a map does), then extents of four bytes, a start
+* EOSFS (docs/EOSFS.md): a list sector holds the next and the previous list
+* sector, then extents of four bytes, a start
 * sector and a count (a count of 0 ends the list; a start of 0 is a gap,
-* read as zeros). The FMS's other code (directories, paths, names) is the
-* SDFS one; locate, free_chain and trim come here for dv_fs 3.
+* read as zeros). Locate and growth use these lists directly.
 * Included in fms.asm.
 
-* is_x: Z=1 when drive fs_drv is EOSFS; keeps X
+* Establish the current drive in Y at shared-code boundaries.
 is_x    ldy fs_drv
-        lda dv_fs,y
-        cmp #3
         rts
 
 * x_ent: zp_t = extent xs_j of the list sector at zp_p (zp_p + 4 + 4 * j)
@@ -159,10 +155,15 @@ lx_in   ldy #0                 ; sector = start + (fs_idx - base)
         clc
         rts
 lx_gap  lda fs_alloc           ; in a gap: zeros to read; writing into one
-        bne lx_rng             ; is not done (EOSFS 1)
+        bne x_gapwrite
         jmp lc_none
-lx_rng  lda #E_RANGE
-        sec
+
+* x_gapwrite: split the gap containing fs_idx around one newly allocated
+* sector.  Extents after it (and their zero terminator) move right by one or
+* two slots.  This is bounded to the current list sector; a completely full
+* list reports directory/full rather than corrupting its successor.
+x_gapwrite jsr farcall
+        dta b(BK_EOSX),a(CARTLO+$30)
         rts
 lx_full lda #$FF               ; the last list sector is full
         sta xs_j

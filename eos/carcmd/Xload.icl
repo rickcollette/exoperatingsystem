@@ -452,7 +452,7 @@ xo1     lda xs_name,x
         sta xs_dot
 xo2     cmp #':'
         beq xo2a
-        cmp #'>'
+        cmp #'/'
         beq xo2a
         cmp #BSLASH
         bne xo2b
@@ -513,11 +513,11 @@ xo9     sty xs_pi
         lda xs_try1-1,x
         cmp #':'
         beq xo10
-        cmp #'>'
+        cmp #'/'
         beq xo10
         cmp #BSLASH
         beq xo10
-        lda #'>'
+        lda #'/'
         sta xs_try1,x
         inx
 xo10    jsr xs_try
@@ -646,7 +646,7 @@ xs_pna  dta a(xs_pnm)
 xs_t1a  dta a(xs_try1)
 xs_e    dta c'E:',EOL
 xs_pnm  dta c'PATH',EOL
-xs_com  dta c'.COM',EOL
+xs_com  dta c'.com',EOL
 xs_mode dta 0
 xs_top  dta 0
 xs_clr  dta 0

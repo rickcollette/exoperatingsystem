@@ -1,5 +1,5 @@
 ; EOS Toolkit: DELDUP, files of one directory that another one has too
-;   DELDUP [d:]path1> [d:]path2> [/RV]
+;   DELDUP [d:]path1/ [d:]path2/ [/RV]
 ; For each file of path2 (in its order) every file of path1 with the
 ; same size is compared with it byte by byte; a copy is shown as
 ; "** Dup: path1>NAME" (the names need not be the same), with /R it is
@@ -9,9 +9,7 @@
 ; must end with a separator, else the usage; the same directory twice
 ; is refused.
 U_GETPAR smb 'U_GETPAR'
-U_GEFINA smb 'U_GEFINA'
 U_SLASH  smb 'U_SLASH'
-U_EXPAND smb 'U_EXPAND'
 U_FAIL   smb 'U_FAIL'
 FFIRST   smb 'FFIRST'
 FNEXT    smb 'FNEXT'
@@ -38,7 +36,7 @@ dentry   equ $0789             ; status, node, size, name
 MEMTOP   equ $02E5
 MEMLO    equ $02E7
 EOL      equ $9B
-ESZ      equ 15                ; a list entry: status, size, name
+ESZ      equ 36                ; status, size, name length, exact name
 SC_PLAIN equ $B0               ; files that are not hidden or protected
 
 ptr      equ $80
@@ -77,7 +75,7 @@ s1      lda where1,x
         dta b(EOL),c'Same directory given twice',b(EOL,0)
         rts
 usage   jsr PRINTF
-        dta b(EOL),c'DELDUP [d:]dir1> [d:]dir2> [/RV]',b(EOL,EOL)
+        dta b(EOL),c'DELDUP [d:]dir1/ [d:]dir2/ [/RV]',b(EOL,EOL)
         dta c'/R remove dup files from dir1',b(EOL)
         dta c'/V verbose operation',b(EOL,0)
         rts
@@ -124,13 +122,27 @@ l1m     lda #158
 l2      ldy #0
         lda dentry
         sta (top),y
-        ldx #3                 ; the size, then the name
+        ldx #3                 ; the size
 l2a     iny
         lda dentry,x
         sta (top),y
         inx
-        cpx #17
+        cpx #6
         bcc l2a
+        iny                    ; length and exact EOSFS name
+        lda dentry+6
+        sta (top),y
+        ldx #0
+        ldy #5
+        cpx dentry+6
+        beq l2c
+l2b     lda dentry+7,x
+        sta (top),y
+        iny
+        inx
+        cpx dentry+6
+        bcc l2b
+l2c
         clc
         lda top
         adc #ESZ
@@ -153,20 +165,15 @@ f1      lda file_id
         sta dir2
         bit dentry
         bvs f9
-        ldx #22
+        ldx #43
 f2      lda dentry,x
         sta ent2,x
         dex
         bpl f2
-        ldx #10
-f3      lda ent2+6,x
-        sta name,x
-        dex
-        bpl f3
         lda a_p1               ; (path2 is path1+64: len2 counts from path1)
         ldx a_p1+1
         ldy len2
-        jsr U_EXPAND
+        jsr addent2
         lda lbase
         sta ptr
         lda lbase+1
@@ -193,11 +200,6 @@ f8      clc
 f9      lda dir2
         sta file_id
         jsr plain
-        lda #'?'               ; the mask back in name
-        ldx #10
-f9a     sta name,x
-        dex
-        bpl f9a
         jsr FNEXT
         bpl f1
 done    jsr PRINTF
@@ -206,16 +208,10 @@ done    jsr PRINTF
         jmp FCLOSEAL
 
 * same: the file at ptr compared with ent2; a copy shown or deleted
-same    ldy #4
-s2      lda (ptr),y
-        sta name-4,y
-        iny
-        cpy #ESZ
-        bcc s2
-        lda a_p1
+same    lda a_p1
         ldx a_p1+1
         ldy len1
-        jsr U_EXPAND
+        jsr addptr
         bit opt_v
         bpl s3
         jsr PRINTF
@@ -286,6 +282,42 @@ s7a     ldy #0                 ; not to be found again
         sta (ptr),y
 s8      rts
 
+* Append an exact EOSFS name to path1/path2.  len2 is deliberately an
+* offset from path1, since path2 immediately follows its 64-byte slot.
+addent2 ldx #0
+ae1     cpx ent2+6
+        bcs ae2
+        lda ent2+7,x
+        sta path1,y
+        iny
+        inx
+        bne ae1
+ae2     lda #EOL
+        sta path1,y
+        rts
+
+addptr sty add_y
+        ldy #4
+        lda (ptr),y
+        sta add_n
+        ldx #0
+ap1     cpx add_n
+        bcs ap2
+        txa
+        clc
+        adc #5
+        tay
+        lda (ptr),y
+        ldy add_y
+        sta path1,y
+        inc add_y
+        inx
+        bne ap1
+ap2     ldy add_y
+        lda #EOL
+        sta path1,y
+        rts
+
 * open: the file named at AX opened for reading; A = its handle
 open    sta FILE_P
         stx FILE_P+1
@@ -316,8 +348,8 @@ plain   lda #SC_PLAIN
         sta attr
         rts
 
-* param: the parameter to path1+X, X = its end; usage when it names a
-* file and not a directory
+* param: the parameter to path1+X, X = its end; require a directory path
+* ending in the native '/' separator (a bare device ending ':' also works)
 param   ldy #0
 pa1     lda COMTAB+COMFNAM,y
         sta path1,x
@@ -328,20 +360,21 @@ pa1     lda COMTAB+COMFNAM,y
         cpy #64
         bcc pa1
 pa2     txa
-        pha
-        jsr U_GEFINA
-        pla
-        tax
-        lda name
-        ora name+8
-        cmp #' '
+        beq pa_bad
+        dex
+        lda path1,x
+        inx
+        cmp #'/'
+        beq pa_ok
+        cmp #':'
         bne pa_bad
+pa_ok
         rts
-pa_bad  pla                    ; (not back to the caller)
+pa_bad  pla                    ; discard param's return address
         pla
         jmp usage
 
-* spec: path1+X (path2 for 64) with *.* after it, at FILE_P
+* spec: path1+X (path2 for 64) with * after it, at FILE_P
 spec    ldy #0
 sp1     lda path1,x
         cmp #EOL
@@ -355,7 +388,7 @@ sp3     lda all,x
         sta spname,y
         iny
         inx
-        cpx #4
+        cpx #2
         bcc sp3
         lda a_sp
         sta FILE_P
@@ -411,10 +444,12 @@ a_buf2  dta a(buf2)
 a_end   dta a(pend)
 opt_r   dta b(0),c'R'
 opt_v   dta b(0),c'V'
-all     dta c'*.*',b(EOL)
+all     dta c'*',b(EOL)
 len1    dta 0
 len2    dta 0
 dx      dta 0
+add_y   dta 0
+add_n   dta 0
 dir2    dta 0
 fid1    dta 0
 fid2    dta 0
@@ -422,7 +457,7 @@ dups    dta a(0)
 lbase   dta a(0)
 where1  dta 0,0,0
 where2  dta 0,0,0
-ent2    :23 dta 0
+ent2    :44 dta 0
 path1   :64 dta 0
 path2   :80 dta 0
 spname  :80 dta 0

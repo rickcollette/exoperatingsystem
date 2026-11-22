@@ -1,13 +1,12 @@
-PWD - show the current directories
+PWD - show the current directory
 
 Syntax:
  PWD
 
-Lists the current directory of every drive that can be read.
+Shows the active drive and its current directory.
 
 Example:
  PWD
- A:\DRIVERS>
- C:>
+ D1:/drivers/
 
 See also: CHDIR, SETPATHS

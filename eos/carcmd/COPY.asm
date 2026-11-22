@@ -522,7 +522,7 @@ en_dir  lda o_n                ; /N: an existing directory is left
 ed1     lda o_q
         bne ed2
         jsr PRINTF
-        dta c'%s>',EOL,0
+        dta c'%s/',EOL,0
         dta a(sname)
 ed2     lda a_dname            ; the directory is made (or is there)
         sta FILE_P
@@ -586,7 +586,7 @@ addnew  lda a_dstpath
         jsr expand
 addsep  txa
         tay
-        lda #'>'
+        lda #'/'
         sta (ptr2),y
         iny
         lda #EOL
@@ -1001,7 +1001,7 @@ sp1     lda (ptr),y
         iny
         cmp #':'
         beq sp2
-        cmp #'>'
+        cmp #'/'
         beq sp2
         cmp #'<'
         beq sp2
@@ -1021,7 +1021,7 @@ sp3     ldy xsave              ; . and .. are directories
         iny
         lda (ptr),y
         bne sp5
-sp4     lda #'>'               ; X..: X..> then
+sp4     lda #'/'               ; X..: X..> then
         sta (ptr),y
         iny
         lda #0

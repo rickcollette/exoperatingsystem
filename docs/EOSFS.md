@@ -1,19 +1,17 @@
 # EOSFS: the EOS native file system
 
-Version 1 specification. The EOSFS specification is covered by the project's
+Version 2 specification. The EOSFS specification is covered by the project's
 MIT License.
 
-EOSFS is an optional disk format, chosen when a disk is formatted (FORMAT's
-Mode: Sparta, Atari, EOS). EOS continues to read and write SpartaDOS (SDFS
-2.0/2.1) and Atari DOS 2 disks.
+EOSFS is EOS's resident filesystem. SDFS and Atari DOS volumes are handled by
+transient Toolkit programs, keeping their parsers and compatibility state out
+of the always-resident kernel.
 
 EOS is a ground-up rewrite: its kernel, loader, command processor, and
 filesystem implementation are new EOS code, not a port of BW-DOS's FMS or a
-patched SDX filesystem. EOSFS is a new on-disk allocation format built on
-familiar SDFS 2.1 directory and volume conventions so EOS can share path
-handling, directory operations, metadata, and kernel calls between SDFS and
-EOSFS. The shared conventions provide compatibility; the extent mapping and
-name index are EOS-specific.
+patched SDX filesystem. EOSFS has its own extent allocation and length-tagged
+directory records. Native callers see that one record shape even for compact
+read-only `CAR:` storage; no native command parses an SDFS/8.3 record.
 
 Development uses modern host-side tools for speed and accuracy: MADS assembles
 the 6502 code, Python utilities create and check filesystem images, a host-side
@@ -26,26 +24,23 @@ building and testing EOS; they are not needed by the running Atari system.
 
 ## 1. The idea
 
-EOSFS follows SDFS 2.1's disk organization, but it is not an SDFS disk. SDFS
-keeps a file's sectors in **sector maps** (one two-byte sector number per data
-sector); EOSFS keeps **extent lists** (runs of consecutive sectors: a start
-and a count). The volume revision marks EOSFS, and an optional directory name
-index uses otherwise unused fields in the directory header.
+EOSFS retains the compact volume header, bitmap and extent allocation proven
+by version 1, but no longer uses SDFS directory records or 8.3 names.
 
-EOSFS retains the SDFS boot-sector and volume-header layout, allocation
-bitmap, 23-byte directory entries, names, attributes, dates, and symbolic
-link representation, except for the EOSFS revision and index metadata. This
-lets EOS reuse its SDFS directory and path operations while selecting the
-correct allocation mapping for each mounted volume:
-
-* EOS's new filesystem engine is shared between its SDFS and EOSFS support:
-  paths, directories, names, rename, delete, attributes, and the kernel
-  interface. Only the step from "the n-th sector of the file" to "a sector
-  number", plus freeing and trimming, differs for extents.
-* Programs that read directories raw (mode `$14`, FIXLINK.COM and the like)
-  see the same entries as on SDFS.
-* Programs see exactly what they see on SDFS through the kernel
-  (FFIRST/FNEXT entries, GETDFREE, CHKDSK).
+* `/` is the only native path separator. A leading `/` starts at the volume
+  root; `.` and `..` have their usual meanings.
+* A path component is 1 to 31 visible ASCII bytes. `/`, `*`, `?` and NUL are
+  invalid in a stored component; `*` and `?` are reserved for glob patterns.
+  Space is valid and is carried through the shell with quoting. Names preserve
+  case and compare byte-for-byte.
+* The resident path buffer is 128 bytes, including its NUL terminator. The
+  maximum complete path is therefore 127 bytes; depth is limited by that
+  length rather than by a separate nesting counter.
+* Directory entries are fixed at 44 bytes. Fixed records avoid heap use,
+  variable-record fragmentation and rename-time directory rewrites on a 6502.
+* Extent lists, sparse reads, the allocation bitmap and dirty-volume recovery
+  remain bounded and allocation-free. Directories use linear lookup for now,
+  avoiding a second allocation and write for every directory mutation.
 
 ## 2. Why it is faster
 
@@ -58,10 +53,8 @@ correct allocation mapping for each mounted volume:
   contiguous, which multi-sector transfers (E2) can use.
 * Large directories, being files, are contiguous too.
 
-EOS also uses its sector cache and write-back strategy for SDFS, so EOSFS is
-not the only format that benefits from the rewritten filesystem code. The
-extent layout adds its largest advantage on sequential files, repeated seeks,
-and exact-name lookups in large directories. Real-drive results include disk
+The extent layout adds its largest advantage on sequential files and repeated
+seeks. Real-drive results include disk
 rotation and transfer time, so they vary by drive, protocol, geometry, and
 machine; the benchmark document records the test setup.
 
@@ -69,17 +62,13 @@ machine; the benchmark document records the test setup.
 
 ### 3.1 Volume header (sector 1)
 
-As SDFS 2.1 (the SDX User Guide's layout), with the revision byte at offset
-32 set to `$45` (SDFS 2.1: `$21`). Offsets 33-34 hold the sector size as in
-SDFS 2.1. SDX does not recognise `$45` and leaves the disk alone (it will
-not misread it); EOS takes `$45` as EOSFS.
+The revision byte at offset 32 is `$47` for a clean EOSFS v2 volume and `$48`
+while changes may not all be on disk. Offsets 33-34 hold the sector size.
 
-The revision byte is also the volume's dirty flag: `$46` while changes may
-not all be on the disk, `$45` when they are. Before the first sector of a
+Before the first sector of a
 volume is written after its header was last written clean, EOS writes
-sector 1 with `$46`; when it flushes the volume (a file closed, FLUSH, the
-cache emptied for another disk) it writes every other changed sector
-first and the header, with `$45`, last. A volume mounted with `$46` (EOS
+sector 1 with `$48`; when it flushes the volume it writes every other changed
+sector first and the header, with `$47`, last. A volume mounted with `$48` (EOS
 stopped while writing: a reset, a crash, the power) gets a quick check:
 the free count is counted again from the bitmap and the header is written
 clean. CHKDSK /F is the whole check (lost sectors, files whose maps
@@ -104,66 +93,68 @@ sector is chained only when the one before is full. An empty file has no
 list (map field 0); an empty list sector (all zeros) is a valid empty list,
 so a new file or directory is made exactly as on SDFS.
 
-Directories are files: their data is SDFS directory entries, found through
-their extent list.
+Directories are files containing 44-byte EOSFS entries, found through their
+extent list.
 
-### 3.3 Directory name index
+### 3.3 Directory entries
 
-A directory may have a name index: a file, kept through an extent list
-like any other, with one byte per directory entry slot. Byte k belongs to
-entry k (byte 0 to the header, unused): the hash of the entry's 11-byte
-name (8 + 3, blank padded), or 0 for a slot that is free or deleted.
+| Offset | Size | Field |
+| --- | ---: | --- |
+| 0 | 1 | status/attributes |
+| 1 | 2 | first extent-list sector; in a directory header, parent directory |
+| 3 | 3 | byte length; in a directory header, directory-file length |
+| 6 | 1 | name length, 1-31 |
+| 7 | 31 | name bytes followed by zero padding |
+| 38 | 6 | day, month, year, hour, minute, second |
 
-The hash: h = 0; for each of the 11 bytes, h = (h rotated left by one bit)
-exclusive-or the byte; a result of 0 becomes 1.
+The first record is the directory header and uses the same layout, including
+its timestamp. The directory's own name also lives in its parent entry.
 
-The directory's header entry (its first 23 bytes) points at the index:
-bytes 20-21 hold the index's first extent list sector and byte 22 holds
-$FF. Those are the header's time (hour, minute, second); $FF is not a
-valid second, so a header without an index (an older EOSFS disk, a
-directory written raw) is simply scanned as on SDFS. An index that is
-missing a slot's byte (past its sectors) reads as 0.
+## 4. Implementation status
 
-Looking up an exact name (no wildcards): the index bytes are compared
-with the name's hash and only the entries whose byte matches are read and
-compared. Every write of an entry updates its byte; MKDIR and FORMAT give
-new directories an empty index; RMDIR frees it; a directory written raw
-(mode $1C, e.g. SORTDIR) loses its index at close (its sectors are freed,
-byte 22 becomes 0).
+The v2 migration is deliberately staged so no checkpoint silently writes an
+uncheckable format.
 
-## 4. In EOS
+* Complete: the host builder/checker, v2 revision bytes, 44-byte records,
+  31-byte exact-case names, 127-byte path validation and boot-image tests.
+* Complete: page-6 buffers for two 32-byte components and a 128-byte path;
+  the resident parser and resolver accept paths up to 127 bytes and use `/`.
+* Complete: resident linear directory scanning, case-sensitive glob matching,
+  create, rename, timestamps, directory growth and FORMAT output use v2 records.
+* Complete: the resident mount accepts only EOSFS v2 revisions `$47`/`$48`.
+* Complete: bank 7 now contains only EOSFS extent, mount, direct-transfer and
+  dirty-header helpers. Its DOS2/MyDOS dispatch paths are unreachable, the v1
+  directory-index code is not assembled, and their resident workspace has
+  been removed. Foreign filesystems are no longer mount targets.
+* Complete: the resident size gate requires `MEMLO <= $17C9`, under-ROM state
+  through at most `$C7A7`; the current end is `$C798`, and the cache is fixed
+  at `$C800`. Seven 512-byte cache
+  slots remain. The 128-byte conditional continuation buffer occupies
+  `$C718-$C797`; foreign-media features do not consume this space.
+* Complete: transient Toolkit support. `fsinfo` detects, recursively lists,
+  checks and imports DOS2/MyDOS and SDFS. `fsexport` performs explicit export
+  with lossy-name/collision reporting, and `fscreate` explicitly creates the
+  bounded 720x128 foreign profiles. None adds a resident parser or formatter.
 
-* `eos/fms.asm` `mount`: revision `$45` sets the drive's file system to 3; the
-  extents per list sector replace the map entries per sector.
-* `eos/fmsx.icl`: `locate_x` (sector index to sector; growing the last extent or
-  adding one, chaining list sectors, gaps when sectors are skipped).
-* `eos/dos2i.icl` (DOS 2 bank): the name index (3.3); `eos/fms.asm` `ix_scan` uses it
-  in `scan_name` and `find_dir`, `ent_write` keeps it.
-* `eos/dos2x.icl` (in the DOS 2 bank, for room): `free_x` and `trim_x`.
-* `FORMAT`: Mode EOS writes the `$45` header and the main directory's list.
-* The dirty flag (3.1): `eos/dos2.asm` `hd_hook` (called by the FMS's
-  `wr_buf` before every sector write) and `mn_chk` (the quick check at
-  mount); `flush_drv` writes the header last.
-* `tools/sdfs.py` reads and checks EOSFS images; mkatrgo's `atr` builds them
-  (and `tools/eosfs.py` remains the reference builder for unusual geometries).
-* FORMAT in EOS mode writes the EOSFS boot loader. `BOOT file` records the
+`eos/fmsx.icl` remains the extent implementation: sector lookup, growing the
+last extent, adding/chaining extent-list sectors, sparse reads and trimming.
+`tools/sdfs.py` is currently the reference v2 image builder and checker.
+
+* FORMAT writes EOSFS only, including the EOSFS boot loader. `BOOT file` records the
   file's first extent list in sector 1. Host images use
   `atr create --profile eos ... --boot file`; the loader is embedded in `atr`.
   It supports 128 and 256 byte sectors; the stock OS cannot boot 512 byte
   sectors.
 
-Version 1 does not write into a gap of a sparse file (166: a write that
-would split a gap); reading gaps and writing past the end (which makes a
-gap) work.
+EOSFS writes into the middle of a sparse gap by splitting the gap extent and
+allocating only the sectors actually written. Reading gaps and writing past
+the end (which makes a gap) are supported as well.
 
 ## 5. Later versions
 
 * 24-bit sector numbers (volumes over 65535 sectors; XDCB devices).
-* Writing into gaps.
 
-## 6. Faster SDFS (E1), for every disk
-
-Independent of EOSFS, for SDFS and EOSFS disks alike:
+## 6. Cache and transfer behavior
 
 * Write-behind: changed sectors stay in the cache until they are dropped,
   flushed or the file is closed; a dropped one goes with the changed

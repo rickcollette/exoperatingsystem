@@ -6,7 +6,7 @@ Syntax:
 Makes the given directory the current one on its drive. With a file name it reads one directory per line from that file and sets each. Meant for the startup batch file.
 
 Example file:
- A:>DOS>
+ A:/DOS/
  B:\UTILS\
 
 Example:

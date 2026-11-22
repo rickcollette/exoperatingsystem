@@ -45,7 +45,8 @@ E_TOOMANY equ 161
         jmp l2_drop1           ; $A042
         jmp xbounce            ; $A045 the FMS's bounce (bounce.icl)
         jmp mt_fresh           ; $A048 the FMS's mount: the same disk? (fw.icl)
-        jmp d_ppos             ; $A04B the DOS 2 bank's kd_pos (fw.icl)
+        rts                    ; $A04B reserved
+        dta b(0,0)
 
 * The D: entries keep the page 0 bytes EOS uses ($15-$16, $43-$48) for the
 * caller, as SDX leaves them: resident programs keep pointers there across
@@ -823,7 +824,7 @@ dn3     lda (ICBALZ),y
         sta dc_name,x
 dn4     lda dn_dir             ; (BW-DOS's 4+32: NAME> names the directory)
         beq dn5
-        lda #'>'
+        lda #'/'
         sta dc_name,x
         lda #EOL
         sta dc_name+1,x
@@ -940,13 +941,11 @@ d_spec  stx dc_x
         sta addpos+1
         lda IOCB0+ICAX5,x
         sta addpos+2
-        jsr ds_dos2
         ldy #2                 ; kd_pos
 ds_k    jsr jkernel
         tay
         rts
-ds_note jsr ds_dos2
-        ldy #3                 ; kd_gtpos
+ds_note ldy #3                 ; kd_gtpos
         bne ds_pos
 ds_len  ldy #4                 ; kd_gtlen
 ds_pos  jsr jkernel
@@ -1103,14 +1102,6 @@ db_a    sta addpos
 db_ret  clc
         rts
 db_cmd  dta b(7,11)            ; GET, PUT CHARACTERS
-
-* ds_dos2: CIO's NOTE and POINT: on an Atari DOS 2 or MyDOS disk the
-* sector and the byte in it, as those DOSes have them (dos2.asm d_pos,
-* d_gtpos; FSEEK and FTELL keep byte positions). Keeps X.
-ds_dos2 jsr k_romoff
-        lda #$80
-        sta d_note
-        jmp k_romon
 
 * d_fid: file_id from the IOCB (X)
 d_fid   lda IOCB0+ICAX6,x

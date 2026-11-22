@@ -76,7 +76,7 @@ p_end   lda plen
         sta conly
         ldx plen               ; a final separator: the contents only
         lda pth-1,x
-        cmp #'>'
+        cmp #'/'
         beq p6
         cmp #BSLASH
         bne p7
@@ -174,7 +174,7 @@ level   lda top
         sta cnt
         sta cnt+1
         ldx plen               ; pth>*.*
-        lda #'>'
+        lda #'/'
         sta pth,x
         inx
         ldy #0
@@ -258,7 +258,7 @@ lv6a    dec cnt
 
 * entry: the entry at cur deleted (a directory: its contents first)
 entry   ldx plen               ; pth>NAME.EXT
-        lda #'>'
+        lda #'/'
         sta pth,x
         inx
         jsr addnm
@@ -290,7 +290,7 @@ en_dir  lda sp                 ; a directory
         jmp U_FAIL
 en2     jsr push
         stx plen
-        lda #'>'               ; shown as it is entered
+        lda #'/'               ; shown as it is entered
         jsr shw
         jsr level
         jsr rmd

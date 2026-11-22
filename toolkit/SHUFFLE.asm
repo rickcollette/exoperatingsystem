@@ -14,7 +14,7 @@ FSEEK    smb 'FSEEK'
 FCLOSE   smb 'FCLOSE'
 PRINTF   smb 'PRINTF'
 
-name     equ $0762             ; (U_GEFINA: the name, 8+3)
+name     equ $0762             ; (U_GEFINA: exact NUL-ended name)
 ext      equ $076A
 mode     equ $0778
 scan     equ $0779
@@ -22,7 +22,7 @@ attr     equ $077A
 addpos   equ $0782
 bytbuf   equ $0785
 memreix  equ $0787
-path     equ $07A0             ; (GETDFREE: the file system type first)
+path     equ $0640             ; (GETDFREE: the file system type first)
 MEMTOP   equ $02E5
 MEMLO    equ $02E7
 RANDOM   equ $D20A

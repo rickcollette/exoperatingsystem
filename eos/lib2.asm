@@ -40,6 +40,10 @@ LBUF    equ COMTAB+CT_LBUF
         jmp en_getx            ; $A045 the command processor's envget
         jmp en_front           ; $A048 and envfront
         jmp bw_go              ; $A04B D: while a BW-DOS program runs (kernel k_bwdh)
+        jmp cond_split         ; $A04E shell &&/|| splitter
+        jmp cond_next          ; $A051 next conditional command, if selected
+        jmp subst              ; $A054 shell variable substitution
+        jmp dk_default         ; $A057 default command editor/history
 
 * eos_drv: _EOSDRV, the .SYS stubs of EOS's own extensions: A = 0
 * COMEXE (.EXE through X), 1 RUNEXT (rx.icl), 2 DOSKEY (dk.icl), 3 RAMDISK,
@@ -667,6 +671,355 @@ voltxt  dta c'Volume:    ',b(0)
 dirhtxt dta c'Directory: ',b(0)
 dirtxt  dta c'<DIR>',b(0)
 freetxt dta c' FREE SECTORS',b(0)
+
+* subst: expand shell variables through LBUFF, retaining at most 127 bytes.
+* Single quotes suppress expansion.  Double quotes expand variables and keep
+* their quote bytes for arg_parse to remove afterward.
+subst   ldy #0
+        ldx #0
+        stx cp_fl              ; 0 plain, 1 single quote, 2 double quote
+su1     lda LBUF,y
+        cmp #EOL
+        jeq su_end
+        lda cp_fl
+        beq su_plain
+        cmp #1
+        beq su_single
+        lda LBUF,y             ; double quoted
+        cmp #'"'
+        jeq su_dqend
+        cmp #BSLASH
+        jeq su_bscheck
+        jne su_expand
+su_single lda LBUF,y
+        cmp #39
+        jeq su_sqend
+        jne su_lit
+su_plain lda LBUF,y
+        cmp #39
+        jeq su_sqstart
+        cmp #'"'
+        jeq su_dqstart
+        cmp #BSLASH
+        jeq su_bscheck
+su_expand cmp #'%'
+        bne su_dollar
+        bit cp_pct
+        jpl su_lit
+        lda LBUF+1,y
+        cmp #'0'
+        bcc su_litpct
+        cmp #'9'+1
+        bcs su_litpct
+        jsr su_digitname
+        iny
+        iny
+        sty cp_y
+        jsr subst_env
+        ldy cp_y
+        jmp su1
+su_litpct lda #'%'
+        jne su_lit
+su_dollar cmp #'$'
+        jne su_lit
+        lda LBUF+1,y
+        cmp #'?'
+        jeq su_qmark
+        cmp #'1'
+        bcc su_name
+        cmp #'9'+1
+        bcs su_name
+        jsr su_digitname
+        iny
+        iny
+        sty cp_y
+        jsr subst_env
+        ldy cp_y
+        jmp su1
+su_name sty cp_y               ; $NAME or ${NAME}
+        stx cp_x
+        lda #0
+        sta cp_i               ; bit 7: braced
+        lda LBUF+1,y
+        cmp #'{'
+        bne su_n0
+        lda #$80
+        sta cp_i
+        iny
+su_n0   ldx #0
+su_n1   lda LBUF+1,y
+        jsr su_upper
+        cmp #'_'
+        beq su_n2
+        cmp #'0'
+        bcc su_n3
+        cmp #'9'+1
+        bcc su_n2
+        cmp #'A'
+        bcc su_n3
+        cmp #'Z'+1
+        bcs su_n3
+su_n2   cpx #9
+        bcs su_n3
+        sta cp_nm,x
+        inx
+        iny
+        bne su_n1
+su_n3   lda #EOL
+        sta cp_nm,x
+        txa
+        beq su_no
+        bit cp_i
+        bpl su_n4
+        lda LBUF+1,y
+        cmp #'}'
+        bne su_no
+        iny
+        bne su_n5
+su_n4   lda LBUF+1,y           ; retain old $NAME$ terminator
+        cmp #'$'
+        bne su_n5
+        iny
+su_n5   iny
+        sty cp_y
+        ldx cp_x
+        jsr subst_env
+        bcs su_no
+        ldy cp_y
+        jmp su1
+su_no   ldy cp_y               ; unknown/malformed: leave the $ literal
+        ldx cp_x
+        lda #'$'
+        bne su_lit
+su_qmark iny
+        iny
+        sty cp_y
+        lda cp_d
+        jsr su_decimal
+        ldy cp_y
+        jmp su1
+su_bscheck lda LBUF+1,y
+        cmp #'$'
+        bne su_litbs
+        iny
+        lda #'$'
+        bne su_lit
+su_litbs lda #BSLASH
+        bne su_lit
+su_sqstart lda #1
+        sta cp_fl
+        lda #39
+        bne su_lit
+su_sqend lda #0
+        sta cp_fl
+        lda #39
+        bne su_lit
+su_dqstart lda #2
+        sta cp_fl
+        lda #'"'
+        bne su_lit
+su_dqend lda #0
+        sta cp_fl
+        lda #'"'
+su_lit  cpx #127
+        bcs su_lit1
+        sta LBUFF,x
+        inx
+su_lit1 iny
+        jmp su1
+su_end  cpx #127
+        bcc su_term
+        ldx #127
+su_term lda #EOL
+        sta LBUFF,x
+su_back lda LBUFF,x
+        sta LBUF,x
+        dex
+        bpl su_back
+        rts
+
+su_digitname sta cp_nm+1       ; _d1, shared by %d and $d
+        lda #'_'
+        sta cp_nm
+        lda #'1'
+        sta cp_nm+2
+        lda #EOL
+        sta cp_nm+3
+        rts
+subst_env stx cp_x
+        lda #127
+        sta cp_lim
+        jmp en_getx
+su_upper cmp #'a'
+        bcc suu_ret
+        cmp #'z'+1
+        bcs suu_ret
+        and #$DF
+suu_ret rts
+
+* A as unsigned decimal, appended at X.
+su_decimal sta cp_i
+        ldy #0
+sud100  lda cp_i
+        cmp #100
+        bcc sud10
+        sbc #100
+        sta cp_i
+        iny
+        bne sud100
+sud10   cpy #0
+        beq sud_tens
+        tya
+        ora #'0'
+        jsr su_put
+sud_tens ldy #0
+sud10a  lda cp_i
+        cmp #10
+        bcc sud_one
+        sbc #10
+        sta cp_i
+        iny
+        bne sud10a
+sud_one cpy #0
+        bne sud_tp
+        lda cp_d
+        cmp #100
+        bcc sud_last
+sud_tp  tya
+        ora #'0'
+        jsr su_put
+sud_last lda cp_i
+        ora #'0'
+su_put  cpx #127
+        bcs sup_ret
+        sta LBUFF,x
+        inx
+sup_ret rts
+
+* ---- shell conditionals -------------------------------------------------
+* The separate under-ROM continuation buffer lets a left-side pipeline keep
+* using PIPEBUF.  cond_next consumes skipped left-associative terms until it
+* either selects one to run (A=1) or exhausts the chain (A=0).
+cond_next
+cn_again lda cp_cond
+        beq cn_none
+        pha
+        jsr k_romoff
+        ldx #0
+cn_copy lda CP_CONDBUF,x
+        sta LBUF,x
+        inx
+        cmp #EOL
+        bne cn_copy
+        lda #0
+        sta cp_cond
+        jsr k_romon
+        jsr cond_split
+        pla
+        cmp #1
+        bne cn_or
+        lda cp_d               ; && runs only after success
+        beq cn_run
+        bne cn_again
+cn_or   lda cp_d               ; || runs only after failure
+        bne cn_run
+        beq cn_again
+cn_run  lda #1
+        rts
+cn_none lda #0
+        rts
+
+* cond_split: split the first unquoted && or || in LBUF, if any.
+cond_split ldy #0
+        sty cp_fl
+csd1    lda LBUF,y
+        cmp #EOL
+        jeq csd_none
+        ldx cp_fl
+        beq csd_plain
+        cpx #1
+        beq csd_sq
+        cmp #'"'
+        jeq csd_qend
+        cmp #BSLASH
+        jeq csd_esc
+        jne csd_next
+csd_sq  cmp #39
+        jeq csd_qend
+        jne csd_next
+csd_plain cmp #39
+        beq csd_sq0
+        cmp #'"'
+        beq csd_dq0
+        cmp #BSLASH
+        beq csd_esc
+        cmp #'&'
+        beq csd_and
+        cmp #'|'
+        bne csd_next
+        lda LBUF+1,y
+        cmp #'|'
+        bne csd_next
+        lda #2
+        bne csd_found
+csd_and lda LBUF+1,y
+        cmp #'&'
+        bne csd_next
+        lda #1
+csd_found sta cp_i
+        sty cp_y
+        iny
+        iny
+csd_skip lda LBUF,y
+        cmp #' '
+        bne csd_rhs
+        iny
+        bne csd_skip
+csd_rhs cmp #EOL
+        beq csd_bad
+        jsr k_romoff
+        ldx #0
+csd_cp  lda LBUF,y
+        sta CP_CONDBUF,x
+        inx
+        iny
+        cmp #EOL
+        bne csd_cp
+        lda cp_i
+        sta cp_cond
+        jsr k_romon
+        ldy cp_y
+        lda #EOL
+        sta LBUF,y
+csd_trim dey
+        bmi csd_ret
+        lda LBUF,y
+        cmp #' '
+        bne csd_ret
+        lda #EOL
+        sta LBUF,y
+        bne csd_trim
+csd_ret rts
+csd_sq0 lda #1
+        sta cp_fl
+        bne csd_next
+csd_dq0 lda #2
+        sta cp_fl
+        bne csd_next
+csd_qend lda #0
+        sta cp_fl
+        beq csd_next
+csd_esc iny
+        lda LBUF,y
+        cmp #EOL
+        beq csd_none
+csd_next iny
+        jne csd1
+csd_none rts
+csd_bad lda #163
+        jsr farcall
+        dta b(BK_LIB),a(L_FAIL)
+        rts
 
         icl 'bw.icl'
         icl 'rx.icl'

@@ -3,16 +3,17 @@ MEM - show memory use
 Syntax:
  MEM [/X]
 
-Shows the low memory limits of main and extended memory, the memory mode (USE NONE, OSRAM or BANKED) and the free extended banks. Each limit has two values: the top of installed drivers and the top of programs held in memory (MEMLO). They differ only while programs are LOADed.
+Shows the low memory limits of main and extended memory, the memory mode (USE NONE, OSRAM or BANKED), immediately usable main memory in bytes, and free extended banks in both banks and bytes. Each limit has two values: the top of installed drivers and the top of programs held in memory (MEMLO). They differ only while programs are LOADed.
 
 Options:
  /X  also the top of overlays, the bank type, the memory tops, free bytes and the total extended memory
 
 Example:
  MEM
- Main: $12A9,$21A4
- Ext:  $7822,$7E1E
+ Main: $18CA,$18CA
+ Ext:  $4000,$4000
  Use:  BANKED
- 2 Ext banks free
+ Free: 33621 main bytes
+ 3 Ext banks free (49152 bytes)
 
 See also: LOAD, CHKDSK

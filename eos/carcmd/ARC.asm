@@ -492,8 +492,8 @@ dmsave  dta 0
 gf_err  dta 0
 gfail_a dta a(gfail)
 star3   dta c'*.*'
-dotarc  dta c'.ARC',EOL
-dotxar  dta c'.XAR',0
+dotarc  dta c'.arc',EOL
+dotxar  dta c'.xar',0
 cu_c    dta 0
 dname   :76 dta 0
 dn_y    dta 0

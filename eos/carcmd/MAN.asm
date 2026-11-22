@@ -190,8 +190,10 @@ ls2b    jsr PUTC
 ls3     ldx #0
         lda #8
         sta pad
-ls4     lda dentry+6,x
-        cmp #' '
+ls4     cpx dentry+6
+        bcs ls4a
+        lda dentry+7,x
+        cmp #'.'
         beq ls4a
         jsr PUTC
         dec pad
@@ -243,23 +245,14 @@ fd3a    lda dsep
         sta (t),y
         iny
 fd3b    ldx #0
-fd3c    lda dentry+6,x
-        cmp #' '
-        beq fd3d
-        sta (t),y
-        iny
-fd3d    inx
-        cpx #8
-        bcc fd3c
-        lda #'.'
-        sta (t),y
-        iny
-fd3e    lda dentry+6,x
+fd3c    cpx dentry+6
+        bcs fd3f
+        lda dentry+7,x
         sta (t),y
         iny
         inx
-        cpx #11
-        bcc fd3e
+        bne fd3c
+fd3f
         lda #EOL
         sta (t),y
         inc nm
@@ -417,7 +410,7 @@ sh13a   lda prog,x
         beq sh14
         cmp #':'
         beq run
-        cmp #'>'
+        cmp #'/'
         beq run
         cmp #BSLASH
         beq run
@@ -573,11 +566,11 @@ nd4     stx mi
         ldx #0
         cmp #':'
         beq nd5
-        cmp #'>'
+        cmp #'/'
         beq nd5
         cmp #BSLASH
         beq nd5
-        ldx #'>'
+        ldx #'/'
 nd5     stx dsep
         clc
         rts
@@ -632,22 +625,42 @@ exists  jsr first
         clc
 ex1     rts
 
-* isext: C=0 when dentry's extension is HLP, MAN, DOC or TXT
-isext   ldy #11
-ie1     ldx #2
-ie2     lda dentry+14,x
+* isext: C=0 when the exact v2 name ends in .hlp/.man/.doc/.txt
+isext   lda dentry+6
+        cmp #4
+        bcc ie_no
+        sec
+        sbc #3
+        sta extoff
+        tax
+        dex
+        lda dentry+7,x
+        cmp #'.'
+        bne ie_no
+        ldy #0
+ie1     sty extgrp
+        tya
+        clc
+        adc #3
+        sta extend
+        ldx extoff
+ie2
+        lda dentry+7,x
         cmp exts,y
         bne ie3
-        dey
-        dex
-        bpl ie2
+        inx
+        iny
+        cpy extend
+        bcc ie2
         clc
         rts
-ie3     dey                    ; the next extension
-        dex
-        bpl ie3
-        tya
-        bpl ie1
+ie3     lda extgrp             ; next fixed three-byte extension
+        clc
+        adc #4
+        tay
+        cpy #16
+        bcc ie1
+ie_no
         sec
         rts
 
@@ -673,14 +686,14 @@ mslot   ldx #0
         sta t+1
         rts
 
-exts    dta c'HLPMANDOCTXT'
+exts    dta c'hlp',0,c'man',0,c'doc',0,c'txt',0
 styp    dta a(s_type)
 smor    dta a(s_more)
 sech    dta a(s_echo)
 s_type  dta c'TYPE',EOL
 s_more  dta c'MORE',EOL
 s_echo  dta c'ECHO',EOL
-s_com   dta c'.COM',EOL
+s_com   dta c'.com',EOL
 mpn     dta a(mpname)
 pgn     dta a(pgname)
 pthn    dta a(ptname)
@@ -705,6 +718,9 @@ nlen    dta 0
 ncols   dta 0
 col     dta 0
 pad     dta 0
+extoff  dta 0
+extgrp  dta 0
+extend  dta 0
 mi      dta 0
 nm      dta 0
 sel     dta 0

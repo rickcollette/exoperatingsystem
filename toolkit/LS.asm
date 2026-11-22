@@ -1,5 +1,5 @@
 ; EOS Toolkit: LS, the files of a directory
-;   LS [-clwa] [+|-][AHPS] [d:][path>][fname.ext]
+;   LS [-clwa] [+|-][AHPS] [d:][path/][pattern]
 ; The switches come first, each as -x or /X, several letters after one
 ; - or / (-la, /L/A). A - group made only of the letters C L W A is
 ; switches, any other one (-H, -S, -AH) attributes as everywhere.
@@ -12,8 +12,8 @@
 ; set), 37 columns. -w: the names in columns 13 wide, as many as fit the
 ; screen. -l wins over -w; -c counts only for the plain list.
 U_GETATR smb 'U_GETATR'
+U_ARGV   smb 'U_ARGV'
 U_FSPEC  smb 'U_FSPEC'
-U_EXPAND smb 'U_EXPAND'
 U_FAIL   smb 'U_FAIL'
 FFIRST   smb 'FFIRST'
 FNEXT    smb 'FNEXT'
@@ -29,13 +29,14 @@ LBUF     equ $3F               ; (COMTAB+: the command line)
 LMARGN   equ $52
 RMARGN   equ $53
 device   equ $0761
-name     equ $0762
 dentry   equ $0789             ; status, node, size, name, date, time
-path     equ $07A0
+path     equ $0640
 EOL      equ $9B
 
         blk reloc main
-start   lda #0
+start   lda #$FF
+        jsr U_ARGV             ; select the native 127-byte argv contract
+        lda #0
         ldx #3
 s0      sta flags,x
         dex
@@ -57,15 +58,17 @@ s1      jsr U_GETATR
         jsr U_FSPEC
         jsr FFIRST
         jmi done
-entry   ldx #10                ; the entry's name as name+ext
-e1      lda dentry+6,x
-        sta name,x
+entry   ldy #0                 ; EOSFS v2 exact, length-tagged name
+        ldx dentry+6
+e1      cpx #0
+        beq e1z
+        lda dentry+7,y
+        sta fname,y
+        iny
         dex
-        bpl e1
-        lda a_fname
-        ldx a_fname+1
-        ldy #0
-        jsr U_EXPAND
+        bne e1
+e1z     lda #EOL
+        sta fname,y
         bit opt_l
         bpl e1a
         jsr long
@@ -73,7 +76,7 @@ e1      lda dentry+6,x
 e1a     lda dentry
         and #$20               ; a directory: > after it
         beq e2
-        lda #'>'
+        lda #'/'
         sta fname,y
         iny
         lda #EOL
@@ -167,7 +170,7 @@ w3      jsr PRINTF
 
 * long: name, size, date, time, attributes
 long    jsr PRINTF
-        dta c'%12s ',0
+        dta c'%s ',0
         dta a(fname)
         lda dentry
         and #$20
@@ -240,7 +243,7 @@ l8      sta attrs,x
         bpl l6
         jsr PRINTF
         dta c' %2b-%02b-%02b %02b:%02b %s',EOL,0
-        dta a(dentry+17,dentry+18,dentry+19,dentry+20,dentry+21,attrs)
+        dta a(dentry+38,dentry+39,dentry+40,dentry+41,dentry+42,attrs)
         rts
 
 * getsw: the switches, /X or -x, before anything else on the line
@@ -318,7 +321,6 @@ setsw   jsr swidx
         sta flags,x
 ss1     rts
 
-a_fname dta a(fname)
 swlet   dta c'CLWA'
 flags
 opt_c   dta 0
@@ -335,7 +337,7 @@ col     dta 0
 pos     dta 0
 len     dta 0
 dpos    dta 0
-fname   :16 dta 0
+fname   :33 dta 0
 
         blk update address
         blk update symbols

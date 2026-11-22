@@ -120,7 +120,7 @@ def t_flash():
         f.unlink(missing_ok=True)
     cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (UPD_KEY, emu.win(q)),
             'bp $%04X ".writemem %s 0 L10000; .autotest_cmd System.SaveFirmwareIDEMain; g"'
-            % (T.label('k_getline'), emu.win(mem))]
+            % (T.label('k_prompt'), emu.win(mem))]
     asked = []
     with emu.Session(OUT, [atr], cart=T.CAR, name='flash', turbo=True, debugcmds=cmds,
                      devices=ide_device(hd), extra_args=['/autotest']):
@@ -196,7 +196,7 @@ def t_storage():
                     ['IDET', 'DIR D2:', 'TYPE D2:HELLO.TXT', 'COPY WRITE.IN D2:WRITE.OUT'])
     mem = OUT / 'storage.bin'
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_prompt'), emu.win(mem))]
     e = []
     with emu.Session(OUT, [atr], cart=T.CAR, name='storage', turbo=True, debugcmds=cmds,
                      devices=ide_device(hd), firmware={'kmkjzide2': ROM}, fastboot=False):
@@ -282,7 +282,7 @@ def t_apt():
                      'APT >>L7.TXT'])
     mem = OUT / 'apt.bin'
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_prompt'), emu.win(mem))]
     with emu.Session(OUT, [atr], cart=T.CAR, name='apt', turbo=True, debugcmds=cmds,
                      devices=ide_device(hd), firmware={'kmkjzide2': ROM}, fastboot=False):
         m = T.wait_dump(mem, 180)
@@ -404,7 +404,7 @@ def t_partition():
                      'APT UNMAP D3: <<YES.TXT >>Q1.TXT', 'APT DEL 2 <<YES.TXT >>Q2.TXT',
                      'APT >>Q3.TXT'])
     mem = OUT / 'part.bin'
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_prompt'), emu.win(mem))]
     for atr, name in ((one, 'part1'), (two, 'part2')):     # (a power cycle between)
         mem.unlink(missing_ok=True)
         with emu.Session(OUT, [atr], cart=T.CAR, name=name, turbo=True, debugcmds=cmds,
@@ -471,7 +471,7 @@ def t_mapmode():
                      'MAP 2 B:', 'DIR D2: >>M5.TXT', 'MAP 1 B:', 'MAP >>M6.TXT'])
     mem = OUT / 'mapm.bin'
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (T.label('k_prompt'), emu.win(mem))]
     with emu.Session(OUT, [atr], cart=T.CAR, name='mapm', turbo=True, debugcmds=cmds,
                      devices=ide_device(hd), firmware={'kmkjzide2': ROM}, fastboot=False):
         m = T.wait_dump(mem, 240)

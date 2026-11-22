@@ -1,9 +1,11 @@
 # EOS User Manual
 
-EOS (Extendable Operating System) is a DOS for Atari 8-bit computers. It is
-designed as a SpartaDOS X 4.5 cartridge replacement and runs many SDX and
-BW-DOS programs and drivers. EOS also reads and writes Atari DOS 2/2.5 disks
-and has its own optional EOSFS disk format.
+EOS (Extendable Operating System) is a small Linux-like environment for Atari
+8-bit computers. It retains enough of the documented SDX program ABI to run
+many existing relocatable programs, but its shell and native filesystem have
+EOS semantics. Its resident disk filesystem is EOSFS v2;
+foreign disk formats are handled by transient Toolkit utilities so their
+parsers and state do not consume kernel memory.
 
 This manual covers getting started, configuring and operating EOS, using the
 full command set, and programming for EOS. Build and code maintenance
@@ -31,16 +33,16 @@ and installed memory affect which optional drivers and memory modes are useful.
 2. EOS initializes its drivers and command processor. The default command
    search path and manual path are `CAR:`; built-in commands work even if no
    disk is mounted.
-3. Insert or mount a data disk, then inspect it with `DIR D1:` or
-   `CHKDSK D1:`. Substitute the actual drive number for `1`.
+3. Insert or mount an EOSFS data disk, then inspect it with `ls D1:/` or
+   `CHKDSK D1:`. Use `fsinfo D1:` for foreign media.
 4. For a quick orientation, try:
 
    ```text
-   VER
-   DEV
-   MEM
-   DIR D1:
-   MAN COPY
+   ver
+   dev
+   mem
+   ls D1:/
+   man cp
    ```
 
 At a prompt, a drive letter is a drive number: `A:` is D1, `B:` is D2, and so
@@ -64,34 +66,46 @@ D4:, its `E:` drive 5.)
 
 ## 3. Command line and paths
 
-EOS accepts SpartaDOS-style command lines. Commands are either built into the
+EOS accepts a compact POSIX-like command line. Commands are either built into the
 command processor, supplied by the cartridge, or loaded as program files from
 the search path/current directory. Enter a command name followed by its
 parameters; for example:
 
 ```text
-DIR D1:>GAMES>
-COPY D1:>NOTES.TXT D2:
+ls D1:/games/
+cp D1:/notes.txt D2:/notes.txt
 ```
 
-Command names and options are case-insensitive. In command syntax, square
+The command line keeps the four most recent commands. Up and Down move through
+that history; Left and Right move the cursor, and TAB completes filenames.
+Each history entry retains its first 63 bytes, keeping the default reservation
+to 257 bytes.
+
+Built-in command words and their traditional slash options are case-neutral.
+External command files, like every other native file, are looked up with exact
+case; the default cartridge files and examples use lowercase. In command
+syntax, square
 brackets mean optional text, `|` separates alternatives, and a word in
 lowercase such as `file` or `unit` stands for a value you supply. The options
 available depend on the command; a slash option is not universal. Most
 commands accept several option letters together only where their own help
 page says so.
 
-The command processor supports file input/output redirection and pipelines.
-`<<file` supplies a file as standard input, and `>>file` writes standard
-output to a new file (replacing a file with that name if it exists). The same
-redirection markers can be placed on a command line; the first input and
-output redirection is used. `A | B` connects A's output to B's input through
-temporary files. For example:
+The command processor supports quoted arguments, file redirection and
+pipelines. Single quotes preserve literal bytes; double quotes preserve blanks
+and allow the shell's variable/escape processing; backslash quotes the next
+byte. `<file` supplies standard input, `>file` creates/truncates standard
+output, and `>>file` appends. `<<file` remains an input alias. The first input
+and output redirection is used. Operators inside quotes or after backslash are
+ordinary bytes. `A | B` connects A's output to B's input through temporary
+files. `$?` is the previous status. `A && B` runs B after success and `A || B`
+runs B after failure; a pipeline's status is its last stage. For example:
 
 ```text
-CAT D1:>DOCS>*.TXT | LESS
-MAN COPY | LESS
-DIR >>D1:FILES.TXT
+cat D1:/docs/*.txt | less
+man copy | less
+ls >D1:/files.txt
+echo another-line >>D1:/files.txt
 ```
 
 Redirections are processed by the command processor before it invokes a
@@ -99,39 +113,43 @@ program. A program that uses the DOS standard stream APIs can therefore work
 with the keyboard, screen, files, devices, and pipes. Some programs open the
 screen or keyboard directly and may not honor redirection.
 
-Paths use `>` between directories. Backslash is also accepted by many path
-commands. A directory path ends with `>` (or `\`) when the command needs to
-list or address its contents. `..` means the parent directory. If a drive or
+Native paths use `/` between directories. A leading `/` starts at the volume
+root; `.` is the current directory and `..` is the parent. If a drive or
 directory is omitted, EOS uses the current drive or current directory.
 
 ```text
-CD                 ; show current directory
-CD D1:>GAMES>       ; change directory on D1
-PWD                ; print current directory
-DIR *.COM          ; list matching files
+cd                 ; show current directory
+cd D1:/games/       ; change directory on D1
+pwd                ; print current directory
+ls *.com            ; list matching files
 ```
 
-Names follow the 8.3 convention on SDFS and Atari DOS volumes. Wildcards
-include `*` and `?`. A semicolon separates entries in `$PATH` and `$MANPATH`.
+EOSFS names are 1 to 31 printable ASCII bytes, may contain spaces, and are not
+restricted to 8.3.
+Complete paths are limited to 127 bytes. Wildcards include `*` and `?`. File
+and directory names are case-sensitive, and the keyboard starts in lowercase
+mode. The files shipped on `CAR:` use lowercase names. Built-in command words
+are not filenames and remain case-neutral. A semicolon separates entries in
+`$PATH` and `$MANPATH`.
 Commands can be redirected or piped where supported by the command processor;
 for example, `MAN DIR | LESS` views a manual page a screen at a time.
 
 ## 4. Startup files and configuration
 
-At startup EOS checks drive D1: for `EOSSYS.SYS`. If it is absent, EOS tries
-`CONFIG.SYS`, allowing existing SDX startup disks to be reused. The syntax is
-the same for both names. EOS then runs `EOSAUTO.BAT` when present, falling back
-to `AUTOEXEC.BAT`. It does not run `AUTORUN.SYS`. Hold OPTION during startup
+At startup EOS checks drive D1: for `eossys.sys`. If it is absent, EOS tries
+`config.sys`. The syntax is the same for both names. EOS then runs
+`eosauto.bat` when present, falling back to `autoexec.bat`. It does not run
+`autorun.sys`. Hold OPTION during startup
 to bypass the configuration file.
 
-EOS includes the disk, SIO, and Atari DOS 2 drivers, so a basic setup does not
-need `DEVICE` lines. Configuration commands include:
+EOS includes the EOSFS disk and SIO drivers, so a basic setup does not need
+`DEVICE` lines. Configuration commands include:
 
 ```text
-; Example EOSSYS.SYS
-SET PATH=CAR:;D1:>UTILS
-SET MANPATH=CAR:;D1:>MAN
-SET PROMPT=$D$N
+; Example eossys.sys
+SET PATH=CAR:;D1:/utils
+SET MANPATH=CAR:;D1:/man
+SET PROMPT=D$N$P/
 DEVICE RAMDISK 1
 ```
 
@@ -147,7 +165,7 @@ include:
 - `MERGE file` to switch configuration input to another file (default
   extension `.CFG`). The rest of the current file is not read afterward.
 
-EOS initializes `$PATH=CAR:`, `$PROMPT=D$N`, `$SYSERR=CAR:SYSERR.MSG`,
+EOS initializes `$PATH=CAR:`, `$PROMPT=D$N$P/`, `$SYSERR=CAR:SYSERR.MSG`,
 `$MAXDRV=O:`, and `$MANPATH=CAR:` by default. Use `SET` to inspect variables;
 `SET NAME=value` changes one, and `SET NAME` removes it. `PATH` is a helper
 for changing the command search path. Keep `CAR:` in the path so built-in
@@ -214,11 +232,11 @@ DIR D1:                 ; list drive contents
 DIR /W                  ; names in columns
 TYPE README.TXT /P      ; display text, pause each screen
 COPY *.TXT D2:          ; copy matching files
-COPY /R D1:>SRC D2:>    ; recursively copy a directory tree
+cp -r D1:/SRC D2:/SRC   ; recursively copy a directory tree
 RENAME OLD.TXT NEW.TXT
 DEL *.BAK
-MKDIR D1:>DOCS>
-CD D1:>DOCS>
+mkdir D1:/DOCS
+cd D1:/DOCS
 ```
 
 `DIR` displays names, sizes, dates, and times. `DIRS` gives a compact Atari
@@ -236,21 +254,15 @@ and `RMDIR` removes an empty directory. Check exact syntax with `MAN`.
 To run a program, enter its name. EOS searches `$PATH` and then the current
 directory. For a program in a specific location, give its path. `LOAD`
 loads without running; `X` provides additional load/run modes. Programs can
-be run from SDFS, EOSFS, BW-DOS, and Atari DOS disks subject to their binary
-format and memory needs.
+be run directly from EOSFS or copied/imported from a foreign filesystem with
+a transient Toolkit utility.
 
 ## 6. Disks and filesystems
 
-EOS recognizes SDFS (SpartaDOS 2.0/2.1), EOSFS, BW-DOS, and Atari DOS 2/2.5
-volumes, and reads/writes compatible MyDOS data volumes. MyDOS disks are not
-bootable by EOS. Atari DOS and MyDOS use their own directory and space limits;
-some SpartaDOS features, such as hierarchical paths, are not present there.
-
-On Atari DOS 2/2.5 and MyDOS disks, `NOTE` and `POINT` (CIO's XIO 38 and
-37, as BASIC uses them) give and take the sector and the byte in it, as those
-DOSes do, so BASIC programs that keep or compute such positions work as they
-do there. The kernel's `FSEEK` and `FTELL` keep byte positions from the
-file's start on every disk.
+EOS mounts only EOSFS v2 volumes in the resident DSK: driver. SDFS, DOS 2 and
+MyDOS access belongs in transient Toolkit import/export/check tools. This
+keeps legacy directory parsers, 8.3 buffers and filesystem-specific state out
+of resident memory.
 
 EOS looks at a disk again (for another disk in the drive) when a drive is
 used after more than a second without use; within a second of the last
@@ -268,49 +280,45 @@ MAP            ; device/drive map
 
 ### Formatting
 
-`FORMAT` destroys data on the selected disk. Before formatting, confirm the
+`FORMAT` destroys data on the selected disk and creates EOSFS only. Before formatting, confirm the
 drive and copy any files you need elsewhere. Run `FORMAT` without parameters
 for the interactive menu. It can choose unit, volume name, density, geometry,
-SIO speed, and filesystem mode. The menu's modes include Sparta (SDFS), Atari
-(DOS 2), and EOS (EOSFS) where supported by the selected geometry/device.
+SIO speed, and geometry. Resident FORMAT creates EOSFS v2.
 
 Examples:
 
 ```text
 FORMAT                 ; interactive menu
-FORMAT /Q D2: WORK     ; quick SDFS initialization after confirmation
-FORMAT /QQ D2: WORK    ; quick SDFS initialization without confirmation
+FORMAT /Q D2: WORK     ; quick EOSFS initialization after confirmation
+FORMAT /QQ D2: WORK    ; quick EOSFS initialization without confirmation
 ```
 
-Quick format rebuilds an empty SpartaDOS filesystem; it is not a secure erase.
-Use the interactive menu to choose DOS 2 or EOSFS. `FORMAT` also has a
+Quick format rebuilds an empty EOSFS filesystem; it is not a secure erase.
+`FORMAT` also has a
 directory-only operation for suitable RAM disks and hard disks. Read
 `MAN FORMAT` before formatting unfamiliar media. A disk using 512-byte sectors
 cannot be booted by the stock Atari OS.
 
 ### EOSFS
 
-EOSFS is an optional EOS-native format selected during formatting. Its
-directory entries and general layout remain SDFS-compatible, while files use
-extent lists to keep contiguous data runs together and reduce map-sector
-overhead. EOS reads and writes both EOSFS and SDFS; use SDFS when the disk must
-also be writable by SDX. SDX does not recognize EOSFS revision `$45`, so do
-not expect SDX to access an EOSFS volume. See [EOSFS design](EOSFS.md) for the
-on-disk specification and version 1 limits.
+EOSFS v2 is the native format. It uses 44-byte directory records, 31-byte
+case-sensitive names and extent lists that keep contiguous data runs together.
+Revision `$47` is clean and `$48` marks an interrupted write. See
+[EOSFS design](EOSFS.md) for the on-disk specification.
 
 ### Bootable disks
 
-FORMAT writes the SDFS or EOSFS loader. `BOOT file` records
-the file's first map or extent list in sector 1; it does not copy the file or
+FORMAT writes the EOSFS loader. `BOOT file` records the file's first extent
+list in sector 1; it does not copy the file or
 replace the loader. Erasing or replacing the file clears the boot mark.
 
-SDFS and EOSFS images with 128 or 256 byte sectors are bootable. The stock OS
+EOSFS images with 128 or 256 byte sectors are bootable. The stock OS
 cannot boot 512 byte sectors. See Building EOS for the host image command.
 
 ## 7. Devices, drivers, and memory
 
 `DEV` lists installed kernel devices; `MEM` reports memory use and selected
-memory mode. Core DSK, SIO, and DOS 2 support is built into EOS. Additional
+memory mode. Core EOSFS DSK: and SIO support is built into EOS. Additional
 drivers and utilities are supplied in the cartridge or can be loaded from
 disk with `DEVICE` in `EOSSYS.SYS` / `CONFIG.SYS`.
 
@@ -319,15 +327,15 @@ disk with `DEVICE` in `EOSSYS.SYS` / `CONFIG.SYS`.
 `DEVICE name [parameters]` loads a `name.SYS` file from the normal program
 search locations, or activates an EOS built-in driver. The following list
 covers the EOS-supplied drivers and their parameters. Drivers not listed here
-may have their own documentation. Core disk drivers `SPARTA`, `SIO`,
-`ATARIDOS`, and `INDUS` are already in the cartridge; their `DEVICE` lines are
-accepted for SDX configuration compatibility and do not load another driver.
+may have their own documentation. The EOSFS disk path and SIO dispatch are
+resident kernel services. `DEVICE SIO /A` or `/C` can still select the OS SIO
+path; no foreign filesystem driver is resident.
 
 | Driver | Syntax | Behavior and options |
 | --- | --- | --- |
-| `RAMDISK` | `RAMDISK [drive[,nbanks]] [/S]` | Installs one RAM disk, defaulting to O: and all available extended-memory banks except four reserved for programs. `nbanks` selects the number of banks. The disk has 256-byte sectors and is initialized as SDFS unless a same-size disk is already present. A RAM disk requires extended memory. EOS accepts `/S`; it has no additional effect in the current implementation. It sets default `RAMDISK`, `BASIC`, `CAR`, and `TEMP` variables if they were unset. |
+| `RAMDISK` | `RAMDISK [drive[,nbanks]] [/S]` | Installs one RAM disk, defaulting to O: and all available extended-memory banks except four reserved for programs. `nbanks` selects the number of banks. The disk has 256-byte sectors and is initialized as EOSFS v2 unless a same-size EOSFS disk is already present. A RAM disk requires extended memory. EOS accepts `/S`; it has no additional effect in the current implementation. It sets default `RAMDISK`, `BASIC`, `CAR`, and `TEMP` variables if they were unset. |
 | `ENV` | `DEVICE ENV` | Moves the environment into an extended-memory bank, providing up to 16 KiB instead of the small default area. Without extended memory, the environment stays in its original location. |
-| `DOSKEY` | `DOSKEY [aliases-file] [/X]` | Installs command-line editing, a 16-line history, aliases, `&` command chaining, and TAB filename completion. Up/Down, Ctrl-P/Ctrl-N, or F1/F2 select history; Left/Right edit at the cursor; Shift-Clear clears the screen; BREAK cancels the line. Alias files contain `NAME=COMMAND` lines. `/X` runs `DIR` on an empty command line. |
+| `DOSKEY` | `DOSKEY [aliases-file] [/X]` | Command-line editing and a four-line history are enabled by default. Up/Down, Ctrl-P/Ctrl-N, or F1/F2 select history; Left/Right edit at the cursor; TAB completes filenames; Shift-Clear clears the screen; BREAK cancels the line. `DOSKEY` optionally loads `NAME=COMMAND` aliases and enables `&` command chaining; `/X` runs `DIR` on an empty command line. |
 | `RUNEXT` | `RUNEXT [association-file]` | Loads file-extension associations; defaults to `CAR:RUNEXT.CFG`. `RUNEXT` at the prompt lists the active rules. A rule has `[!^]EXT[:EXT...],PROGRAM[,PARMS]`; `!` requires Shift, `^` requires Ctrl, and `%` in parameters is replaced by the selected filename (otherwise the filename is appended). Rules are checked in file order. Lines beginning with `;` or `*` are comments. Prefix a command with `+` to skip associations. |
 | `COMEXE` | `DEVICE COMEXE` | Makes `NAME.EXE` (or `NAME` when `NAME.COM` is absent) run through `X`, with cartridges disabled. Prefix the command with `+` to bypass this behavior. |
 | `RTIME8` | `DEVICE RTIME8` | Enables the hardware clock: the R-Time 8 cartridge if it answers, otherwise the Ultimate 1MB's clock (DS1305) when a U1MB is detected. With neither, EOS prints `R-Time 8 not present` and runs its software clock. `DATE` and `TIME` set the U1MB clock as well (24-hour mode). This is also EOS's default without a configuration file. |
@@ -381,28 +389,30 @@ Other useful commands include:
 - Date and time: `DATE`, `TIME`, `TD`, `CHTD`.
 
 The EOS Toolkit is a separate collection of disk utilities distributed on
-`EOSTK.atr`, with programs and manual pages under `MAN>`. It includes `LS`,
-`DU`, `CAT`, `HEAD`, `TAIL`, `CRC32`, `MD5`, `WHICH`, and `SEQ`. Toolkit
+`EOSTK.atr`. It is a native EOSFS v2 image with lowercase program names and
+manual pages under `/man`, so it mounts directly on current EOS. It includes core
+filters plus `fsinfo`, `fsexport`, and `fscreate` for bounded foreign
+filesystem interchange. Toolkit
 commands are separate `.COM` programs. After mounting the Toolkit disk as D1,
 for example, add its root to `$PATH` and its manual directory to `$MANPATH`:
 
 ```text
-PATH CAR:;D1:
-SET MANPATH=CAR:;D1:>MAN
-LS
-MAN LS
+path CAR:;D1:
+set MANPATH=CAR:;D1:/man
+ls
+man ls
 ```
 
 ## 9. Compatibility notes
 
-EOS is intended as a drop-in for SDX 4.5: it runs many SDX relocatable
-programs and drivers, uses SDX-compatible kernel entry points, and supports
-SDFS disks. It also supports BW-DOS program execution and BW-DOS disks, plus
-Atari DOS 2/2.5 disks. Compatibility does not mean every program's hardware
+EOS is not a drop-in filesystem or shell replacement for SDX. It runs many
+SDX relocatable programs through documented compatible entry points. Disk format
+compatibility is provided by transient Toolkit programs, not resident mounts.
+Compatibility does not mean every program's hardware
 assumptions or every third-party driver works on every Atari configuration.
 
-System filenames are `EOSSYS.SYS` and `EOSAUTO.BAT`; EOS falls back to
-`CONFIG.SYS` and `AUTOEXEC.BAT`. This allows EOS-specific setup alongside
+System filenames are `eossys.sys` and `eosauto.bat`; EOS falls back to
+`config.sys` and `autoexec.bat`. This allows EOS-specific setup alongside
 existing SDX files. See [EOS compatibility](EOS_COMPATABILITY.md) for the
 project's compatibility summary.
 
@@ -515,7 +525,8 @@ call convention from a routine's name.
 
 The exported symbol names are in `eos/symbols.txt`. Important groups include:
 
-- Command parsing and text: `U_GETPAR`, `U_GETNUM`, `U_GETADR`, `U_GEFINA`,
+- Command parsing and text: `U_ARGC`, `U_ARGV`, `U_GETPAR`, `U_GETNUM`,
+  `U_GETADR`, `U_GEFINA`,
   `U_FAIL`, `PRINTF`, `FPRINTF`, `PUTC`, `GETS`, `PUTS`.
 - File streams: `FOPEN`, `FCLOSE`, `FREAD`, `FWRITE`, `FGETC`, `FPUTC`,
   `FGETS`, `FPUTS`, `FSEEK`, `FTELL`, `FILELENG`, `REMOVE`, `RENAME`.
@@ -530,9 +541,20 @@ area. Its layout is part of the EOS program interface; avoid hard-coded
 offsets unless this manual or a known EOS example defines them.
 `U_GETPAR` parses successive command parameters into the COMTAB parameter
 area. It skips leading spaces, treats spaces and commas as separators,
-uppercases the returned parameter, and leaves the original command line
-unchanged. Commas can represent an empty field (`A,,B`). The sample below
-reads parameters until there are no more:
+preserves the returned parameter's case (while folding `/switches` to upper
+case), and leaves the original command line unchanged. Commas can represent
+an empty field (`A,,B`).
+
+New native programs should use the shell sidecar when quoting or long
+arguments matter. `U_ARGC` returns the word count in A, including the command
+as argument zero. `U_ARGV` takes an index in A and returns C clear with AX
+pointing to the selected bytes and Y holding their length; C set means the
+index is absent. The returned scratch address remains valid until another
+`U_ARGV` or filesystem path operation. There are at most 16 arguments and 127
+bytes of parsed argument text. The public COMTAB line stays 64 bytes for old
+programs.
+
+This legacy `U_GETPAR` sample reads parameters until there are no more:
 
 ```asm
 U_GETPAR smb 'U_GETPAR'
@@ -681,8 +703,8 @@ device-specific error codes.
 
 | Symbol | Inputs and result |
 | --- | --- |
-| `U_GETPAR` | Reads next LBUF argument at `BUFOFF`; skips leading spaces, consumes the following separator, uppercases into `COMFNAM`, sets `FILLEN`, returns length A/X; Z=1 if none. Commas can yield an empty argument. |
-| `U_GEFINA` | `FILE_P` file spec in; parses device to `device`, directory to `path`, and filename to the internal padded 8+3 `name`; accepts EOL/zero termination. Invalid device/spec uses `U_FAIL`. |
+| `U_GETPAR` | Reads next LBUF argument at `BUFOFF`; skips leading spaces, consumes the following separator, preserves case in `COMFNAM` (`/switches` are uppercased), sets `FILLEN`, returns length A/X; Z=1 if none. Commas can yield an empty argument. |
+| `U_GEFINA` | `FILE_P` file spec in; parses device to `device`, directory to `path`, and the exact, NUL-ended final component to `name` (31 bytes maximum); accepts EOL/zero termination. Invalid device/spec uses `U_FAIL`. |
 | `U_GETNUM` | Parses next decimal or `$` hexadecimal parameter. Success: A/X low 16 bits and 32-bit value in `COMTAB-6..-3`; consumes parameter. Z=1 if absent/invalid and leaves `BUFOFF`. |
 | `U_GETADR` | Parses `[index:]number|symbol[+n|-n]`. Success C=0: address A/X, memory index Y. C=1: 24-bit value low word A/X, high byte Y. Z=1 if absent/invalid. |
 | `U_GETFLG` | A default in; parses numeric or S/A/I/N and returns A=FLAG (values 0/`$40`/`$C0`/`$80`). Invalid input raises error 4; absent input retains default. |
@@ -691,14 +713,14 @@ device-specific error codes.
 | `U_TOKEN` | A/X keyword table (high bit marks each keyword's final character, `$00` ends table). Match returns C=1, A=zero-based token index; miss returns C=0, A=keyword count. |
 | `U_SLASH` | A/X flag-character pair table, Y byte length; initializes flags and parses current slash options; unknown option raises error 156. |
 | `TOUPPER` | A character in; uppercase equivalent in A, other bytes unchanged. |
-| `U_FSPEC` | Uses `COMFNAM`/`FILLEN`; appends `*.*` when a parameter ends in a path separator and updates length. |
+| `U_FSPEC` | Uses `COMFNAM`/`FILLEN`; appends `*` when a parameter ends in a path separator and updates length. |
 | `U_PATH` | A/X output buffer, Y initial offset; appends device/path (device omitted for `$FF`), EOL-terminates, returns Y at EOL. |
 | `U_GEPATH` | `FILE_P` spec in; sets parsed device and `path` to the full supplied path (filename included), zero-terminated. |
-| `U_EXPAND` | A/X destination, Y initial offset; expands internal 8+3 `name` to printable filename, collapses trailing `?` groups to `*`, returns Y at EOL. |
+| `U_EXPAND` | A/X destination, Y initial offset; copies the exact NUL-ended `name` and returns Y at the appended EOL. |
 | `U_GETATR` | A default scan mask; parses attribute selectors and next filename; returns `scan`, Z=1 if no name. |
-| `PRO_NAME` | `(bufadr)` and Y+1 input offset; builds 8+3 `name`, maps `*` to `?`, stops at EOL/space/comma/path separator; terminator in A and offset Y, Z=1 for blank. |
+| `PRO_NAME` | `(bufadr)` and Y+1 input offset; copies an exact component to NUL-ended `name` (31 bytes maximum), preserving wildcards; stops at EOL/space/comma/path separator; terminator in A and offset Y, Z=1 for blank. |
 | `_CRUNCH` | EOS-private drive parser; reads next parameter into `COMFNAM` as `Dd:rest`, resolves drive aliases/current drive, sets `FILLEN`; Z=1 if only device/current drive. |
-| `CKSPEC` | A character in; Z=1 for path separator `:`, `>`, `\\`, `<`, else Z=0. |
+| `CKSPEC` | A character in; Z=1 for native path separator `:` or `/`, else Z=0. |
 | `U_GETKEY` | Waits for key; A=key, X bit 7 Control and bit 6 Shift. Break gives A=128/N=1; ordinary key N=0/Z=0. |
 | `U_PERROR` | A/X destination, Y error code; writes EOL-terminated error text. |
 | `ERR_GMSG` | A error code; X/Y points to zero-terminated error number/message. |
@@ -887,43 +909,33 @@ Example:
 See also: IDEPLUS, U1MB, FORMAT
 ```
 
-##### ARC
+##### TAR
 
 ```text
-ARC - file archiver
+TAR
 
-Syntax:
- ARC cmd[opts] [d:][path]arc[.ext]
-     [files...]
+tar c archive.tar file ...
+tar t archive.tar
+tar v archive.tar
+tar x archive.tar
 
-Packs files into one compressed archive (default extension .ARC) and works on existing archives. Compatible with SEA ARC; reads ALF archives. ARC alone prints a short help. The file list may hold several names, each with drive and path, and wildcards. No list means *.*.
+Creates, lists and extracts uncompressed POSIX USTAR archives. Creation uses
+one 512-byte streaming buffer, exact EOSFS names, mode 0644, uid/gid zero and
+the EOSFS timestamp. Files and directory trees are archived recursively to a
+maximum depth of 16. Two zero blocks terminate the archive.
 
-Commands:
- A    add files
- M    move files in (deletes the originals)
- U    update: replace older entries and add new files
- F    freshen: replace older entries only
- D    delete entries
- X,E  extract files (a drive/path in the list is the destination); asks before overwriting (Y/N/A)
- P    print entries to the screen (can be redirected)
- L    list name, size, date and time
- V    verbose list: method, saving and packed size
+t lists names. v lists sizes and names. x creates directory entries and
+extracts regular files, restoring representable timestamps while ignoring
+Unix ownership and permissions. Existing files are reported and never
+overwritten; existing directories are reused explicitly.
 
-Options (after the command):
- S    store without compression
- B    keep the old archive as .BAK
- W    no warning messages
- N    no notes or progress output
- H    screen off while working (faster)
- G    encrypt/decrypt; must be last and is followed by the password
+The reader accepts POSIX USTAR and V7 headers. Extraction rejects absolute
+paths, device paths, parent traversal, overlong names, malformed octal fields,
+bad checksums, truncated archives and unsupported member types. Names are
+never silently truncated.
 
-Entries are kept in alphabetical order without paths. Methods used: stored, packed, squeezed, crunched; the best one is picked for each file.
-
-Examples:
- ARC A DOCS *.DOC D2:*.TXT
- ARC L DOCS
- ARC XH DOCS D3:>OUT>*.*
- ARC AGSECRET SAFE NOTES.TXT
+There is no compression in this version. Use Toolkit arc only for legacy
+SEA ARC files.
 ```
 
 ##### ATR
@@ -1005,12 +1017,12 @@ BOOT - choose the file a disk boots
 Syntax:
  BOOT [d:][path]file[.ext]
 
-Marks a file on an SDFS or EOSFS disk as the program loaded by the boot sectors. The file may be in any directory.
+Marks a file on an EOSFS disk as the program loaded by the boot sectors. The file may be in any directory.
 
-FORMAT writes the SDFS or EOSFS loader. BOOT only records the file's first map or extent list in sector 1. Erasing or replacing the file clears the mark. The stock OS cannot boot 512 byte sectors.
+FORMAT writes the EOSFS loader. BOOT records the file's first extent list in sector 1. Erasing or replacing the file clears the mark. The stock OS cannot boot 512 byte sectors.
 
 Example:
- BOOT >DOS>DOS.SYS
+ boot /dos/dos.sys
 
 See also: COLD, FORMAT
 ```
@@ -1057,9 +1069,9 @@ Makes the given directory the current one on that drive (the current drive if no
 When the disk is changed, the current directory goes back to MAIN.
 
 Examples:
- CD >GAMES>ARCADE
+ cd /GAMES/ARCADE
  CD ..
- CD D2:>
+ CD D2:/
 
 See also: MKDIR, RMDIR, PWD, PATH
 ```
@@ -1273,7 +1285,7 @@ Attributes are not copied. Existing files are overwritten unless they are hidden
 
 Examples:
  COPY *.TXT D2:
- COPY /R D1:>SRC D2:>
+ COPY /R D1:/SRC D2:/
  COPY README.DOC PRN:
  COPY NUL: EMPTY.DAT
 
@@ -1320,7 +1332,7 @@ Options:
 If error 167 appears on a directory that looks empty, look for hidden entries with DIR +. A file that was never closed after a crash can also keep a directory from being removed; a disk checker can fix that.
 
 Example:
- DELTREE /V D2:>OLD
+ DELTREE /V D2:/OLD
 
 See also: RMDIR, ERASE
 ```
@@ -1374,7 +1386,7 @@ Syntax:
  DIRS [+|-][A|H|P|S] [d:][path][name]
      [/A|C|P]
 
-DIR shows name, extension, size in bytes (k for KiB above 999999), date and time; <DIR> marks a directory. The volume and directory names come first, free sectors last. No name means *.*. A directory name must end in > or \ to list its contents.
+DIR shows name, extension, size in bytes (k for KiB above 999999), date and time; <DIR> marks a directory. The volume and directory names come first, free sectors last. No name means *.*. A directory name may end in / to list its contents.
 
 DIRS gives the short Atari DOS style list: sizes in sectors, * before protected entries.
 
@@ -1390,7 +1402,7 @@ Switches:
 Examples:
  DIR *.COM
  DIR + /A
- DIRS D2:>GAMES>
+ DIRS D2:/GAMES/
 
 See also: ATR, FIND
 ```
@@ -1439,37 +1451,39 @@ Examples:
  ECHO TEXT >>D1:FILE.TXT
 ```
 
-##### ED
+##### VIM
 
 ```text
-ED - text editor
+VIM
 
-Syntax:
- ED [d:][path][file.ext]
+vim [file]
 
-A small full-screen editor for configuration and other text files, best up to about 8K. Lines are at most 128 characters; longer lines are split. Typing inserts. The window height is 10 lines or the value of $ED (1-22).
+A compact, modal, single-file editor. It uses the proven EOS full-screen text
+buffer, renderer and CIO file paths while providing NORMAL and INSERT modes.
+The status line begins with N or I for the current mode.
 
-Keys:
- ESC        cancel / quit
- CTRL-L     load a file
- CTRL-S     save to a file
- CTRL-U/D   move window bottom up/down
- CTRL-V     show EOL characters
- CTRL-arrow or F1-F4 move the cursor
- SHIFT-CTRL-up/down page up/down
- CTRL-B/E   start/end of the text
- CTRL-A/Z   start/end of the line
- CTRL-T     tag the current line
- CTRL-G     go to the tagged line
- CTRL-Q     type the next key as a character
- CTRL-INS   insert a space
- CTRL-DEL   delete under the cursor
- SHIFT-INS  copy this line before the tagged one
- SHIFT-DEL  delete the line
- SHIFT-CTRL-E clear the buffer
+NORMAL commands include arrows, i, a, o, x, dd, yy, p, u, 0, $, gg, G,
+literal / search, n, and : commands. INSERT accepts text, Tab, Return and
+Backspace; Escape returns to NORMAL. Cursor keys move without leaving INSERT;
+edits outside the bounded undo transaction are safely refused.
 
-Example:
- ED CONFIG.SYS
+Commands are :w, :w file, :q, :q!, :wq, :e file, and :e! file. Existing
+files require Y confirmation. Failed loads leave the text and filename
+unchanged; failed writes keep the changed flag set. Replacement is checked
+but not crash-atomic, so keep backups on unreliable media.
+
+VIM uses 22 editing rows and 255-byte logical lines. It accepts printable
+ASCII, tabs, and consistently ATASCII, LF, or CRLF newlines. LF/CRLF files
+retain their style; new files use LF. Mixed newlines, NUL/control bytes, and
+longer lines are rejected without changing the buffer.
+
+On the tested 64K 800XL configuration, 24,832 bytes of 127-byte lines load;
+24,976 bytes is safely refused. Capacity varies slightly with the final line.
+VIM.COM is 10,572 bytes including relocation data (8,684 bytes linked code
+and static workspace), above the aspirational 8 KiB target. VIM is transient,
+so this does not enlarge the resident kernel.
+
+The legacy non-modal ed remains on the Toolkit disk.
 ```
 
 ##### ERASE
@@ -1486,7 +1500,7 @@ Deletes the matching files from the given directory (the current one when no pat
 
 Examples:
  DEL OLD.TXT
- ERASE D2:>TMP>*.BAK
+ rm D2:/TMP/*.BAK
 
 See also: UNERASE, DELTREE, MENU
 ```
@@ -1503,8 +1517,8 @@ Looks for files matching the name (wildcards allowed) in all directories of all 
 
 Example:
  FIND *.DAT
- A:>SUPER.DAT
- B:>TESTS>TEST.DAT
+ A:/SUPER.DAT
+ B:/TESTS/TEST.DAT
  2 matches found
 
 See also: DIR
@@ -1542,15 +1556,14 @@ Syntax:
  FORMAT
  FORMAT /Q|QQ [d:] [volname]
 
-Without parameters FORMAT opens the formatter menu. ESC leaves it before formatting starts.
+Without parameters FORMAT opens the EOSFS formatter menu. ESC leaves it before formatting starts.
 
-/Q quickly rebuilds an empty SpartaDOS file system on the drive (any readable disk), with the given volume name, after asking; /QQ does not ask.
+/Q quickly rebuilds an empty EOSFS v2 filesystem on the drive, with the given volume name, after asking; /QQ does not ask. Foreign logical filesystems are created only by the transient Toolkit fscreate command.
 
 Menu choices:
  U  unit (1-9, A-O); the drive is read to find its type
  O  optimize: use the last sector too
  S  skew: Standard, High Speed (an XF551: its own fast order), or Ultra Speed (a US Doubler: an order for its Ultra Speed)
- M  mode: Sparta, Atari (DOS 2), or EOS (EOSFS)
  V  volume name, up to 8 chars
  D  density: single, medium, double, DD 512, high
  T  tracks: 40/77/80, SS or DS
@@ -1558,7 +1571,7 @@ Menu choices:
  B  build directory only (RAM disks, hard disks)
 
 Example:
- FORMAT /Q D2: WORK
+ format /Q D2: work
 
 The skews need the drive to have them: another drive answers with an error. The Ultra Speed order is sent to the drive; Altirra formats with its own and ignores it, so its gain shows on a real US Doubler only.
 
@@ -1676,7 +1689,7 @@ Without $PAGER the text is shown like TYPE, without stopping. $PAGER names a vie
 Examples:
  MAN DIR
  MAN COPY | LESS
- SET MANPATH=CAR:;D1:>DOC
+ SET MANPATH=CAR:;D1:/DOC
  SET PAGER=LESS;/C;%
 
 See also: LESS, MORE, TYPE, FMT
@@ -1736,17 +1749,18 @@ MEM - show memory use
 Syntax:
  MEM [/X]
 
-Shows the low memory limits of main and extended memory, the memory mode (USE NONE, OSRAM or BANKED) and the free extended banks. Each limit has two values: the top of installed drivers and the top of programs held in memory (MEMLO). They differ only while programs are LOADed.
+Shows the low memory limits of main and extended memory, the memory mode (USE NONE, OSRAM or BANKED), immediately usable main memory in bytes, and free extended banks in both banks and bytes. Each limit has two values: the top of installed drivers and the top of programs held in memory (MEMLO). They differ only while programs are LOADed.
 
 Options:
  /X  also the top of overlays, the bank type, the memory tops, free bytes and the total extended memory
 
 Example:
  MEM
- Main: $12A9,$21A4
- Ext:  $7822,$7E1E
+ Main: $18CA,$18CA
+ Ext:  $4000,$4000
  Use:  BANKED
- 2 Ext banks free
+ Free: 33621 main bytes
+ 3 Ext banks free (49152 bytes)
 
 See also: LOAD, CHKDSK
 ```
@@ -1797,7 +1811,7 @@ Creates a new directory. The last name in the path is the one created; the direc
 
 Examples:
  MD TEST
- MKDIR D3:>MODEM>TEST
+ mkdir D3:/MODEM/TEST
 
 See also: CHDIR, RMDIR, RENDIR
 ```
@@ -1833,7 +1847,7 @@ A lone : or an empty entry means the current directory. The current directory is
 
 Examples:
  PATH
- PATH CAR:;A:>;D2:>DOS
+ PATH CAR:;A:/;D2:/DOS
  PATH ;CAR:
 
 See also: APPEND, SET
@@ -1917,10 +1931,10 @@ Sets the command prompt; PROMPT alone shows it. These codes in the text are repl
  $R  new line
 An _ shows as a space.
 
-PROMPT x is the same as SET PROMPT=x. The default is D$N. With no $PROMPT at all the prompt is >. $P reads the disk each time the prompt is shown.
+PROMPT x is the same as SET PROMPT=x. EOS always encloses the displayed prompt in brackets. The default is D$N$P/, which displays like [D1:/] or [D1:/rick/]. With no $PROMPT at all the prompt is [>]. $P reads the disk each time the prompt is shown.
 
 Examples:
- PROMPT $L$P\
+ PROMPT $L$P/
  PROMPT $D_$L
 
 See also: SET, PATH
@@ -1929,17 +1943,16 @@ See also: SET, PATH
 ##### PWD
 
 ```text
-PWD - show the current directories
+PWD - show the current directory
 
 Syntax:
  PWD
 
-Lists the current directory of every drive that can be read.
+Shows the active drive and its current directory.
 
 Example:
  PWD
- A:\DRIVERS>
- C:>
+ D1:/drivers/
 
 See also: CHDIR, SETPATHS
 ```
@@ -1993,7 +2006,7 @@ Removes an empty directory (the last name in the path). If it still holds files,
 
 Examples:
  RD TEST
- DELDIR D3:>MODEM>TEST
+ rmdir D3:/MODEM/TEST
 
 See also: DELTREE, MKDIR, CHDIR
 ```
@@ -2075,7 +2088,7 @@ Syntax:
 Makes the given directory the current one on its drive. With a file name it reads one directory per line from that file and sets each. Meant for the startup batch file.
 
 Example file:
- A:>DOS>
+ A:/DOS/
  B:\UTILS\
 
 Example:
@@ -2161,7 +2174,7 @@ Sorts the entries of a directory on disk (the current one when no path is given)
 Digits come before letters. Atari DOS 2 disks are refused. SORTDIR alone shows help.
 
 Example:
- SORTDIR D2:>GAMES> /N
+ SORTDIR D2:/GAMES/ /N
 ```
 
 ##### SWAP
@@ -2364,7 +2377,7 @@ See also: CON
 
 ### 12.2 EOS Toolkit command reference
 
-The Toolkit has 47 standalone programs. Their manual pages are packaged on
+The Toolkit builds 55 standalone programs and ships 53 manual pages. Their manual pages are packaged on
 the Toolkit disk under `MAN>` and repeated here alphabetically.
 
 #### Alphabetical reference
@@ -2396,6 +2409,18 @@ APETIME.COM and APETIME.SYS are the
 same program.
 ```
 
+##### ARC
+
+```text
+ARC
+
+ARC command[options] archive [files]
+
+Legacy SEA ARC-compatible archiver. It is retained on the Toolkit disk for
+existing ARC files. The default CAR environment uses standard USTAR archives
+through TAR.
+```
+
 ##### BASENAME
 
 ```text
@@ -2404,18 +2429,18 @@ BASENAME - the name part of a path
 Syntax:
  BASENAME path [suffix]
 
-Shows what follows the last separator
-(: > < or \) of the path. A > or \ at
-its end is dropped first, so a
+Shows what follows the last slash of
+the path. A slash at its end is dropped
+first, so a
 directory gives its own name. With a
 suffix, it is taken off the end of
 the name when the name is longer.
 A device or the main directory alone
-(D1:, D1:>) gives an empty line.
+(D1:, D1:/) gives an empty line.
 
 Examples:
- BASENAME D1:>DOS>X.COM    X.COM
- BASENAME D1:>DOS>         DOS
+ BASENAME D1:/DOS/X.COM    X.COM
+ BASENAME D1:/DOS/         DOS
  BASENAME D1:X.COM .COM    X
 ```
 
@@ -2480,7 +2505,7 @@ also becomes the current drive.
 Without a parameter nothing happens.
 
 Examples:
- CDD D2:>GAMES
+ CDD D2:/GAMES
  CDD C:
 ```
 
@@ -2592,7 +2617,7 @@ Examples:
 DELDUP - find files kept twice
 
 Syntax:
- DELDUP [d:]path1> [d:]path2> [/RV]
+ DELDUP [d:]path1/ [d:]path2/ [/RV]
 
 Compares every file of path2 with
 the files of path1 that have the
@@ -2611,8 +2636,8 @@ files are left alone. At the end the
 number of copies found.
 
 Example:
- DELDUP NEW> GAMES> /R
-deletes from NEW> what GAMES> has.
+ deldup NEW/ GAMES/ /R
+deletes from NEW/ what GAMES/ has.
 ```
 
 ##### DIRNAME
@@ -2624,18 +2649,16 @@ Syntax:
  DIRNAME path
 
 Shows the device and directory part
-of the path: up to its last separator
-(: > < or \), without a > or \ at the
-end. The : of a device and the > of
-the main directory stay. A name alone
+of the path: up to its last slash.
+The colon of a device stays. A name alone
 gives an empty line (the current
 directory).
 
 Examples:
- DIRNAME D1:>DOS>X.COM   D1:>DOS
- DIRNAME D1:>X.COM       D1:>
+ DIRNAME D1:/DOS/X.COM   D1:/DOS
+ DIRNAME D1:/X.COM       D1:/
  DIRNAME D2:X.COM        D2:
- DIRNAME D1:>DOS>        D1:>
+ DIRNAME D1:/DOS/        D1:/
 ```
 
 ##### DPOKE
@@ -2686,8 +2709,87 @@ first directory only.
 
 Examples:
  DU
- DU /Q D2:GAMES>
+ du /Q D2:/GAMES/
  DU /QQ *.COM
+```
+
+##### ED
+
+```text
+ED
+
+ED [file]
+
+Legacy full-screen EOS text editor. It is retained on the Toolkit disk for
+users who prefer its direct editing keys. The default CAR environment ships
+the modal VIM editor instead.
+```
+
+##### FSCREATE
+
+```text
+FSCREATE - create a foreign filesystem
+
+Syntax:
+ fscreate --dos2 Dn:
+ fscreate --sdfs Dn:
+
+Creates a clean empty DOS2/MyDOS-compatible or SDFS 2.1 filesystem. This is
+a destructive operation: existing contents on the destination are lost.
+
+Creation is deliberately restricted to a drive whose PERCOM block says
+exactly 720 sectors of 128 bytes (40 tracks, 18 sectors, one side). FSCREATE
+refuses missing, ambiguous or different geometry without writing it.
+
+The formatter is a transient Toolkit command. EOS FORMAT creates only EOSFS.
+```
+
+##### FSEXPORT
+
+```text
+FSEXPORT - export one EOSFS file
+
+Syntax:
+ fsexport source Dn:
+
+Copies one EOSFS file into the root directory of an existing DOS2/MyDOS or
+SDFS disk. The destination is accessed through raw physical sectors and is
+never mounted by EOS.
+
+Foreign names are uppercase 8.3. FSEXPORT prints the exact mapped destination
+name, including case loss, character replacement or shortening, before any
+write. It refuses an existing destination name, EOSFS destination, full disk,
+full root directory, unsupported format or non-128-byte sector geometry.
+
+The implementation and its sector list are transient; they consume no
+resident kernel memory.
+```
+
+##### FSINFO
+
+```text
+FSINFO - identify foreign media
+
+Syntax:
+ fsinfo Dn:
+ fsinfo --check Dn:
+ fsinfo --import Dn: destination
+
+Reads sectors directly without mounting the disk. Reports EOSFS, SDFS,
+Atari DOS 2 or MyDOS and recursively lists SDFS and DOS2/MyDOS trees to a
+bounded depth of 16 directories. The command installs no resident filesystem
+state.
+
+--check validates sector ranges, chain/map loops, map backlinks, recorded
+chain lengths, allocation ownership and cross-links. Its transient ownership
+table is released when the command exits.
+
+--import recursively copies the foreign tree into an existing EOSFS
+destination directory. Data is streamed in bounded chunks. An exact EOSFS
+destination collision is reported and never overwritten.
+
+Use fsexport to copy an EOSFS file to a foreign root directory and fscreate
+to create a clean empty foreign volume.
 ```
 
 ##### FSTRUCT
@@ -2752,7 +2854,7 @@ the search in that file.
 
 Examples:
  FT *.TXT /I hello
- FT D2:SRC>*.ASM jsr\sPRINTF
+ ft D2:/SRC/*.ASM jsr\sPRINTF
 ```
 
 ##### HEAD
@@ -2854,7 +2956,7 @@ drive), for programs that read a list
 of files. Hidden files and
 directories are left out unless -a
 or attributes are given. A directory
-ends with >.
+ends with /.
 
 Switches come first. Each can be
 written -x or /X, several letters
@@ -2883,7 +2985,7 @@ directory's.
 
 Examples:
  LS /C
- LS -la SUB>
+ ls -la SUB/
  LS -w *.COM
 ```
 
@@ -2979,8 +3081,8 @@ Syntax:
  MKPATH [/FV] [d:][path]
 
 Makes each directory along the path
-that is not there yet. MKPATH A>B>C
-makes A, A>B and A>B>C; A>..>B makes
+that is not there yet. MKPATH A/B/C
+makes A, A/B and A/B/C; A/../B makes
 A and B side by side.
 
 /F  go on past directories that are
@@ -2990,7 +3092,7 @@ A and B side by side.
     made
 
 Example:
- MKPATH /V D2:>SRC>LIB>OLD
+ mkpath /V D2:/SRC/LIB/OLD
 ```
 
 ##### NVPEEK
@@ -3068,7 +3170,7 @@ Puts the parts of a file name into
 environment variables, for batch
 files:
  d  device       C:
- p  path         >FOO>
+ p  path         /FOO/
  f  file name    BAR.EXE
  b  base name    BAR
  x  extension    EXE
@@ -3076,7 +3178,7 @@ Leave a field empty to skip that
 variable; keep the commas.
 
 Examples:
- PATHSPL C:>FOO>BAR.EXE D,P,F,B,X
+ PATHSPL C:/FOO/BAR.EXE D,P,F,B,X
  PATHSPL %1,,,,,EXT
 ```
 
@@ -3145,7 +3247,7 @@ directory is kept: a second PHD
 replaces it.
 
 Example:
- PHD D2:>WORK
+ phd D2:/WORK
  ...
  PLD
 ```
@@ -3185,7 +3287,7 @@ Else RDDUMP says it is not one.
 RDDUMP needs 16K of free memory.
 
 Example:
- RDDUMP O: C:>SYS>RAMDISK.DMP
+ RDDUMP O: C:/SYS/RAMDISK.DMP
 
 See also: RDLOAD
 ```
@@ -3214,8 +3316,8 @@ To restore it at each start, put in
 AUTOEXEC.BAT:
 
  IF RAMDISK
-   IF NOT EXISTS $RAMDISK>*.*
-     RDLOAD C:>SYS>RAMDISK.DMP
+   IF NOT EXISTS $RAMDISK/*.*
+     RDLOAD C:/SYS/RAMDISK.DMP
    FI
  FI
 
@@ -3304,7 +3406,7 @@ find the files.
 
 Examples:
  SHUFFLE D1:
- SHUFFLE D2:>GAMES>
+ shuffle D2:/GAMES/
 ```
 
 ##### SL
@@ -3348,7 +3450,7 @@ Syntax:
  STAT [+AHP] [d:][path]name
 
 Shows for a file, directory or link:
- Name  in 8.3 form
+ Name  exactly as stored in EOSFS
  Type  regular file, directory or
        symbolic link
  Attr  L link, S directory,
@@ -3364,7 +3466,7 @@ Wildcards show the first entry that
 matches. Attributes choose which.
 
 Example:
- STAT SUB>README.TXT
+ stat SUB/README.TXT
 ```
 
 ##### STRINGS

@@ -67,7 +67,7 @@ def run(name, case):
     if emul:
         os.environ['EOS_DISKEMU'] = emul
         os.environ['EMU_DBG'] = '.logopen %s|lfe diskcmd|bp $%04X ".logclose; g"' % (
-            emu.win(log), t.label('k_getline') + 2)
+            emu.win(log), t.label('k_prompt'))
     try:
         return run1(name, img, keys, total, seclen, want_cmd, log)
     finally:
@@ -87,7 +87,7 @@ def run1(name, img, keys, total, seclen, want_cmd, log):
         d2.write_bytes(Path(img).read_bytes())
     mem = OUT / (name + '.bin')
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (t.label('k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (t.label('k_prompt'), emu.win(mem))]
     with emu.Session(OUT, [d1, d2], cart=t.CAR, name=name, turbo=True, debugcmds=cmds,
                      real=REAL, memsize=MEM):
         time.sleep(10)

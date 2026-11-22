@@ -24,7 +24,7 @@ def rows(lines):
 
 
 CASES = {
-    'head': case(None, ['HEAD N.TXT', 'HEAD -n 3 N.TXT', 'HEAD -n2 A.TXT', 'HEAD -1 SUB>S.TXT',
+    'head': case(None, ['HEAD N.TXT', 'HEAD -n 3 N.TXT', 'HEAD -n2 A.TXT', 'HEAD -1 SUB/S.TXT',
                         'HEAD -n 0 N.TXT', 'HEAD -5 A.TXT', 'HEAD E.TXT'],
                  files=FILES, prog='HEAD.COM',
                  want=rows(N[:10] + N[:3] + A[:2] + A[:1] + A)),

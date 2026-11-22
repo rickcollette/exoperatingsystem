@@ -11,4 +11,4 @@ find the files.
 
 Examples:
  SHUFFLE D1:
- SHUFFLE D2:>GAMES>
+ shuffle D2:/GAMES/

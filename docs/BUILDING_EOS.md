@@ -173,12 +173,12 @@ contains the authoritative dependencies and bank list. Edit the relevant
 source and use `make` to rebuild; avoid editing generated files under
 `build/`.
 
-The Toolkit is assembled as relocatable SDX-style programs and packed by
-mkatrgo with its manual pages into `build/EOSTK.atr`. The same tool builds
-`build/EOSMAINT.atr` and the emulator test disks. Command help source text is
-kept in the corresponding `man/` directories. Update the source documentation
-and the generated CAR: resource if the build flow for that resource requires
-it.
+The Toolkit is assembled as relocatable binaries and packed as a native EOSFS
+v2 image with its manual pages in `build/EOSTK.atr`. `build/EOSMAINT.atr` is
+also EOSFS; foreign SDFS/DOS images are only fixtures for the explicit Toolkit
+import/export utilities. Command help source text is kept in the corresponding
+`man/` directories. Update the source documentation and the generated CAR:
+resource if the build flow for that resource requires it.
 New EOS-authored hardware image validation or flashing utilities belong in
 `toolkit/` with a matching `toolkit/man/` page; the existing Makefile pattern
 automatically includes them on the Toolkit ATR. `U1MBCHK` validates the raw

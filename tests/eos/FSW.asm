@@ -234,8 +234,8 @@ count   dta a(0)
 names   dta a(n_new,n_dir,n_in,n_ren,n_ren2,n_del,n_empty,n_big)
 n_new   dta c'NEW.TXT',$9B
 n_dir   dta c'DIR',$9B
-n_in    dta c'DIR>IN.TXT',$9B
-n_ren   dta c'NEW.TXT REN.TXT',$9B
+n_in    dta c'DIR/IN.TXT',$9B
+n_ren   dta c'NEW.TXT,REN.TXT',$9B
 n_ren2  dta c'REN.TXT',$9B
 n_del   dta c'DEL.TXT',$9B
 n_empty dta c'EMPTY',$9B

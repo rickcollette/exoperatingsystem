@@ -23,7 +23,7 @@ device   equ $0761
 name     equ $0762
 scan     equ $0779
 dentry   equ $0789
-path     equ $07A0
+path     equ $0640
 MEMTOP   equ $02E5
 MEMLO    equ $02E7
 EOL      equ $9B
@@ -55,7 +55,7 @@ s1      lda COMTAB+$21,x
         bne s1a
         stx hasdev
         inc hasdev
-s1a     cmp #'>'
+s1a     cmp #'/'
         beq s1b
         cmp #'<'
         beq s1b
@@ -86,7 +86,7 @@ s3b     lda hasdev             ; a device or a directory: there only
         lda #1
         sta unit
 dr1     jsr drvpfx             ; "Dn:" then ">"
-        lda #'>'
+        lda #'/'
         sta pfx,x
         inx
         stx plen
@@ -120,7 +120,7 @@ o4      lda parm,x             ; (up to the name: the last separator)
         cmp #EOL
         beq o5
         inx
-        cmp #'>'
+        cmp #'/'
         beq o4s
         cmp #BSLASH
         beq o4s
@@ -131,7 +131,7 @@ o4s     stx dend
 o5      lda dend
         bne o6
         ldx plen               ; none: the main directory (CAR:> too)
-        lda #'>'
+        lda #'/'
         sta pfx,x
         inx
         stx plen
@@ -337,7 +337,7 @@ en4     ldy #0
         beq en_ret
         ldx plen               ; a directory: one level down
         jsr addnm
-        lda #'>'
+        lda #'/'
         sta pfx,x
         inx
         cpx #64+4

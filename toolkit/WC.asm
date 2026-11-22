@@ -1,11 +1,12 @@
 ; EOS Toolkit: WC, words, lines and bytes of a text file
-;   WC [/W][/L][/C] [filename]
+;   wc [-wlc] [filename]
 ; Without a file name standard input is read. Lines are the EOLs, a word
 ; ends at a space, an EOL or the end of the file. Each count is printed
 ; in 8 columns, words, lines, bytes, then the file name as it was given;
 ; the options choose which counts (none given: all three).
-U_SLASH  smb 'U_SLASH'
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
+TOLOWER  smb 'TOLOWER'
 FOPEN    smb 'FOPEN'
 FGETC    smb 'FGETC'
 FCLOSE   smb 'FCLOSE'
@@ -13,21 +14,18 @@ PRINTF   smb 'PRINTF'
 COMTAB   smb 'COMTAB'
 FILE_P   smb 'FILE_P'
 
-file_id  equ $0760
-mode     equ $0778
-scan     equ $0779
-EOL      equ $9B
+        icl 'UNIXH.icl'
 
         blk reloc main
-start   ldx #12+1              ; the counts and flags to 0
+start   lda #$FF
+        jsr U_ARGV
+        ldx #12+1              ; the counts and flags to 0
 s0      lda #0
         sta bytes,x
         dex
         bpl s0
-        lda a_opts
-        ldx a_opts+1
-        ldy #6
-        jsr U_SLASH
+        jsr unargs
+        jcs usage
         lda opt_c
         ora opt_l
         ora opt_w
@@ -35,16 +33,10 @@ s0      lda #0
         dec opt_c
         dec opt_l
         dec opt_w
-s1      jsr U_GETPAR
-        bne s2
-        lda COMTAB+7           ; no file: standard input
-        sta file_id
-        jmp next
-s2      lda #4
-        sta mode
-        lda #0
-        sta scan
-        jsr FOPEN
+s1      jsr unin
+        jcs usage
+        lda unfiles
+        beq next
         dec named
 next    jsr FGETC
         bmi end
@@ -86,10 +78,13 @@ e2      dex
         bpl e3
         jsr PRINTF
         dta c' %p',0
-        dta a(FILE_P)
+        dta a(a_unames)
         jsr FCLOSE
 e3      jsr PRINTF
         dta b(EOL,0)
+        rts
+usage   jsr PRINTF
+        dta c'Use: wc [-wlc] [filename]',EOL,0
         rts
 
 * word: one more word, none open
@@ -108,16 +103,20 @@ inc32   inc bytes,x
         inc bytes+3,x
 i1      rts
 
-a_opts  dta a(opt_c)
 a_bytes dta a(bytes)
-opt_c   dta b(0),c'C'          ; (U_SLASH: flag, letter)
-opt_l   dta b(0),c'L'
-opt_w   dta b(0),c'W'
+unsw
+opt_c   dta b(0),c'c'
+opt_l   dta b(0),c'l'
+opt_w   dta b(0),c'w'
+UNSWN   equ *-unsw
+unval   dta 0
 bytes   dta 0,0,0,0            ; bytes, lines, words: in the order of
 lines   dta 0,0,0,0            ; the flags above, 2 bytes apart there
 words   dta 0,0,0,0
 inword  dta 0
 named   dta 0
+        icl 'UNIX.icl'
+unend   equ *
 
         blk update address
         blk update symbols

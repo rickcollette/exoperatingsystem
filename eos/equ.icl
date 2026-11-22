@@ -5,6 +5,7 @@
 
 * ---- OS ----------------------------------------------------------------
 WARMST  equ $08
+SHFLOK  equ $02BE               ; keyboard case: 0 lower, $40 upper, $80 control
 BOOT    equ $09
 DOSVEC  equ $0A
 DOSINI  equ $0C
@@ -31,10 +32,10 @@ SAVMSC  equ $58
 LBUFF   equ $0580
 ENVBUF  equ $C000               ; environment, 256 bytes under the OS ROM
 CMDNAME equ $C100               ; the program the command processor runs (32)
-PIPEBUF equ CMDNAME+32         ; pipes (cp.asm): the commands still to run (64)
-P_N     equ CMDNAME+96         ; the command running, 1 up; 0 no pipe
-P_MORE  equ CMDNAME+97         ; not 0: another command follows it
-P_TMP   equ CMDNAME+98         ; $TEMP's value (32)
+PIPEBUF equ CMDNAME+32         ; pipes (cp.asm): commands still to run (128)
+P_N     equ CMDNAME+160        ; the command running, 1 up; 0 no pipe
+P_MORE  equ CMDNAME+161        ; not 0: another command follows it
+P_TMP   equ CMDNAME+162        ; $TEMP's value (32), through $C1C1
 COLDST  equ $244
 RUNAD   equ $2E0
 INITAD  equ $2E2
@@ -152,7 +153,7 @@ BK_CP   equ 3                  ; command processor
 BK_DEV  equ 4                  ; character devices CON: PRN: NUL:
 BK_LD   equ 5                  ; binary loader and the symbol table
 BK_LIB2 equ 6                  ; more of the library, reached by farcall
-BK_DOS2 equ 7                  ; the Atari DOS 2 file system (B9)
+BK_EOSX equ 7                  ; EOSFS extent, mount and write helpers (B9)
 BK_CAR  equ 8                  ; the CAR: device (C5)
 BK_CARD equ 9                  ; CAR:'s files, from this bank on
 CARDLEN equ $1FF0              ; bytes of them per bank (the tail follows)
@@ -182,6 +183,7 @@ L_DIVIO  equ CARTLO+$33        ; DIVIO: Y = 0 output, 1 input; FILE_P
 L_XDIVIO equ CARTLO+$36        ; XDIVIO: Y
 BOOT_USE equ CARTLO+$03        ; bank 0: the USE setting again (applyuse)
 L_RENAME equ CARTLO+$39        ; RENAME: FILE_P = OLD NEW
+L_TOLOWER equ CARTLO+$48       ; ATASCII character to plain lowercase
 L_RENDIR equ CARTLO+$3C        ; RENDIR
 L_GETNUM equ CARTLO+$3F        ; U_GETNUM: Z=1 none; A, X the value
 L_RENM   equ CARTLO+$42        ; RENAME: the status in A, N=1 an error
@@ -222,6 +224,10 @@ L2_ENPUT equ CARTLO+$42
 L2_ENGETX equ CARTLO+$45
 L2_ENFRONT equ CARTLO+$48
 L2_BWGO equ CARTLO+$4B
+L2_CONDSPLIT equ CARTLO+$4E
+L2_CONDNEXT equ CARTLO+$51
+L2_SUBST equ CARTLO+$54
+L2_DKDEFAULT equ CARTLO+$57
 
 * ---- page 7 (fixed, SpartaDOS X 4.5) ------------------------------------
 jkernel  equ $0703
@@ -234,8 +240,8 @@ dev_index equ $0740
 dev_vector equ $0750
 file_id  equ $0760
 device   equ $0761
-name     equ $0762
-x_name   equ $076D
+name     equ $0600               ; EOSFS component, NUL ended (31 bytes max)
+x_name   equ $0620               ; second component for rename
 mode     equ $0778
 scan     equ $0779
 attr     equ $077A
@@ -246,7 +252,12 @@ addpos   equ $0782
 bytbuf   equ $0785
 memreix  equ $0787
 dentry   equ $0789
-path     equ $07A0
+path     equ $0640               ; native path, NUL ended (127 bytes max)
+CP_NAME  equ $06C0               ; command/batch name, EOL ended (64 bytes)
+CP_ARGC  equ $07BF               ; parsed shell sidecar
+CP_ARGOFF equ $07C0              ; 16 offsets into CP_ARGBUF
+CP_ARGLEN equ $07D0              ; 16 byte lengths
+CP_ARGBUF equ $C200              ; 128 stable bytes under the OS ROM
 vdos     equ $07E3
 jfsymbol equ $07EB
 V_setme  equ $07F1
@@ -267,4 +278,7 @@ CT_LBUF    equ $3F
 
 CONSOL  equ $D01F               ; console keys: bit 2 0 = OPTION held
 EOL     equ $9B
+EOS_NAME_MAX equ 31
+EOS_NAME_SIZE equ 32
+EOS_DIRENT_SIZE equ 44
 BSLASH  equ $5C                ; backslash: MADS reads the character literal as an escape

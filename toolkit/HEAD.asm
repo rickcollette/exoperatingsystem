@@ -4,6 +4,8 @@
 ; file with fewer lines is copied whole. Without a name standard input
 ; is read.
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
+TOLOWER  smb 'TOLOWER'
 FOPEN    smb 'FOPEN'
 FGETC    smb 'FGETC'
 FCLOSE   smb 'FCLOSE'
@@ -46,7 +48,7 @@ usage   jsr PRINTF
 
 unsw    equ *                  ; (no switches but -n)
 UNSWN   equ 0
-unval   dta c'N'
+unval   dta c'n'
 
         icl 'UNIX.icl'
 unend   equ *

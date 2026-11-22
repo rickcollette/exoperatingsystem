@@ -15,6 +15,7 @@ for what may differ: times, addresses.
 usage: tk_test.py [case ...]      (tools/prun.py -j N tk)
 """
 import re
+import os
 import sys
 import time
 from pathlib import Path
@@ -56,6 +57,16 @@ def load():
 
 CASES = load()
 
+# The EOSFS-native matrix deliberately excludes SDX-oracle cases.  Those
+# assert the retired 8.3, case-folding and '>' path contract and remain
+# available when testing the Toolkit on SDX.  A few early native cases below
+# made the same assumptions; their replacements are the native-core-* cases.
+if os.environ.get('EOS_EOSFS'):
+    retired_native = {'lsl', 'lsl2', 'lsw', 'lsdash', 'which', 'which2',
+                      'seq2'}
+    CASES = {name: value for name, value in CASES.items()
+             if value['orig'] is None and name not in retired_native}
+
 
 def run(name):
     c = CASES[name]
@@ -66,7 +77,17 @@ def run(name):
         want = t.sdx_lines('tk-' + name, dict(c['files'], **{prog: orig}), c['cmds'], geo=GEO)
     else:
         want = list(c['want'])
-    got = t.our_lines('tk-' + name, dict(c['files'], **{prog: ours}), c['cmds'], geo=GEO)
+    # Native EOSFS lookup is exact case and the shipped/default command names
+    # are lowercase.  Keep the reference invocation untouched for SDX, but
+    # invoke/install the EOS command under its native name.  Parameters keep
+    # their authored case so the same cases also catch accidental folding.
+    stem = Path(prog).stem
+    native_cmds = [re.sub(r'^(\s*)' + re.escape(stem) + r'(?=\s|$)',
+                          lambda m: m.group(1) + stem.lower(), line,
+                          flags=re.I) for line in c['cmds']]
+    got = t.our_lines('tk-' + name,
+                      dict(c['files'], **{prog.lower(): ours}), native_cmds,
+                      geo=GEO)
     if want is None:
         return False, 'no result from SDX'
     if got is None:

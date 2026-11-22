@@ -13,7 +13,7 @@ PRINTF   smb 'PRINTF'
 COMTAB   smb 'COMTAB'
 FILE_P   smb 'FILE_P'
 
-path     equ $07A0
+path     equ $0640
 device   equ $0761
 ;lsio (COMTAB-11): jsector_io (the SIO drivers, the RAM disk, else the
 ;OS's SIOV) with memreix 0

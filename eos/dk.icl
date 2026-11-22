@@ -1,6 +1,7 @@
 * DOSKEY.SYS (included in lib2.asm): the command line at the prompt.
-* dk_load: DOSKEY [aliases file] [/X]: a history of DK_N lines and the
-* aliases (NAME=COMMAND lines) in memory at MEMLO, which stays raised.
+* dk_default: the default command editor and its small history at MEMLO.
+* dk_load: DOSKEY [aliases file] [/X] installs an independent editor area
+* when its optional aliases and command chaining are requested.
 * dk_line, instead of the E: line, reads the keys itself: left and right
 * arrows, BACKSPACE, characters inserted at the cursor; up arrow, CTRL-P
 * or F1 the previous line of the history, down arrow, CTRL-N or F2 the
@@ -10,10 +11,11 @@
 * line goes to LBUF, Y = status (as CIO's). TAB completes the name at the
 * cursor from its directory: one match goes in, more are listed.
 
-DK_N    equ 16                 ; history lines, 64 bytes each
+DK_N    equ 4                  ; four compact history slots
+DK_LSIZE equ 64               ; first 63 bytes plus EOL
 DK_AMAX equ 1024               ; aliases at most
 dk_p    equ fadr
-dk_buf  equ LBUFF+64           ; the line being typed (CP_NAME's place: free then)
+dk_buf  equ COMTAB+CT_LBUF     ; the 128-byte line being typed
 dk_fn   equ LBUFF              ; the aliases file's name while loading
 dt_txt  equ LBUFF+$20          ; TAB: a name found (LBUFF: the first one)
 dk_ws   equ LBUFF+$40-1        ; TAB's scratch (below dk_buf)
@@ -22,8 +24,14 @@ dk_dot  equ LBUFF+$40-3
 dk_nm   equ LBUFF+$40-4
 dk_fid  equ LBUFF+$40-5
 
-dk_load lda #0
+dk_default lda #0              ; default editor: history, no aliases or /X
         sta dk_x
+        sta dk_na
+        jmp dl_new
+
+dk_load lda #$40              ; full DOSKEY: aliases and & workspace
+        sta dk_x
+        lda #0
         sta dk_na
 dl0     jsr farcall
         dta b(BK_LIB),a(L_GETPAR)
@@ -34,7 +42,8 @@ dl0     jsr farcall
         lda COMTAB+CT_COMFNAM+1
         cmp #'X'
         bne dl0
-        lda #$80
+        lda dk_x
+        ora #$80
         sta dk_x
         jmp dl0
 dl1     ldx #0                 ; the aliases file's name, kept
@@ -45,7 +54,8 @@ dl1a    lda COMTAB+CT_COMFNAM,x
         bne dl1a
         dec dk_na
         jmp dl0
-dl_mem  lda MEMLO              ; the history at MEMLO
+dl_mem
+dl_new  lda MEMLO              ; the history at MEMLO
         sta dk_h
         lda MEMLO+1
         sta dk_h+1
@@ -55,13 +65,19 @@ dl_mem  lda MEMLO              ; the history at MEMLO
         sta dk_al
         sta dk_al+1
         sta dk_pend
-        lda dk_h               ; the & parts after it (64 bytes), then the
-        clc                    ; aliases
-        adc #<(DK_N*64+64)
+        bit dk_x               ; plain default: history only; explicit
+        bvc dl_small           ; DOSKEY also reserves its & command buffer
+        lda #<(DK_N*DK_LSIZE+128)
+        ldx #>(DK_N*DK_LSIZE+128)
+        bne dl_size
+dl_small lda #<(DK_N*DK_LSIZE)
+        ldx #>(DK_N*DK_LSIZE)
+dl_size clc
+        adc dk_h
         sta addpos
         sta dk_a
-        lda dk_h+1
-        adc #>(DK_N*64+64)
+        txa
+        adc dk_h+1
         sta addpos+1
         sta dk_a+1
         bit dk_na
@@ -125,6 +141,7 @@ dk_key  lda #0
         sta dk_len
         sta dk_cur
         lda dk_hn              ; the history: from the newest
+        ora #$80               ; bit 7 distinguishes head from a full oldest
         sta dk_hi
 dk_get  jsr dk_kbd
         cpy #128
@@ -157,7 +174,7 @@ dk_k1   cmp #EOL
         cmp #$7F               ; TAB: the name completed
         jeq dk_tab
         ldx dk_len             ; a character, inserted at the cursor
-        cpx #63
+        cpx #127
         bcc dk_ins
         lda #$FD               ; full: the buzzer
         jsr dk_putc
@@ -229,24 +246,38 @@ dk_right ldx dk_cur
 
 * up and down: the older or newer line of the history in the line
 dk_up   lda dk_hi
-        cmp dk_hw              ; the oldest kept?
+        bmi du_head
+        lda dk_hw              ; low bits: oldest; bit 7: all slots used
+        and #DK_N-1
+        cmp dk_hi              ; already showing the oldest kept?
         beq dk_get2
+        bne du_more
+du_head lda dk_hw              ; empty when head=oldest and not full
+        and #DK_N-1
+        cmp dk_hn
+        bne du_more
+        bit dk_hw
+        bpl dk_get2
+du_more lda dk_hi
+        and #DK_N-1
         sec
         sbc #1
         and #DK_N-1
         sta dk_hi
         jmp dk_show
 dk_down lda dk_hi
-        cmp dk_hn
-        beq dk_get2
+        bmi dk_get2
         clc
         adc #1
         and #DK_N-1
+        cmp dk_hn
+        bne dd_hist
+        ora #$80
+dd_hist
         sta dk_hi
 dk_show jsr dk_wipe
         lda dk_hi
-        cmp dk_hn              ; past the newest: empty
-        beq ds_end
+        bmi ds_end             ; past the newest: empty
         jsr dk_ent
         ldy #0                 ; (copied first: PUTC uses fadr)
 ds1     lda (dk_p),y
@@ -254,7 +285,7 @@ ds1     lda (dk_p),y
         beq ds2
         sta dk_buf,y
         iny
-        cpy #63
+        cpy #DK_LSIZE-1
         bcc ds1
 ds2     sty dk_len
         sty dk_cur
@@ -285,16 +316,16 @@ dw4     lda #0
         sta dk_cur
         rts
 * dk_ent: dk_p = history line A
-dk_ent  lsr @                  ; A * 64
-        sta dk_p+1
+dk_ent  sta dk_p               ; A * 64
+        lsr dk_p
         lda #0
         ror @
-        lsr dk_p+1
+        lsr dk_p
         ror @
         clc
         adc dk_h
         sta dk_p
-        lda dk_p+1
+        lda #0
         adc dk_h+1
         sta dk_p+1
         rts
@@ -325,6 +356,8 @@ de2     lda #EOL
         ldy #0
 de3     cpy dk_len
         beq de4
+        cpy #DK_LSIZE-1
+        bcs de4
         lda dk_buf,y
         sta (dk_p),y
         iny
@@ -336,11 +369,11 @@ de4     lda #EOL
         adc #1
         and #DK_N-1
         sta dk_hn
-        cmp dk_hw              ; full: the oldest goes
+        bit dk_hw              ; once full, the head is also the oldest
+        bmi de_full
+        cmp dk_hw
         bne dk_done
-        clc
-        adc #1
-        and #DK_N-1
+de_full ora #$80
         sta dk_hw
 dk_done ldx dk_len             ; the line, an EOL after it
         lda #EOL
@@ -354,7 +387,9 @@ dd0     lda dk_dir,x
         sta dk_buf,x
         dex
         bpl dd0
-dd1     jsr dk_alias
+dd1     bit dk_x               ; the default editor needs no aliases or & copy
+        bvc dd_plain
+        jsr dk_alias
         jsr dk_pp              ; kept after the history, split at the &s
         ldy #0
 dd3     lda dk_buf,y
@@ -366,6 +401,15 @@ dd3     lda dk_buf,y
         sta dk_rp
         lda #$80
         sta dk_pend
+        bne dk_next
+dd_plain ldy #0                ; direct command line to the processor
+ddp1    lda dk_buf,y
+        sta LBUF,y
+        iny
+        cmp #EOL
+        bne ddp1
+        ldy #1
+        rts
 * dk_next: the next & part to LBUF
 dk_next jsr dk_pp
         ldy dk_rp
@@ -378,7 +422,7 @@ dn1     lda (dk_p),y
         sta LBUF,x
         inx
         iny
-        cpx #63
+        cpx #127
         bcc dn1
         bcs dn3
 dn2     iny                    ; more after it
@@ -393,10 +437,10 @@ dn4     lda #EOL
 * dk_pp: dk_p = the & parts' place (after the history)
 dk_pp   lda dk_h
         clc
-        adc #<(DK_N*64)
+        adc #<(DK_N*DK_LSIZE)
         sta dk_p
         lda dk_h+1
-        adc #>(DK_N*64)
+        adc #>(DK_N*DK_LSIZE)
         sta dk_p+1
         rts
 dk_dir  dta c'DIR',b(EOL)
@@ -452,7 +496,7 @@ dh1     lda (dk_p),y
         sta LBUFF,x
         inx
         iny
-        cpx #63
+        cpx #127
         bcc dh1
 dh2     ldy dk_t
 dh3     lda dk_buf,y
@@ -461,7 +505,7 @@ dh3     lda dk_buf,y
         beq dh4
         iny
         inx
-        cpx #63
+        cpx #127
         bcc dh3
         lda #EOL
         sta LBUFF,x
@@ -497,7 +541,7 @@ dt_p1   cpx dk_cur
         cmp #'.'
         bne dt_p2
         sta dk_dot
-dt_p2   cmp #'>'
+dt_p2   cmp #'/'
         beq dt_ps
         cmp #':'
         beq dt_ps
@@ -595,7 +639,7 @@ dt_one  jsr dk_wipe2           ; one: in the line instead of the name part
 dt_o1   lda LBUFF,y
         cmp #EOL
         beq dt_o2
-        cpx #63
+        cpx #127
         bcs dt_o2
         sta dk_buf,x
         inx

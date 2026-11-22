@@ -8,6 +8,7 @@ FCLOSE   smb 'FCLOSE'
 FREAD    smb 'FREAD'
 FSEEK    smb 'FSEEK'
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
 U_GETNUM smb 'U_GETNUM'
 U_FAIL   smb 'U_FAIL'
 PRINTF   smb 'PRINTF'
@@ -25,7 +26,9 @@ EOL      equ $9B
 BUFSZ    equ 1024              ; bytes read at a time from each file
 
         blk reloc main
-start   jsr U_GETPAR           ; the two names (a missing one: 170)
+start   lda #$FF
+        jsr U_ARGV             ; native quoted/127-byte command contract
+        jsr U_GETPAR           ; the two names (a missing one: 170)
         jeq nofile
         ldx #0
 s1      lda COMTAB+$21,x

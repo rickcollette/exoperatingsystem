@@ -24,10 +24,11 @@ import sdfs  # noqa: E402
 
 OUT = emu.BUILD / 'maint'
 DISK = emu.BUILD / 'EOSMAINT.atr'
-BATCH = ['TYPE README.TXT', 'U1MBCHK EOS_U1MB.ROM >>T1.TXT', 'MD5 EOS_U1MB.ROM >>T2.TXT',
-         'FORMAT /QQ D2: TEST', 'DIR D2: >>T3.TXT', 'MEMINFO >>T4.TXT', 'MACH >>T5.TXT',
-         'APT >>T6.TXT', 'U1MBFLSH EOS_U1MB.ROM >>T7.TXT', 'DIR O: >>T8.TXT',
-         'ECHO DONE >>DONE.TXT']
+BATCH = ['type readme.txt', 'u1mbchk eos_u1mb.rom >>t1.txt',
+         'md5 eos_u1mb.rom >>t2.txt', 'format /QQ D2: TEST',
+         'dir D2: >>t3.txt', 'meminfo >>t4.txt', 'mach >>t5.txt',
+         'apt >>t6.txt', 'u1mbflsh eos_u1mb.rom >>t7.txt',
+         'dir O: >>t8.txt', 'echo DONE >>done.txt']
 
 
 def main():
@@ -36,13 +37,13 @@ def main():
     OUT.mkdir(parents=True)
     d1 = OUT / 'd1.atr'
     shutil.copyfile(DISK, d1)
-    sdfs.overwrite(str(d1), 'EOSAUTO.BAT', emu.atascii(BATCH))
+    sdfs.overwrite(str(d1), 'eosauto.bat', emu.atascii(BATCH))
     d2 = OUT / 'd2.atr'
     emu.blank_atr(d2, 720, 256)
     with emu.Session(OUT, [d1, d2], cart=emu.BUILD / 'EOS.car', name='maint', turbo=True,
                      memsize='320K') as s:
-        done = s.wait(0, 'DONE.TXT', 240)
-    t = {n: emu.text(emu.extract(d1, n + '.TXT', OUT / 'x') or b'') for n in
+        done = s.wait(0, 'done.txt', 240)
+    t = {n: emu.text(emu.extract(d1, n.lower() + '.txt', OUT / 'x') or b'') for n in
          ('T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8')}
     (OUT / 'outputs.txt').write_text('\n'.join('== %s\n%s' % kv for kv in t.items()))
     flat = {k: ' '.join(v.split()) for k, v in t.items()}

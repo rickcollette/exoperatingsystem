@@ -648,7 +648,7 @@ bka     dta a(bakname)
 ana     dta a(arcname)
 rna     dta a(rnbuf)
 nulnm   dta c'NUL:'
-dotbak  dta c'.BAK',0
+dotbak  dta c'.bak',0
 stw_c   dta c' --PQCCCCQ'
 stw_l   dta 0
 rh_cnt  dta 0

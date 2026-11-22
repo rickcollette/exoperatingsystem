@@ -22,5 +22,5 @@ first directory only.
 
 Examples:
  DU
- DU /Q D2:GAMES>
+ du /Q D2:/GAMES/
  DU /QQ *.COM

@@ -180,7 +180,7 @@ rw      sta DUNIT
 rw1     lda #$FD
         sta DDEVIC
         jsr _HSDRV
-        sta val
+        sta kwc
         jsr PRINTF
         dta EOL,c'Value: $%2x=%b',EOL,0
         dta a(val,val)
@@ -241,7 +241,10 @@ kw      ldy #0                 ; the table position
 kw1     ldx #0
 kw2     lda kwtab,y
         beq kw_no
-        cmp COMTAB+$21,x
+        sta val
+        lda COMTAB+$21,x
+        and #$DF
+        cmp kwc
         bne kw3
         iny
         inx
@@ -315,6 +318,7 @@ dr_no   sec
 unit    dta 0
 row     dta 0
 kwn     dta 0
+kwc     dta 0
 val     dta 0
 hsa     dta a(_HSDRV)
 bufa    dta a(buf)

@@ -34,4 +34,4 @@ the search in that file.
 
 Examples:
  FT *.TXT /I hello
- FT D2:SRC>*.ASM jsr\sPRINTF
+ ft D2:/SRC/*.ASM jsr\sPRINTF

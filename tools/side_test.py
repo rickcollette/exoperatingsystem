@@ -63,7 +63,7 @@ def run(name):
     emu.mkatr(atr, tree, ['EOSAUTO.BAT', 'WRITE.IN', 'GO.TXT'], 92160)
     mem = OUT / (name + '.bin')
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (label(name, 'k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (label(name, 'k_prompt'), emu.win(mem))]
     with emu.Session(OUT, [atr], cart=None, name=name, turbo=True, debugcmds=cmds,
                      devices=[{'tag': tag}], firmware={tag: rom}):
         m = T.wait_dump(mem, 90)
@@ -137,7 +137,7 @@ def run_cf(name):
     emu.mkatr(atr, tree, ['EOSAUTO.BAT', 'WRITE.IN', 'Y.TXT', 'MST.COM'], 92160)
     mem = OUT / (name + '-cf.bin')
     mem.unlink(missing_ok=True)
-    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (label(name, 'k_getline'), emu.win(mem))]
+    cmds = ['bp $%04X ".writemem %s 0 L10000; g"' % (label(name, 'k_prompt'), emu.win(mem))]
     dev = [{'tag': tag, 'buses': {'0': {'children': [{'tag': 'harddisk', 'params': {
         'path': emu.win(hd), 'write_enabled': True, 'solid_state': True,
         'sectors': CF_SECTORS}}]}}}]

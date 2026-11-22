@@ -1,0 +1,14 @@
+FSCREATE - create a foreign filesystem
+
+Syntax:
+ fscreate --dos2 Dn:
+ fscreate --sdfs Dn:
+
+Creates a clean empty DOS2/MyDOS-compatible or SDFS 2.1 filesystem. This is
+a destructive operation: existing contents on the destination are lost.
+
+Creation is deliberately restricted to a drive whose PERCOM block says
+exactly 720 sectors of 128 bytes (40 tracks, 18 sectors, one side). FSCREATE
+refuses missing, ambiguous or different geometry without writing it.
+
+The formatter is a transient Toolkit command. EOS FORMAT creates only EOSFS.

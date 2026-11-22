@@ -5,7 +5,6 @@
 ; a / ends the list. No file: the usage line.
 U_GETPAR smb 'U_GETPAR'
 U_SLASH  smb 'U_SLASH'
-U_EXPAND smb 'U_EXPAND'
 FOPEN    smb 'FOPEN'
 FREAD    smb 'FREAD'
 FCLOSE   smb 'FCLOSE'
@@ -14,7 +13,6 @@ COMTAB   smb 'COMTAB'
 
 COMFNAM  equ $21               ; (COMTAB+: the parameter)
 file_id  equ $0760
-name     equ $0762
 mode     equ $0778
 scan     equ $0779
 addpos   equ $0782
@@ -47,15 +45,15 @@ f1      lda dentry+3,x
         sta size,x
         dex
         bpl f1
-        ldx #10
-f2      lda dentry+6,x
-        sta name,x
-        dex
-        bpl f2
-        lda a_nbuf
-        ldx a_nbuf+1
-        ldy #0
-        jsr U_EXPAND
+        ldx #0                 ; exact EOSFS name, not an 8.3 field
+f2      cpx dentry+6
+        bcs f2a
+        lda dentry+7,x
+        sta nbuf,x
+        inx
+        bne f2
+f2a     lda #EOL
+        sta nbuf,x
         ldx #3
         lda #$FF
 f3      sta crc,x
@@ -178,13 +176,12 @@ mt3     dey
         rts
 
 a_opt   dta a(opt_h)
-a_nbuf  dta a(nbuf)
 a_buf   dta a(buf)
 opt_h   dta 0,c'H'
 crc     dta 0,0,0,0
 size    dta 0,0,0,0
 cnt     dta 0,0
-nbuf    :13 dta 0
+nbuf    :32 dta 0
 tab0    equ *                  ; the tables and the buffer: the free memory
 tab1    equ *+256              ; after the program
 tab2    equ *+512

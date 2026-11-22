@@ -1,7 +1,7 @@
-; EOS oracle test: what U_LOAD leaves in path ($07A0) for the program, as
+; EOS oracle test: what U_LOAD leaves in path ($0640) for the program, as
 ; bytes up to the first $00 or EOL, and that byte.
 PRINTF   smb 'PRINTF'
-path     equ $07A0
+path     equ $0640
 EOL      equ $9B
 
         blk reloc main

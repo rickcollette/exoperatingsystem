@@ -95,9 +95,13 @@ def stale_pages():
     (eos/carfiles/man, toolkit/man)."""
     s = (DOCS / 'USER_MANUAL.md').read_text()
     stale = []
+    toolkit_start = s.index('### 12.2 EOS Toolkit command reference')
     for m in re.finditer(r'##### (\S+)\n\n```text\n(.*?)\n```', s, re.S):
-        for src in (ROOT / 'eos/carfiles/man' / (m.group(1) + '.txt'),
-                    ROOT / 'toolkit/man' / (m.group(1) + '.txt')):
+        roots = ((ROOT / 'toolkit/man', ROOT / 'eos/carfiles/man')
+                 if m.start() >= toolkit_start else
+                 (ROOT / 'eos/carfiles/man', ROOT / 'toolkit/man'))
+        for root in roots:
+            src = root / (m.group(1) + '.txt')
             if src.exists():
                 if src.read_text().rstrip('\n') != m.group(2):
                     stale.append(m.group(1))

@@ -14,7 +14,7 @@ Without $PAGER the text is shown like TYPE, without stopping. $PAGER names a vie
 Examples:
  MAN DIR
  MAN COPY | LESS
- SET MANPATH=CAR:;D1:>DOC
+ SET MANPATH=CAR:;D1:/DOC
  SET PAGER=LESS;/C;%
 
 See also: LESS, MORE, TYPE, FMT

@@ -29,6 +29,8 @@ coldwarm cld
         sta BASICF
         lda TRIG3
         sta GINTLK
+        lda #0                  ; EOS starts with lower-case keyboard input
+        sta SHFLOK
 
 * copy the kernel image to $0700; after a reset the drive map (sio_index,
 * SWAP and MAP) stays as it was until a cold start
@@ -211,6 +213,8 @@ ce1     lda defenv,x
         cpx #defenv_end-defenv
         bne ce1
         jsr k_romon
+        jsr farcall            ; four-line command history by default
+        dta b(BK_LIB2),a(L2_DKDEFAULT)
 ce2     lda WARMST             ; a reset: standard input and output are
         beq ce4                ; opened again
         ldx #1
@@ -428,17 +432,17 @@ bk_sel  stx bk_x
         rts
 
 defenv  dta c'PATH=CAR:',b(EOL)
-        dta c'PROMPT=D$N',b(EOL)
-        dta c'SYSERR=CAR:SYSERR.MSG',b(EOL)
+        dta c'PROMPT=D$N$P/',b(EOL)
+        dta c'SYSERR=CAR:syserr.msg',b(EOL)
         dta c'MAXDRV=O:',b(EOL)
         dta c'MANPATH=CAR:',b(EOL)
         dta b(0)               ; BOOT comes after EOSSYS.SYS (SDX's order)
 defenv_end equ *
 
 banner  dta b(EOL)
-        dta c'EOS '
+        dta c'EOS v'
         icl 'version.icl'
-        dta c' Extendable Operating System',b(EOL)
+        dta c' (c)2026 Rick Collette',b(EOL)
 banner_end equ *
 
 * D: in the OS handler table: replace an entry for D, else take a free one

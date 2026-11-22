@@ -38,8 +38,13 @@ start   lda #$FF               ; the parameter: $FF none, 1 ON, 0 OFF
         jsr U_GETPAR
         beq s2
         lda #1                 ; ON or OFF; other words do nothing
-        ldx COMTAB+$21
-        ldy COMTAB+$22
+        lda COMTAB+$21
+        and #$DF
+        tax
+        lda COMTAB+$22
+        and #$DF
+        tay
+        lda #1
         cpx #'O'
         bne s2
         cpy #'N'
@@ -48,9 +53,14 @@ start   lda #$FF               ; the parameter: $FF none, 1 ON, 0 OFF
         cpy #EOL
         beq s1a
         bne s2
-s1      cpy #'F'
+s1      tya
+        and #$DF
+        tay
+        cpy #'F'
         bne s2
-        ldy COMTAB+$23
+        lda COMTAB+$23
+        and #$DF
+        tay
         cpy #'F'
         bne s2
         ldy COMTAB+$24

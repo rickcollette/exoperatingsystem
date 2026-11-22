@@ -13,7 +13,7 @@ COMTAB   smb 'COMTAB'
 
 scan     equ $0779
 dentry   equ $0789
-path     equ $07A0
+path     equ $0640
 EOL      equ $9B
 
         blk reloc main

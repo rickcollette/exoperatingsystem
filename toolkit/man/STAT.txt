@@ -4,7 +4,7 @@ Syntax:
  STAT [+AHP] [d:][path]name
 
 Shows for a file, directory or link:
- Name  in 8.3 form
+ Name  exactly as stored in EOSFS
  Type  regular file, directory or
        symbolic link
  Attr  L link, S directory,
@@ -20,4 +20,4 @@ Wildcards show the first entry that
 matches. Attributes choose which.
 
 Example:
- STAT SUB>README.TXT
+ stat SUB/README.TXT

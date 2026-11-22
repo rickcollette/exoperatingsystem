@@ -25,7 +25,7 @@ Attributes are not copied. Existing files are overwritten unless they are hidden
 
 Examples:
  COPY *.TXT D2:
- COPY /R D1:>SRC D2:>
+ COPY /R D1:/SRC D2:/
  COPY README.DOC PRN:
  COPY NUL: EMPTY.DAT
 

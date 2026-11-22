@@ -15,6 +15,8 @@ DEVSPEC   kernel DEVSPEC
 PUT_V     kernel PUT_V
 COMTAB2   kernel COMTAB2
 U_GETPAR  lib    u_getpar
+U_ARGC    lib    u_argc
+U_ARGV    lib    u_argv
 U_GEFINA  lib    u_gefina
 FOPEN     lib    fopen
 FCLOSE    lib    fclose
@@ -28,6 +30,7 @@ FPRINTF   lib    fprintf
 U_GETNUM  lib    u_getnum
 U_SLASH   lib    u_slash
 TOUPPER   lib    toupper
+TOLOWER   lib    tolower
 FWRITE    lib    fwrite
 FPUTC     lib    fputc
 FILELENG  lib    fileleng

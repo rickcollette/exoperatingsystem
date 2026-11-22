@@ -1,11 +1,10 @@
 # EOS Compatibility
 
-EOS is a new Atari 8-bit DOS with a broad compatibility layer for existing
-software and disks. It is designed as a drop-in replacement for SpartaDOS X
-4.5 in the configurations and interfaces EOS supports. Compatibility means
-that EOS implements the relevant formats and program interfaces; it does not
-mean every existing driver, program, or hardware configuration has been
-tested.
+EOS is a new, small Linux-like operating environment for Atari 8-bit
+computers. It retains selected documented SDX and BW-DOS program interfaces,
+but it is not a drop-in shell or filesystem replacement. Compatibility here
+means a named program ABI or transient interchange tool; it never implies a
+hidden case-folding, 8.3, SDFS, or DOS2 mount fallback.
 
 ## A ground-up implementation
 
@@ -38,8 +37,8 @@ See [Why EOS?](WHY.md) for the project's motivation and
 | Program or environment | Support |
 | --- | --- |
 | SpartaDOS X 4.5 relocatable programs | Supported through the SDX loader and documented library/kernel interfaces. |
-| SpartaDOS X commands and many drivers | Broadly supported; hardware-specific and undocumented driver interfaces may have limits. |
-| BW-DOS programs | Supported through EOS's BW-DOS compatibility environment. |
+| SpartaDOS X commands and drivers | Programs using documented imports often run; foreign filesystem drivers and undocumented internals are not resident compatibility targets. |
+| BW-DOS programs | Supported through EOS's bounded BW-DOS program environment. |
 | Atari DOS 2/2.5 and MyDOS Atari binaries | Supported when the program uses compatible Atari binary and OS conventions. |
 | EOS programs | Native EOS commands, drivers, and utilities run directly. |
 
@@ -55,11 +54,10 @@ machine-specific testing.
 
 | Disk format | Read/write | Boot notes |
 | --- | --- | --- |
-| SpartaDOS File System (SDFS) 2.0/2.1 | Read and write | EOS supports the SDFS `BOOT` marker. Actual startup also depends on the computer's boot setup and the selected boot program. |
-| EOSFS v1 | Read and write | Bootable with 128/256 byte sectors; SDX does not recognize the revision marker. |
-| BW-DOS | Read and write | Use EOS's cartridge startup; do not assume every BW-DOS boot procedure is equivalent. |
-| Atari DOS 2.0S/2.5 | Read and write | EOS does not treat `AUTORUN.SYS` as an EOS startup batch file. |
-| MyDOS | Read and write for supported volumes and operations | MyDOS disks cannot be booted by EOS. |
+| EOSFS v2 | Resident read/write | The only resident mounted filesystem; bootable with 128/256-byte sectors. |
+| SDFS 2.0/2.1 | Transient inspect/check/import/export/create | Accessed by Toolkit raw-sector commands, never mounted. |
+| Atari DOS 2.0S/2.5 and MyDOS | Transient inspect/check/import/export/create | Accessed by Toolkit raw-sector commands, never mounted. |
+| EOSFS v1 and BW-DOS disk formats | Not mounted | Convert with an appropriate external/host tool; there is no legacy fallback. |
 
 EOS itself starts from its AtariMax cartridge. Its configuration and startup
 batch are `EOSSYS.SYS` and `EOSAUTO.BAT`, with fallback to SDX's
@@ -67,24 +65,23 @@ batch are `EOSSYS.SYS` and `EOSAUTO.BAT`, with fallback to SDX's
 and is not used as EOS startup configuration. For EOS's boot marker and
 filesystem details, see the [User Manual](USER_MANUAL.md).
 
-Atari DOS and MyDOS volumes retain their own directory and capacity
-constraints. For example, they do not gain SDFS-style hierarchical directories
-just because EOS can access them. EOSFS is not readable by SDX: it deliberately
-uses revision `$45` so SDX can identify and leave the volume alone rather than
-misinterpret its extent lists as SDFS sector maps.
+Atari DOS, MyDOS and SDFS volumes retain their own naming, directory and
+capacity constraints. `fsinfo` reads/checks/imports them, `fsexport` writes an
+explicit mapped 8.3 root file, and `fscreate` creates the bounded 720x128
+profiles. EOSFS uses clean/dirty revisions `$47`/`$48`; foreign systems must
+not interpret its extent lists as SDFS sector maps.
 
 ## Compatibility boundaries
 
-EOS's compatibility goal is broad, but not unlimited. The current project
-leaves the SDX D3 filesystem-driver interface (including FATFS and CPMFS
-drivers) out of scope. 65816-specific kernel interfaces are not considered
+EOS's compatibility goal is deliberately bounded. The current project leaves
+the SDX D3 filesystem-driver interface (including FATFS and CPMFS drivers) out
+of scope. 65816-specific kernel interfaces are not considered
 supported because they have not been verified on 65816 hardware. Optional
 drivers also require the hardware, memory, and serial devices they target.
 
-For practical use, retain a backup of important media before filesystem
-changes, especially when moving a disk between different DOSes. SDFS is the
-best choice when a disk must remain writable by SDX; choose EOSFS when its
-EOS-specific features and performance are useful and SDX access is not needed.
+Retain a backup of important media before filesystem changes. Use EOSFS for
+native work. Use the explicit Toolkit import/export commands when exchanging
+data with SDFS, DOS2 or MyDOS; lossy names are reported before writing.
 
 ## Hardware and emulator support
 

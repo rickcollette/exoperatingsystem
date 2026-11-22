@@ -5,6 +5,8 @@
 ; would clear the screen and delete). Without a name standard input is
 ; read.
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
+TOLOWER  smb 'TOLOWER'
 FOPEN    smb 'FOPEN'
 FGETC    smb 'FGETC'
 FCLOSE   smb 'FCLOSE'
@@ -74,7 +76,7 @@ se1     lda #0
 
 unsw    equ *                  ; (no switches but -n)
 UNSWN   equ 0
-unval   dta c'N'
+unval   dta c'n'
 run     dta 0
 pend    :255 dta 0
 

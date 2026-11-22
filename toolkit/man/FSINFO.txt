@@ -1,0 +1,22 @@
+FSINFO - identify foreign media
+
+Syntax:
+ fsinfo Dn:
+ fsinfo --check Dn:
+ fsinfo --import Dn: destination
+
+Reads sectors directly without mounting the disk. Reports EOSFS, SDFS,
+Atari DOS 2 or MyDOS and recursively lists SDFS and DOS2/MyDOS trees to a
+bounded depth of 16 directories. The command installs no resident filesystem
+state.
+
+--check validates sector ranges, chain/map loops, map backlinks, recorded
+chain lengths, allocation ownership and cross-links. Its transient ownership
+table is released when the command exits.
+
+--import recursively copies the foreign tree into an existing EOSFS
+destination directory. Data is streamed in bounded chunks. An exact EOSFS
+destination collision is reported and never overwritten.
+
+Use fsexport to copy an EOSFS file to a foreign root directory and fscreate
+to create a clean empty foreign volume.

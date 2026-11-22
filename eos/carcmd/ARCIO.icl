@@ -45,7 +45,7 @@ np1     lda (zs),y
         iny
         cmp #':'
         beq np2
-        cmp #'>'
+        cmp #'/'
         beq np2
         cmp #'<'
         beq np2

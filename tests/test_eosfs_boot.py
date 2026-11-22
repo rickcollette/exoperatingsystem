@@ -100,6 +100,48 @@ class EOSFSBootTests(unittest.TestCase):
             sdfs.build(self.image, 720, 512, {'EOS.SYS': boot_program()},
                        eosfs=True, boot='EOS.SYS', bootcode=self.loader)
 
+    def test_v2_long_names_and_case_are_distinct(self):
+        files = {
+            'projects/Extended-Operating-System/readme.txt': b'lower',
+            'projects/Extended-Operating-System/Readme.txt': b'mixed',
+            'projects/Extended-Operating-System/a-name-with-31-charactersxx.txt': b'31',
+        }
+        sdfs.build(self.image, 720, 256, files, eosfs=True)
+        v = sdfs.Volume(self.image)
+        entries = dict(v.walk())
+        self.assertEqual(v.version, sdfs.EOSFS_CLEAN)
+        self.assertEqual(v.entry_size, sdfs.EOSFS_ENTRY)
+        self.assertEqual(entries['/projects/Extended-Operating-System/readme.txt']['data'], b'lower')
+        self.assertEqual(entries['/projects/Extended-Operating-System/Readme.txt']['data'], b'mixed')
+        self.assertIn('/projects/Extended-Operating-System/a-name-with-31-charactersxx.txt', entries)
+        v.check()
+        self.assertFalse(v.errors, v.errors)
+
+    def test_v2_rejects_name_over_31_bytes(self):
+        with self.assertRaisesRegex(sdfs.SdfsError, '1..31 bytes'):
+            sdfs.build(self.image, 720, 256, {'x' * 32: b'too long'}, eosfs=True)
+        with self.assertRaisesRegex(sdfs.SdfsError, 'invalid EOSFS name'):
+            sdfs.build(self.image, 720, 256, {'literal*name': b'bad'}, eosfs=True)
+        with self.assertRaisesRegex(sdfs.SdfsError, 'invalid EOSFS name'):
+            sdfs.build(self.image, 720, 256, {'has\x1fcontrol': b'bad'}, eosfs=True)
+
+    def test_v2_path_limit_is_127_bytes(self):
+        component = 'x' * 31
+        at_limit = '/'.join((component, component, component, 'y' * 30))
+        self.assertEqual(len('/' + at_limit), 127)
+        sdfs.build(self.image, 720, 256, {at_limit: b'ok'}, eosfs=True)
+        with self.assertRaisesRegex(sdfs.SdfsError, 'exceeds 127 bytes'):
+            sdfs.build(self.image, 720, 256, {at_limit + 'z': b'long'}, eosfs=True)
+
+    def test_overwrite_uses_v2_entry_size_and_exact_names(self):
+        sdfs.build(self.image, 720, 256, {'startup.bat': b'old contents'}, eosfs=True)
+        sdfs.overwrite(self.image, 'startup.bat', b'new', newname='Startup.bat')
+        volume = sdfs.Volume(self.image)
+        entries = dict(volume.check())
+        self.assertNotIn('/startup.bat', entries)
+        self.assertEqual(entries['/Startup.bat']['data'], b'new')
+        self.assertFalse(volume.errors, volume.errors)
+
 
 if __name__ == '__main__':
     unittest.main()

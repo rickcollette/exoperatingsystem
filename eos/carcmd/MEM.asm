@@ -82,25 +82,41 @@ e_ok    lda usena              ; the mode
         sta usep+1
 u_ok    lda COMTAB+$1D         ; free banks
         sta nfree
-        lda optx
-        bne longf
-        jsr PRINTF
-        dta EOL,c'Main: $%4x,$%4x',EOL
-        dta c' Ext: $%4x,$%4x',EOL
-        dta c' Use: %p',EOL,EOL
-        dta c'%b Ext banks free ',EOL,EOL,0
-        dta a(m_lo,m_lo,x_lo,x_lo,usep,nfree)
-        rts
-
-* MEM /X
-longf   sec                    ; free bytes: top - lowest
+        sec                    ; immediately usable main-memory bytes
         lda m_top
         sbc m_lo
         sta m_free
         lda m_top+1
         sbc m_lo+1
         sta m_free+1
-        lda m_top              ; without a cartridge (X): $2000 more
+        lda #0                 ; free bank bytes = nfree * 16384
+        sta bfree
+        sta bfree+2
+        sta bfree+3
+        lda nfree
+        and #$03
+        ldx #6
+bf1     asl @
+        dex
+        bne bf1
+        sta bfree+1
+        lda nfree
+        lsr @
+        lsr @
+        sta bfree+2
+        lda optx
+        bne longf
+        jsr PRINTF
+        dta EOL,c'Main: $%4x,$%4x',EOL
+        dta c' Ext: $%4x,$%4x',EOL
+        dta c' Use: %p',EOL
+        dta c'Free: %d main bytes',EOL
+        dta c'%b Ext banks free (%l bytes)',EOL,EOL,0
+        dta a(m_lo,m_lo,x_lo,x_lo,usep,m_free,nfree,bfree)
+        rts
+
+* MEM /X
+longf   lda m_top              ; without a cartridge (X): $2000 more
         sta m_topx
         clc
         lda m_top+1
@@ -192,6 +208,7 @@ nfree   dta 0,0,0
 ntot    dta a(0),0
 ktot    dta a(0),0
 kfree   dta a(0),0
+bfree   dta 0,0,0,0
 pbv     dta 0,0,0
 
         blk update address

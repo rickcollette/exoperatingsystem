@@ -10,7 +10,7 @@ drive), for programs that read a list
 of files. Hidden files and
 directories are left out unless -a
 or attributes are given. A directory
-ends with >.
+ends with /.
 
 Switches come first. Each can be
 written -x or /X, several letters
@@ -39,5 +39,5 @@ directory's.
 
 Examples:
  LS /C
- LS -la SUB>
+ ls -la SUB/
  LS -w *.COM

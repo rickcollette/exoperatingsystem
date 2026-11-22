@@ -69,6 +69,20 @@ def extract(atr, name, dest):
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     f = out / name.lstrip('/\\')
+    # atrtool handles the legacy SDFS images used by the SDX oracle. Native
+    # release and test disks are EOSFS v2 and have exact-case names.
+    import sdfs
+    try:
+        volume = sdfs.Volume(str(atr))
+        if volume.eosfs:
+            entry = dict(volume.check()).get('/' + name.strip('/\\'))
+            if volume.errors or not entry or 'data' not in entry:
+                return None
+            return entry['data']
+    except (OSError, ValueError, sdfs.SdfsError):
+        # A marker poll can catch the emulator between sector writes. The
+        # caller retries, so treat that transient image as not ready yet.
+        return None
     if not atrtool.get(atr, name, f):
         return None
     return f.read_bytes()

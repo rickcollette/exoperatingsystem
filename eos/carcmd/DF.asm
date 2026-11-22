@@ -19,7 +19,7 @@ FILE_P   smb 'FILE_P'
 _DRVNAME smb '_DRVNAME'
 _DRVNM   smb '_DRVNM'
 
-path     equ $07A0
+path     equ $0640
 LBUFF    equ $0580
 EOL      equ $9B
 

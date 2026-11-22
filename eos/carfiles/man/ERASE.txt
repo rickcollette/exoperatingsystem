@@ -9,6 +9,6 @@ Deletes the matching files from the given directory (the current one when no pat
 
 Examples:
  DEL OLD.TXT
- ERASE D2:>TMP>*.BAK
+ rm D2:/TMP/*.BAK
 
 See also: UNERASE, DELTREE, MENU

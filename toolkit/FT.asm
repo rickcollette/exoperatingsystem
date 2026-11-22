@@ -13,10 +13,10 @@
 ; matching lines. A line ends at an EOL or after 255 characters; a
 ; longer one ends the search in that file.
 U_GETATR smb 'U_GETATR'
+U_ARGV   smb 'U_ARGV'
 U_FSPEC  smb 'U_FSPEC'
 U_SLASH  smb 'U_SLASH'
 U_PATH   smb 'U_PATH'
-U_EXPAND smb 'U_EXPAND'
 FFIRST   smb 'FFIRST'
 FNEXT    smb 'FNEXT'
 FOPEN    smb 'FOPEN'
@@ -31,14 +31,16 @@ COMTAB   smb 'COMTAB'
 FILE_P   smb 'FILE_P'
 
 BUFOFF   equ $0A               ; (COMTAB+: the place in the line)
+FILLEN   equ $1A               ; (COMTAB+: file parameter length)
+COMFNAM  equ $21               ; (COMTAB+: file parameter)
 LBUF     equ $3F               ; (COMTAB+: the command line)
 DSPFLG   equ $02FE
 file_id  equ $0760
-name     equ $0762
 mode     equ $0778
 addpos   equ $0782
 bytbuf   equ $0785
 dentry   equ $0789
+name     equ $0762
 EOL      equ $9B
 BSLASH   equ $5C
 TAB      equ $7F
@@ -48,7 +50,9 @@ dst      equ $80               ; (rdline)
 src      equ $82               ; (getc)
 
         blk reloc main
-start   lda #0
+start   lda #$FF
+        jsr U_ARGV
+        lda #0
         ldx #2
 s0      sta total,x
         dex
@@ -61,16 +65,21 @@ s0      sta total,x
         ldx a_opts+1
         ldy #6
         jsr U_SLASH
-        jsr FFIRST
-        bmi finish
-        ldx #10                ; no wildcard: one file
-s1      lda name,x
+        ldx #0                 ; no wildcard: one file
+s1      cpx COMTAB+FILLEN
+        bcs s2a0
+        lda COMTAB+COMFNAM,x
         cmp #'?'
         beq s2
-        dex
-        bpl s1
+        cmp #'*'
+        beq s2
+        inx
+        bne s1
+s2a0
         dec single
-s2      lda file_id
+s2      jsr FFIRST
+        bmi finish
+        lda file_id
         sta dirid
         lda mode
         sta dirmode
@@ -266,22 +275,23 @@ m_ret   rts
 
 * names: the entry's name with the device and path (to open it), and
 * alone (to show it)
-names   ldx #10
-n1      lda dentry+6,x
-        sta name,x
-        dex
-        bpl n1
-        lda a_full
+names   lda a_full
         ldx a_full+1
         ldy #0
         jsr U_PATH
-        lda a_full
-        ldx a_full+1
-        jsr U_EXPAND
-        lda a_short
-        ldx a_short+1
-        ldy #0
-        jmp U_EXPAND
+        ldx #0
+n1      cpx dentry+6
+        bcs n2
+        lda dentry+7,x
+        sta full,y
+        sta short,x
+        iny
+        inx
+        bne n1
+n2      lda #EOL
+        sta full,y
+        sta short,x
+        rts
 
 * hexdig: A a hex digit's value (anything else: 0)
 hexdig  jsr TOUPPER
@@ -443,8 +453,8 @@ rl_y    dta 0
 bpos    dta a(0)
 blen    dta a(0)
 beof    dta 0
-full    :84 dta 0
-short   :13 dta 0
+full    :160 dta 0
+short   :32 dta 0
 pat     :128 dta 0
 wild    :128 dta 0
 raw     :128 dta 0

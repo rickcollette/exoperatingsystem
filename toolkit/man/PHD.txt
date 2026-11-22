@@ -11,6 +11,6 @@ directory is kept: a second PHD
 replaces it.
 
 Example:
- PHD D2:>WORK
+ phd D2:/WORK
  ...
  PLD

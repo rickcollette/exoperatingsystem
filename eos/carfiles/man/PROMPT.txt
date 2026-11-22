@@ -12,10 +12,10 @@ Sets the command prompt; PROMPT alone shows it. These codes in the text are repl
  $R  new line
 An _ shows as a space.
 
-PROMPT x is the same as SET PROMPT=x. The default is D$N. With no $PROMPT at all the prompt is >. $P reads the disk each time the prompt is shown.
+PROMPT x is the same as SET PROMPT=x. EOS always encloses the displayed prompt in brackets. The default is D$N$P/, which displays like [D1:/] or [D1:/rick/]. With no $PROMPT at all the prompt is [>]. $P reads the disk each time the prompt is shown.
 
 Examples:
- PROMPT $L$P\
+ PROMPT $L$P/
  PROMPT $D_$L
 
 See also: SET, PATH

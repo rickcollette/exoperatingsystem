@@ -134,7 +134,7 @@ def checks(m, after, status, atr, e):
     first = T.screen(m)
     check(T.word(m, 0x0A) == 0x0A3A, 'DOSVEC $%04X' % T.word(m, 0x0A), e)
     check(any('EOS' in s and 'Extendable' in s for s in first), 'no EOS banner', e)
-    check(any(s == 'D1:' for s in first), 'no prompt', e)
+    check(any(s == '[D1:/]' for s in first), 'no prompt', e)
     check('XCOPY=COPY /R' in first, 'CAR:ALIASES.INI not read', e)
     check('U1MB SLOT WRITE OK' in after, 'WRITE.OUT not read after the warm reset', e)
     check('Ultimate1MB is not active' not in status and 'Cartridge bank' in status,
@@ -147,7 +147,7 @@ def checks(m, after, status, atr, e):
 def t_slot():
     e = []
     fw = build_firmware()
-    m, after, status, atr = run('slot', fw, None, label('k_getline'))
+    m, after, status, atr = run('slot', fw, None, label('k_prompt'))
     if m is None:
         e.append('no EOS prompt from the SDX slot (see %s)' % (OUT / 'slot.png'))
     else:
@@ -210,7 +210,7 @@ def t_flash(chip, mode='write'):
     for f in (after, junk):
         f.unlink(missing_ok=True)
     cmds = ['bp $%04X ".writemem %s 0 L10000; .autotest_cmd System.SaveFirmwareU1MB; g"'
-            % (label('k_getline'), emu.win(mem))]
+            % (label('k_prompt'), emu.win(mem))]
     e = []
     with emu.Session(OUT, [atr], cart=T.CAR if mode == 'cart' else None, name=name,
                      turbo=True, debugcmds=cmds, ultimate1mb=True, firmware={'u1mb': fwp},

@@ -12,4 +12,4 @@ Sorts the entries of a directory on disk (the current one when no path is given)
 Digits come before letters. Atari DOS 2 disks are refused. SORTDIR alone shows help.
 
 Example:
- SORTDIR D2:>GAMES> /N
+ SORTDIR D2:/GAMES/ /N

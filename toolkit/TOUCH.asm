@@ -7,6 +7,7 @@
 ; is. No name: error 156.
 U_SLASH  smb 'U_SLASH'
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
 U_FAIL   smb 'U_FAIL'
 U_SFAIL  smb 'U_SFAIL'
 U_XFAIL  smb 'U_XFAIL'
@@ -21,7 +22,9 @@ dentry   equ $0789
 EOL      equ $9B
 
         blk reloc main
-start   lda a_opts
+start   lda #$FF
+        jsr U_ARGV
+        lda a_opts
         ldx a_opts+1
         ldy #4
         jsr U_SLASH

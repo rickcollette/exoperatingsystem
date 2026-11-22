@@ -38,8 +38,13 @@ start   lda #$FF               ; the parameter: $FF none, 1 ON, 0 OFF
         jsr U_GETPAR
         beq s2
         lda #1
-        ldx COMTAB+$21
-        ldy COMTAB+$22
+        lda COMTAB+$21
+        and #$DF
+        tax
+        lda COMTAB+$22
+        and #$DF
+        tay
+        lda #1
         cpx #'O'
         bne s_bad
         cpy #'N'
@@ -49,9 +54,14 @@ start   lda #$FF               ; the parameter: $FF none, 1 ON, 0 OFF
         beq s1a
 s_bad   lda #E_BADPAR
         jmp U_FAIL
-s1      cpy #'F'
+s1      tya
+        and #$DF
+        tay
+        cpy #'F'
         bne s_bad
-        ldy COMTAB+$23
+        lda COMTAB+$23
+        and #$DF
+        tay
         cpy #'F'
         bne s_bad
         ldy COMTAB+$24

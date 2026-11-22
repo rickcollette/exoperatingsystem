@@ -4,6 +4,8 @@
 ; for the files that match it, in directory order. Without a name
 ; standard input is read. -n numbers the lines, from 1 over all files.
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
+TOLOWER  smb 'TOLOWER'
 FOPEN    smb 'FOPEN'
 FGETC    smb 'FGETC'
 FCLOSE   smb 'FCLOSE'
@@ -67,11 +69,8 @@ w1      lda unames,x
         inx
         cmp #':'
         beq w1s
-        cmp #'>'
+        cmp #'/'
         beq w1s
-        cmp #'<'
-        beq w1s
-        cmp #BSLASH
         bne w1
 w1s     sty plen
         jmp w1
@@ -111,29 +110,16 @@ w3b     cpy plen
         inx
         iny
         bne w3b
-w3c     ldx #0                 ; NAME.EXT
-w4      lda dentry+6,x
-        cmp #' '
-        beq w4a
+w3c     lda dentry+6           ; EOSFS v2 length-tagged exact name
+        sta namelen
+        ldx #0
+w4      cpx namelen
+        bcs w5
+        lda dentry+7,x
         sta (ptr),y
         iny
-w4a     inx
-        cpx #8
-        bcc w4
-        lda dentry+6,x
-        cmp #' '
-        beq w5
-        lda #'.'
-        sta (ptr),y
-        iny
-w4b     lda dentry+6,x
-        cmp #' '
-        beq w4c
-        sta (ptr),y
-        iny
-w4c     inx
-        cpx #11
-        bcc w4b
+        inx
+        bne w4
 w5      lda #EOL
         sta (ptr),y
         iny
@@ -218,11 +204,12 @@ cp1     sta bol                ; (0 unless an EOL: bit 7 set)
 cp_ret  rts
 
 unsw
-o_n     dta b(0),c'N'
+o_n     dta b(0),c'n'
 UNSWN   equ *-unsw
 unval   dta 0
 cpos    dta 0
 plen    dta 0
+namelen dta 0
 bol     dta 0
 nfound  dta a(0)
 lineno  dta 0,0,0,0

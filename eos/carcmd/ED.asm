@@ -1,7 +1,7 @@
 ; EOS CAR: ED, the full-screen text editor
 ;   ED [d:][path][filename.ext]
-; A line editor: lines of up to 127 characters (longer ones are split when
-; loaded, which marks the text changed), typing inserts. The window is the
+; A line editor: legacy ED uses 127-character lines; VIM_BUILD validates and
+; uses 255. Typing inserts. The window is the
 ; status line, $ED text lines (10 when not set, 1 to 22, more is 22) and a
 ; message line; lines wider than the screen scroll sideways.
 ;
@@ -23,6 +23,7 @@ U_GETPAR smb 'U_GETPAR'
 U_GETKEY smb 'U_GETKEY'
 U_SFAIL  smb 'U_SFAIL'
 U_XFAIL  smb 'U_XFAIL'
+TOLOWER  smb 'TOLOWER'
 ERR_GMSG smb 'ERR_GMSG'
 GETENV   smb 'GETENV'
 FOPEN    smb 'FOPEN'
@@ -30,6 +31,7 @@ FREAD    smb 'FREAD'
 FWRITE   smb 'FWRITE'
 FGETC    smb 'FGETC'
 FCLOSE   smb 'FCLOSE'
+FFIRST   smb 'FFIRST'
 PRINTF   smb 'PRINTF'
 COMTAB   smb 'COMTAB'
 FILE_P   smb 'FILE_P'
@@ -57,8 +59,16 @@ ICBLL0   equ $0348
 CIOV     equ $E456
 EOL      equ $9B
 ESC      equ $1B
-MAXLEN   equ 127               ; characters in a line
-NAMELEN  equ 60                ; characters of a file name
+.ifdef VIM_BUILD
+MAXLEN   equ 255               ; VIM logical-line limit
+.else
+MAXLEN   equ 127               ; legacy ED logical-line limit
+.endif
+.ifdef VIM_BUILD
+NAMELEN  equ 63                ; EOSFS component/path input limit
+.else
+NAMELEN  equ 60                ; legacy ED file-name input limit
+.endif
 NOTAG    equ $FF               ; tag+1 = $FF: no line tagged
 
 p        equ $80               ; pointers
@@ -124,7 +134,12 @@ st2b    lda tmp
         bcc st2e
 st2d    lda #22
 st2e    sta hgt
-st3     lda MEMLO              ; the text's memory
+st3
+.ifdef VIM_BUILD
+        lda #22
+        sta hgt                ; fixed 22-row VIM viewport, with or without $ED
+.endif
+        lda MEMLO              ; the text's memory
         sta lo
         lda MEMLO+1
         sta lo+1
@@ -146,11 +161,31 @@ st4     jsr clearbuf
         lda #0
         sta vis
         sta msgon
+.ifdef VIM_BUILD
+        sta vim_mode
+        sta vim_prefix
+        sta undo_type
+        sta yank_ok
+        lda #2
+        sta file_eol           ; new buffers default to Unix LF text
+        lda #1
+        sta final_eol
+.endif
         lda #$7D
         jsr eputc
         lda fname
         cmp #EOL
         beq main
+.ifdef VIM_BUILD
+        jsr setfn
+        lda #$80
+        sta scan
+        lda #0
+        sta attr
+        jsr FFIRST
+        bmi main               ; missing path starts a named empty buffer
+        jsr FCLOSE
+.endif
         jsr load
 
 * ---- the main loop ---------------------------------------------------------------
@@ -163,6 +198,10 @@ main    jsr refresh
         jsr clrmsg
 mn1     lda kch
         ldx kx
+.ifdef VIM_BUILD
+        jsr vimkey
+        jmp main
+.else
         cpx #0
         beq mn2
         tax                    ; SHIFT-CTRL keys: 1 page up, 2 page down,
@@ -187,6 +226,7 @@ mn4     asl @
         sta jump+2
         jsr jump
         jmp main
+.endif
 jump    jmp $FFFF              ; (the operand set above: no JMP () through a
                                ; vector that could sit at $xxFF)
 
@@ -408,7 +448,12 @@ k_del   jmp delch              ; CTRL-DELETE
 
 k_ret   jsr room2              ; RETURN: the line split at the cursor
         bcc kr1
+.ifdef VIM_BUILD
+        jsr vimfull
+        rts
+.else
         jmp nomem
+.endif
 kr1     lda pend
         sta p
         lda pend+1
@@ -585,10 +630,20 @@ ic2     lda chr
         jsr setchg
         clc
         rts
-ic_mem  jsr nomem
+ic_mem
+.ifdef VIM_BUILD
+        jsr vimfull
+.else
+        jsr nomem
+.endif
         sec
         rts
-ic_full jsr beep
+ic_full
+.ifdef VIM_BUILD
+        jsr vimfull
+.else
+        jsr beep
+.endif
 ic_no   sec
         rts
 
@@ -640,8 +695,12 @@ jn3     txa
         clc
         adc llen
         bcs jn_no
+.ifndef VIM_BUILD
         cmp #MAXLEN+1
         bcc jn4
+.else
+        jmp jn4
+.endif
 jn_no   sec
         rts
 jn4     jsr nextln
@@ -1254,6 +1313,13 @@ sa3     lda chg
         lda #'*'
         sta sbuf+2,x
 sa4     clc                    ; the line (from 1), the column (from 1)
+.ifdef VIM_BUILD
+        lda #'N'
+        ldy vim_mode
+        beq sa_mode
+        lda #'I'
+sa_mode sta sbuf
+.endif
         lda cy
         adc #1
         sta num
@@ -1458,11 +1524,7 @@ in5     stx tmp
         beq in1
         dec ilen
         jmp in1
-in6     cmp #'a'               ; capitals
-        bcc in7
-        cmp #'z'+1
-        bcs in7
-        and #$DF
+in6
 in7     cmp #$21
         bcc in1
         cmp #$7D
@@ -1501,6 +1563,672 @@ nomem   lda m_mema
         jsr showmsg
 beep    lda #$FD
         jmp eputc
+
+.ifdef VIM_BUILD
+* ---- compact vi-style frontend --------------------------------------------
+* The proven ED buffer, renderer and CIO paths stay shared; only the key and
+* command state machine differs.  NORMAL is 0, INSERT is 1.
+vimkey  lda vim_mode
+        jeq vk_norm
+        lda kch
+        cmp #ESC
+        beq vk_esc
+        cmp #$1C
+        jeq vk_up
+        cmp #$1D
+        jeq vk_down
+        cmp #$1E
+        jeq vk_left
+        cmp #$1F
+        jeq vk_right
+        cmp #$09
+        beq vk_tab
+        cmp #$7F               ; physical Atari TAB key
+        beq vk_tab
+        cmp #$7E
+        beq vk_bs
+        cmp #EOL
+        beq vk_ret
+        jsr vk_editok
+        bcs vk_bsno
+        lda kch
+        jmp insch
+vk_esc  lda #0
+        sta vim_mode
+        sta vim_prefix
+        lda #3
+        sta dirty
+        rts
+vk_up   jmp k_up
+vk_down jmp k_down
+vk_left jmp k_left
+vk_right jmp k_right
+vk_tab  jsr vk_editok
+        bcs vk_bsno
+        lda #$09
+        jmp insch0
+vk_bs   jsr vk_editok
+        bcs vk_bsno
+        lda cx
+        bne vk_bsdo
+        lda undo_type
+        cmp #4
+        bne vk_bsno
+        lda cy
+        cmp undo_y
+        bne vk_bsjoin
+        lda cy+1
+        cmp undo_y+1
+        beq vk_bsno
+vk_bsjoin jsr k_bs
+        dec undo_lines
+        rts
+vk_bsdo jmp k_bs
+vk_bsno jmp beep
+vk_ret  jsr vk_editok
+        bcs vk_bsno
+        lda nlines
+        sta voldlines
+        lda nlines+1
+        sta voldlines+1
+        jsr k_ret
+        lda nlines
+        cmp voldlines
+        bne vk_retok
+        lda nlines+1
+        cmp voldlines+1
+        beq vk_retdone
+vk_retok
+        lda undo_type
+        cmp #4
+        beq vk_retadd
+        cmp #5
+        bne vk_retdone
+vk_retadd inc undo_lines
+vk_retdone rts
+
+* The 256-byte undo payload covers the original line and lines split/opened
+* during this INSERT.  Vertical motion is allowed; edits outside that bounded
+* transaction are refused instead of becoming silently non-undoable.
+vk_editok
+        lda undo_type
+        cmp #4
+        beq vke_range
+        cmp #5
+        bne vke_yes
+vke_range
+        lda cy
+        cmp undo_y
+        lda cy+1
+        sbc undo_y+1
+        bcc vke_no
+        clc
+        lda undo_y
+        adc undo_lines
+        sta tmp
+        lda undo_y+1
+        adc #0
+        sta tmp+1
+        lda tmp
+        cmp cy
+        lda tmp+1
+        sbc cy+1
+        bcc vke_no
+vke_yes clc
+        rts
+vke_no  sec
+        rts
+
+vimfull lda m_fulla
+        ldx m_fulla+1
+        jsr showmsg
+        jmp beep
+
+vk_norm lda kx
+        jne vk_done
+        lda kch
+        cmp #$1C
+        jeq vk_up
+        cmp #$1D
+        jeq vk_down
+        cmp #$1E
+        jeq vk_left
+        cmp #$1F
+        jeq vk_right
+        cmp #ESC
+        jeq vk_done
+        cmp #'G'
+        jeq vk_last
+        jsr TOLOWER
+        sta vk_char
+        lda vim_prefix
+        beq vk_plain
+        sta vk_oldpre
+        lda #0
+        sta vim_prefix
+        lda vk_oldpre
+        cmp #1
+        bne vk_py
+        lda vk_char
+        cmp #'d'
+        jeq vk_dd
+        jmp vk_plain
+vk_py   cmp #2
+        bne vk_pg
+        lda vk_char
+        cmp #'y'
+        jeq vk_yy
+        jmp vk_plain
+vk_pg   lda vk_char
+        cmp #'g'
+        jeq vk_gg
+vk_plain lda vk_char
+        cmp #'i'
+        jeq vk_i
+        cmp #'a'
+        jeq vk_a
+        cmp #'o'
+        jeq vk_o
+        cmp #'x'
+        jeq vk_x
+        cmp #'d'
+        jeq vk_pd
+        cmp #'y'
+        jeq vk_py0
+        cmp #'g'
+        jeq vk_pg0
+        cmp #'p'
+        jeq vk_p
+        cmp #'u'
+        jeq vk_u
+        cmp #'0'
+        jeq vk_home
+        cmp #'$'
+        jeq vk_eol
+        cmp #':'
+        jeq vk_cmd
+        cmp #';'                ; Altirra host keyboards may lose SHIFT here
+        jeq vk_cmd
+        cmp #'/'
+        jeq vk_search
+        cmp #'n'
+        jeq vk_next
+vk_done rts
+vk_i    jsr undo_session
+        lda #1
+        sta vim_mode
+        lda #3
+        sta dirty
+        rts
+vk_a    jsr undo_session
+        lda cx
+        cmp llen
+        bcs vk_i0
+        inc cx
+vk_i0   lda #1
+        sta vim_mode
+        lda #3
+        sta dirty
+        rts
+vk_o    lda llen
+        sta cx
+        jsr k_ret
+        lda #5
+        sta undo_type
+        lda cy
+        sta undo_y
+        lda cy+1
+        sta undo_y+1
+        lda #1
+        sta undo_lines
+        lda #1
+        sta vim_mode
+        rts
+vk_x    lda cx
+        cmp llen
+        bne vk_xchar
+        lda qbeg
+        cmp hi
+        bne vk_xjoin
+        lda qbeg+1
+        cmp hi+1
+        jeq vk_beep
+vk_xjoin jsr undo_line
+        lda #6
+        sta undo_type
+        jmp delch
+vk_xchar jsr undo_line
+        jmp delch
+vk_pd   lda #1
+        sta vim_prefix
+        rts
+vk_py0  lda #2
+        sta vim_prefix
+        rts
+vk_pg0  lda #3
+        sta vim_prefix
+        rts
+vk_home jmp k_home
+vk_eol  jmp k_eol
+vk_last lda #$FF
+        sta tmp
+        sta tmp+1
+        jsr goline
+        jmp clampx
+vk_gg   lda #0
+        sta tmp
+        sta tmp+1
+        jsr goline
+        jmp clampx
+vk_yy   jsr yankline
+        rts
+vk_dd   jsr yankline
+        jsr undo_line
+        lda #2
+        sta undo_type
+        lda nlines
+        cmp #1
+        bne vk_ddmore
+        lda nlines+1
+        bne vk_ddmore
+        lda #1
+        sta undo_only
+        bne vk_ddgo
+vk_ddmore lda #0
+        sta undo_only
+vk_ddgo
+        jmp k_dline
+vk_p    lda yank_ok
+        beq vk_beep
+        lda llen
+        sta cx
+        jsr k_ret
+        ldx #0
+vkp1    cpx clen
+        bcs vkp2
+        lda cbuf,x
+        sta lbuf,x
+        inx
+        bne vkp1
+vkp2    stx llen
+        stx cx
+        lda #3
+        sta undo_type
+        lda cy
+        sta undo_y
+        lda cy+1
+        sta undo_y+1
+        jmp chg2
+vk_u    jmp vimundo
+vk_beep jmp beep
+vk_cmd  jmp vimcmd
+vk_search jmp vimsearch
+vk_next lda search_len
+        beq vk_beep
+        jmp findnext
+
+yankline ldx #0
+yl1     cpx llen
+        bcs yl2
+        lda lbuf,x
+        sta cbuf,x
+        inx
+        bne yl1
+yl2     stx clen
+        lda #1
+        sta yank_ok
+        rts
+
+undo_line ldx #0
+ul1     cpx llen
+        bcs ul2
+        lda lbuf,x
+        sta ubuf,x
+        inx
+        bne ul1
+ul2     stx ulen
+        lda cx
+        sta undo_x
+        lda cy
+        sta undo_y
+        lda cy+1
+        sta undo_y+1
+        lda #1
+        sta undo_type
+        rts
+
+undo_session
+        jsr undo_line
+        lda #4
+        sta undo_type
+        lda #0
+        sta undo_lines
+        rts
+
+vimundo lda undo_type
+        jeq vu_none
+        cmp #2
+        beq vu_deleted
+        cmp #3
+        jeq vu_inserted
+        cmp #4
+        jeq vu_session
+        cmp #5
+        jeq vu_opened
+        cmp #6
+        jeq vu_joined
+        lda cy
+        cmp undo_y
+        jne vu_none
+        lda cy+1
+        cmp undo_y+1
+        jne vu_none
+        ldx #0
+vu1     cpx ulen
+        bcs vu2
+        lda ubuf,x
+        sta lbuf,x
+        inx
+        bne vu1
+vu2     stx llen
+        lda undo_x
+        sta cx
+        jsr clampx
+        jmp vu_done
+vu_deleted
+        lda undo_only
+        bne vu_restore
+        lda undo_y
+        sta tmp
+        lda undo_y+1
+        sta tmp+1
+        jsr goline
+        lda undo_y
+        cmp nlines
+        bne vu_dinsert
+        lda undo_y+1
+        cmp nlines+1
+        bne vu_dinsert
+        lda llen
+        sta cx
+        jsr k_ret
+        jmp vu_restore
+vu_dinsert
+        jsr pushln
+        jsr incnl
+vu_restore
+        ldx #0
+vud1    cpx ulen
+        bcs vud2
+        lda ubuf,x
+        sta lbuf,x
+        inx
+        bne vud1
+vud2    stx llen
+        jmp vu_done
+vu_inserted
+        lda undo_y
+        sta tmp
+        lda undo_y+1
+        sta tmp+1
+        jsr goline
+        jsr k_dline
+        jmp vu_done
+vu_session
+        lda undo_y
+        sta tmp
+        lda undo_y+1
+        sta tmp+1
+        jsr goline
+vus_del lda undo_lines
+        beq vus_restore
+        jsr down1
+        jsr k_dline
+        lda cy
+        cmp undo_y
+        bne vus_up
+        lda cy+1
+        cmp undo_y+1
+        beq vus_noup
+vus_up
+        jsr up1
+vus_noup
+        dec undo_lines
+        jmp vus_del
+vus_restore
+        ldx #0
+vus_cp  cpx ulen
+        bcs vus_cpd
+        lda ubuf,x
+        sta lbuf,x
+        inx
+        bne vus_cp
+vus_cpd stx llen
+        lda undo_x
+        sta cx
+        jmp vu_done
+vu_opened
+        lda undo_y
+        sta tmp
+        lda undo_y+1
+        sta tmp+1
+        jsr goline
+vuo_del lda undo_lines
+        beq vu_done
+        jsr k_dline
+        dec undo_lines
+        jmp vuo_del
+vu_joined
+        lda undo_y
+        sta tmp
+        lda undo_y+1
+        sta tmp+1
+        jsr goline
+        lda undo_x
+        sta cx
+        jsr k_ret
+        jsr up1
+vu_done lda #0
+        sta undo_type
+        lda #3
+        sta dirty
+        jmp setchg
+vu_none lda m_noundoa
+        ldx m_noundoa+1
+        jmp showmsg
+
+* Prompt through ED's bounded line input while keeping the current filename.
+vimprompt sta tmp2
+        stx tmp2+1
+        ldx #0
+vp0     lda fname,x
+        sta fsave,x
+        inx
+        cmp #EOL
+        bne vp0
+        lda #EOL
+        sta fname
+        lda tmp2
+        ldx tmp2+1
+        jsr input
+        php
+        ldx #0
+vp1     lda fname,x
+        sta cmdbuf,x
+        inx
+        cmp #EOL
+        bne vp1
+        ldx #0
+vp2     lda fsave,x
+        sta fname,x
+        inx
+        cmp #EOL
+        bne vp2
+        plp
+        rts
+
+vimcmd  lda m_colona
+        ldx m_colona+1
+        jsr vimprompt
+        jcs vc_ret
+        ldx #0
+vc_sp   lda cmdbuf,x
+        cmp #' '
+        bne vc_tok
+        inx
+        bne vc_sp
+vc_tok  jsr TOLOWER
+        cmp #'q'
+        beq vc_q
+        cmp #'w'
+        beq vc_w
+        cmp #'e'
+        beq vc_e
+        jmp vc_bad
+vc_q    inx
+        lda cmdbuf,x
+        cmp #'!'
+        beq vc_force
+        lda chg
+        bne vc_changed
+vc_force lda #0
+        sta chg
+        jmp kq1
+vc_w    inx
+        lda cmdbuf,x
+        jsr TOLOWER
+        cmp #'q'
+        bne vc_wname
+        inx
+        jsr vc_setname
+        jsr save
+        lda chg
+        bne vc_ret
+        jmp kq1
+vc_wname jsr vc_setname
+        jmp save
+vc_e    inx
+        lda cmdbuf,x
+        cmp #'!'
+        bne vc_e0
+        inx
+        jmp vc_e1
+vc_e0   lda chg
+        bne vc_changed
+vc_e1   jsr vc_setname
+        lda fname
+        cmp #EOL
+        beq vc_bad
+        jsr load
+        lda loadok
+        bne vc_ret
+        ldx #0                 ; failed :e keeps both text and old name
+vc_erest lda fsave,x
+        sta fname,x
+        inx
+        cmp #EOL
+        bne vc_erest
+        rts
+vc_setname
+        lda cmdbuf,x
+        cmp #' '
+        bne vcs_ret
+vcs0    inx
+        lda cmdbuf,x
+        cmp #' '
+        beq vcs0
+        ldy #0
+vcs1    lda cmdbuf,x
+        sta fname,y
+        inx
+        iny
+        cmp #EOL
+        bne vcs1
+vcs_ret rts
+vc_changed lda m_changeda
+        ldx m_changeda+1
+        jmp showmsg
+vc_bad  lda m_bada
+        ldx m_bada+1
+        jmp showmsg
+vc_ret  rts
+
+vimsearch lda m_slasha
+        ldx m_slasha+1
+        jsr vimprompt
+        bcs vs_ret
+        ldx #0
+vs1     lda cmdbuf,x
+        cmp #EOL
+        beq vs2
+        cpx #32
+        bcs vs2
+        sta searchbuf,x
+        inx
+        bne vs1
+vs2     stx search_len
+        beq vs_ret
+findnext lda cy
+        sta find_y
+        lda cy+1
+        sta find_y+1
+        lda cx
+        sta find_x
+        inc cx
+fn_line jsr findline
+        bcc fn_found
+        jsr down1
+        bcc fn_zero
+        lda #0
+        sta tmp
+        sta tmp+1
+        jsr goline
+fn_zero lda #0
+        sta cx
+        lda cy
+        cmp find_y
+        bne fn_line
+        lda cy+1
+        cmp find_y+1
+        bne fn_line
+        lda find_x
+        sta cx
+        lda m_notfounda
+        ldx m_notfounda+1
+        jmp showmsg
+fn_found stx cx
+        lda #3
+        sta dirty
+vs_ret  rts
+
+findline ldx cx
+fl0     cpx llen
+        bcs fl_no
+        stx fl_start
+        ldy #0
+fl1     cpy search_len
+        bcs fl_yes
+        cpx llen
+        bcs fl_next
+        txa
+        clc
+        adc #0
+        tax
+        lda lbuf,x
+        cmp searchbuf,y
+        bne fl_next
+        inx
+        iny
+        bne fl1
+fl_next ldx fl_start
+        inx
+        bne fl0
+fl_yes  ldx fl_start
+        clc
+        rts
+fl_no   sec
+        rts
+.endif
 
 * ---- the keyboard ----------------------------------------------------------------
 * getkey: a key; X=0 and A its code, or X=1 and A = 1 SHIFT-CTRL-up,
@@ -1560,6 +2288,10 @@ eputc   pha
 * load: fname into the buffer. Lines over 127 characters are split (the
 * text is then changed). Errors are shown on the message line.
 load    lda #0
+.ifdef VIM_BUILD
+        sta loadok
+        jmp vimload
+.endif
         sta hopen
         lda iotrapa
         ldx iotrapa+1
@@ -1656,8 +2388,11 @@ lo6     lda q
 lo6a    cmp #EOL
         beq lo8
         jsr lput
-        bcs lo_mem
+        jcs lo_mem
         inx
+.ifdef VIM_BUILD
+        jmp lo6                 ; validator already enforced 255 bytes
+.else
         cpx #MAXLEN
         bcc lo6
         lda q                  ; 127: an EOL put in unless one follows
@@ -1670,9 +2405,10 @@ lo6a    cmp #EOL
         beq lo6
 lo7     lda #1
         sta chg
+.endif
 lo8     lda #EOL
         jsr lput
-        bcs lo_mem
+        jcs lo_mem
         jsr incnl
         jmp lo5
 lo9     stx llen               ; the rest after the last EOL: the cursor line
@@ -1694,23 +2430,243 @@ lo10    cpy llen
         iny
         bne lo10
 lo11    lda nlines
+.ifdef VIM_BUILD
+        lda final_eol
+        beq lo11n
+        lda llen
+        bne lo11n
+        lda nlines
+        ora nlines+1
+        beq lo11n
+        jsr prevln              ; no phantom blank line after final newline
+        lda nlines
+        sta cy
+        lda nlines+1
+        sta cy+1
+        jsr deccy
+        jmp lo11q
+lo11n   lda nlines
+.endif
         sta cy
         lda nlines+1
         sta cy+1
         jsr incnl
+lo11q
         lda hi
         sta qbeg
         lda hi+1
         sta qbeg+1
+.ifdef VIM_BUILD
+        lda #255               ; conservative reserve for editing
+.else
         lda #MAXLEN+2          ; room to edit
+.endif
         jsr room
         bcs lo_mem
         jsr k_begin
         lda #3
         sta dirty
+.ifdef VIM_BUILD
+        lda #1
+        sta loadok
+.endif
         rts
 lo_mem  jsr clearbuf
         jmp nomem
+
+.ifdef VIM_BUILD
+* VIM loads transactionally.  The new file is read into the existing free
+* gap, checked and normalized there, and only then replaces the document.
+* Accepted input is printable ASCII plus TAB using one consistent newline
+* convention: ATASCII EOL, LF, or CRLF.  The original convention is retained
+* for the next write.  No second document-sized allocation is needed.
+vimload sta hopen
+        lda iotrapa
+        ldx iotrapa+1
+        jsr U_SFAIL
+        jsr setfn
+        lda #4
+        sta mode
+        jsr FOPEN
+        lda file_id
+        sta hfile
+        inc hopen
+        lda pend
+        sta addpos
+        sta vstg
+        lda pend+1
+        sta addpos+1
+        sta vstg+1
+        sec
+        lda qbeg
+        sbc pend
+        sta bytbuf
+        lda qbeg+1
+        sbc pend+1
+        sta bytbuf+1
+        lda bytbuf
+        ora bytbuf+1
+        beq vl_nomem
+        lda #0
+        sta memreix
+        jsr FREAD
+        lda bytbuf
+        sta vsize
+        lda bytbuf+1
+        sta vsize+1
+        jsr FGETC              ; a byte beyond the gap means no safe load
+        bmi vl_read
+vl_nomem jsr closef
+        jsr U_XFAIL
+        jmp nomem
+vl_read jsr closef
+        jsr U_XFAIL
+        lda vstg
+        sta q                  ; q reads staged bytes
+        sta p                  ; p writes normalized bytes
+        lda vstg+1
+        sta q+1
+        sta p+1
+        clc
+        lda vstg
+        adc vsize
+        sta s                  ; s is staged input end
+        lda vstg+1
+        adc vsize+1
+        sta s+1
+        lda #0
+        sta veolstyle
+        sta vlinelen
+        sta vfinaleol
+vl_scan lda q
+        cmp s
+        bne vl_byte
+        lda q+1
+        cmp s+1
+        jeq vl_valid
+vl_byte ldy #0
+        lda (q),y
+        jsr incq
+        cmp #EOL
+        beq vl_ata
+        cmp #$0A
+        beq vl_lf
+        cmp #$0D
+        beq vl_cr
+        cmp #$09
+        beq vl_text
+        cmp #$20
+        jcc vl_bad
+        cmp #$7F
+        jcs vl_bad
+vl_text ldx vlinelen
+        cpx #MAXLEN
+        jcs vl_long
+        inc vlinelen
+        ldy #0
+        sta (p),y
+        jsr incp
+        lda #0
+        sta vfinaleol
+        jmp vl_scan
+vl_ata lda #1
+        bne vl_eol
+vl_lf  lda #2
+        bne vl_eol
+vl_cr  lda q                  ; CR is accepted only as part of CRLF
+        cmp s
+        bne vl_cr1
+        lda q+1
+        cmp s+1
+        jeq vl_bad
+vl_cr1 ldy #0
+        lda (q),y
+        cmp #$0A
+        jne vl_bad
+        jsr incq
+        lda #3
+vl_eol ldx veolstyle
+        beq vl_style
+        cmp veolstyle
+        jne vl_mixed
+        beq vl_emit
+vl_style sta veolstyle
+vl_emit lda #EOL
+        ldy #0
+        sta (p),y
+        jsr incp
+        lda #0
+        sta vlinelen
+        lda #1
+        sta vfinaleol
+        jmp vl_scan
+vl_valid sec                  ; normalized size = p - staged start
+        lda p
+        sbc vstg
+        sta tmp
+        lda p+1
+        sbc vstg+1
+        sta tmp+1
+        sec
+        lda hi
+        sbc tmp
+        sta q                  ; final normalized image starts at q
+        lda hi+1
+        sbc tmp+1
+        sta q+1
+        lda p
+        sta s                  ; copy backward so overlap is safe
+        lda p+1
+        sta s+1
+        lda hi
+        sta p
+        lda hi+1
+        sta p+1
+vl_move lda s
+        cmp vstg
+        bne vl_mv1
+        lda s+1
+        cmp vstg+1
+        beq vl_commit
+vl_mv1  lda s
+        bne vl_mv2
+        dec s+1
+vl_mv2  dec s
+        lda p
+        bne vl_mv3
+        dec p+1
+vl_mv3  dec p
+        ldy #0
+        lda (s),y
+        sta (p),y
+        jmp vl_move
+vl_commit
+        lda veolstyle
+        bne vl_st1
+        lda #1                 ; empty files default to native ATASCII
+vl_st1  sta file_eol
+        lda vfinaleol
+        sta final_eol
+        jsr clearbuf           ; pointers only; staged bytes remain at top
+        jmp lo4
+vl_bad  lda m_texta
+        ldx m_texta+1
+        jmp vl_error
+vl_mixed lda m_mixeda
+        ldx m_mixeda+1
+        jmp vl_error
+vl_long lda m_longa
+        ldx m_longa+1
+vl_error jsr showmsg
+        lda #3
+        sta dirty
+        jmp beep
+
+incq    inc q
+        bne vl_iq
+        inc q+1
+vl_iq   rts
+.endif
 
 * lput: A to the bottom part at p (C=1 when it would reach q)
 lput    pha
@@ -1733,6 +2689,22 @@ save    lda #0
         ldx iotrapa+1
         jsr U_SFAIL
         jsr setfn
+.ifdef VIM_BUILD
+        lda #$80               ; exact collision check before truncation
+        sta scan
+        jsr U_XFAIL
+        jsr FFIRST
+        bmi sv_new
+        jsr FCLOSE
+        lda m_overwritea
+        ldx m_overwritea+1
+        jsr ask
+        jcs sv_cancel
+sv_new  lda iotrapa
+        ldx iotrapa+1
+        jsr U_SFAIL
+        jsr setfn
+.endif
         lda #8
         sta mode
         jsr FOPEN
@@ -1772,6 +2744,10 @@ save    lda #0
         sbc qbeg+1
         sta tmp+1
         jsr wr
+.ifdef VIM_BUILD
+        lda final_eol
+        beq sv2
+.endif
         lda qbeg               ; the last line empty?
         cmp hi
         bne sv1
@@ -1806,11 +2782,57 @@ sv2     jsr closef
         lda m_saveda
         ldx m_saveda+1
         jmp showmsg
+.ifdef VIM_BUILD
+sv_cancel
+        lda iotrapa
+        ldx iotrapa+1
+        jsr U_SFAIL
+        rts
+.endif
 
 * wr: tmp bytes at p to the file
 wr      lda tmp
         ora tmp+1
         beq wr1
+.ifdef VIM_BUILD
+        lda #0
+        sta vout
+vwr1    lda tmp
+        ora tmp+1
+        beq vwr_done
+        ldy #0
+        lda (p),y
+        sta chr
+        jsr incp
+        lda tmp
+        bne vwr_dec
+        dec tmp+1
+vwr_dec dec tmp
+        lda chr
+        cmp #EOL
+        bne vwr_char
+        lda file_eol
+        cmp #1
+        beq vwr_native
+        cmp #2
+        beq vwr_lf
+        lda #$0D
+        jsr vwr_emit
+vwr_lf  lda #$0A
+        jsr vwr_emit
+        jmp vwr1
+vwr_native lda #EOL
+vwr_char jsr vwr_emit
+        jmp vwr1
+vwr_emit ldx vout
+        sta rowbuf,x
+        inc vout
+        lda vout
+        cmp #240
+        bcc vwr_er
+        jsr vwr_flush
+vwr_er  rts
+.else
         lda p
         sta addpos
         lda p+1
@@ -1824,7 +2846,28 @@ wr      lda tmp
         lda hfile
         sta file_id
         jmp FWRITE
+.endif
 wr1     rts
+.ifdef VIM_BUILD
+vwr_done lda vout
+        beq wr1
+vwr_flush
+        lda rowbufa
+        sta addpos
+        lda rowbufa+1
+        sta addpos+1
+        lda vout
+        sta bytbuf
+        lda #0
+        sta bytbuf+1
+        sta memreix
+        lda hfile
+        sta file_id
+        jsr FWRITE
+        lda #0
+        sta vout
+        rts
+.endif
 
 * setfn: FILE_P = fname
 setfn   lda fnamea
@@ -1914,6 +2957,30 @@ m_save  dta c'Save: ',0
 m_tagd  dta c'Line tagged',0
 m_mem   dta c'Out of memory',0
 m_saved dta c'Saved',0
+.ifdef VIM_BUILD
+m_colona dta a(m_colon)
+m_slasha dta a(m_slash)
+m_noundoa dta a(m_noundo)
+m_changeda dta a(m_changed)
+m_bada  dta a(m_bad)
+m_notfounda dta a(m_notfound)
+m_texta dta a(m_text)
+m_mixeda dta a(m_mixed)
+m_longa dta a(m_long)
+m_overwritea dta a(m_overwrite)
+m_fulla dta a(m_full)
+m_colon dta c':',0
+m_slash dta c'/',0
+m_noundo dta c'Nothing to undo',0
+m_changed dta c'No write since last change',0
+m_bad   dta c'Unknown command',0
+m_notfound dta c'Pattern not found',0
+m_text dta c'Not ASCII/ATASCII text',0
+m_mixed dta c'Mixed newline styles',0
+m_long dta c'Line exceeds 255 bytes',0
+m_overwrite dta c'Overwrite existing file (Y/N)?',0
+m_full dta c'Buffer full',0
+.endif
 iotrapa dta a(iotrap)
 ctrapa  dta a(ctrap)
 lbufa   dta a(lbuf)
@@ -1968,6 +3035,37 @@ cbuf    :MAXLEN+1 dta 0
 sbuf    :124 dta 0
 mbuf    :120 dta 0
 rowbuf  :244 dta 0
+.ifdef VIM_BUILD
+vim_mode dta 0
+vim_prefix dta 0
+vk_char dta 0
+vk_oldpre dta 0
+yank_ok dta 0
+undo_type dta 0
+undo_x dta 0
+undo_y dta a(0)
+undo_lines dta 0
+undo_only dta 0
+ulen    dta 0
+search_len dta 0
+loadok  dta 0
+file_eol dta 1                ; 1 ATASCII, 2 LF, 3 CRLF
+final_eol dta 1
+veolstyle dta 0
+vlinelen dta 0
+vfinaleol dta 0
+vstg    dta a(0)
+vsize   dta a(0)
+vout    dta 0
+voldlines dta a(0)
+find_y  dta a(0)
+find_x  dta 0
+fl_start dta 0
+fsave   :NAMELEN+2 dta 0
+cmdbuf  :NAMELEN+2 dta 0
+searchbuf :32 dta 0
+ubuf    :MAXLEN+1 dta 0
+.endif
 
         blk update address
         blk update symbols

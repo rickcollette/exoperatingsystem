@@ -3,16 +3,16 @@ BASENAME - the name part of a path
 Syntax:
  BASENAME path [suffix]
 
-Shows what follows the last separator
-(: > < or \) of the path. A > or \ at
-its end is dropped first, so a
+Shows what follows the last slash of
+the path. A slash at its end is dropped
+first, so a
 directory gives its own name. With a
 suffix, it is taken off the end of
 the name when the name is longer.
 A device or the main directory alone
-(D1:, D1:>) gives an empty line.
+(D1:, D1:/) gives an empty line.
 
 Examples:
- BASENAME D1:>DOS>X.COM    X.COM
- BASENAME D1:>DOS>         DOS
+ BASENAME D1:/DOS/X.COM    X.COM
+ BASENAME D1:/DOS/         DOS
  BASENAME D1:X.COM .COM    X

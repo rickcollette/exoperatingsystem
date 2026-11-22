@@ -70,7 +70,7 @@ xl2     lda #<(COMTAB+CT_COMFNAM)
         lda #$80
         sta rx_on
         rts
-rx_def  dta c'CAR:RUNEXT.CFG',b(EOL)
+rx_def  dta c'CAR:runext.cfg',b(EOL)
 
 * rx_show: the configuration as it is in memory
 rx_show bit rx_on
@@ -108,7 +108,7 @@ xf1     lda COMTAB+CT_COMFNAM,x
         bne xf2
         txa
         tay
-xf2     cmp #'>'
+xf2     cmp #'/'
         beq xf2a
         cmp #':'
         beq xf2a

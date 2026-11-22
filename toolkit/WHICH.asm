@@ -8,6 +8,7 @@
 ; "NAME: not found". Programs run through COMEXE or RUNEXT are not
 ; looked for.
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
 U_GEFINA smb 'U_GEFINA'
 GETENV   smb 'GETENV'
 PRINTF   smb 'PRINTF'
@@ -24,7 +25,9 @@ BSLASH   equ $5C
 ptr      equ $80
 
         blk reloc main
-start   jsr U_GETPAR
+start   lda #$FF
+        jsr U_ARGV
+        jsr U_GETPAR
         bne w1
 usage   jsr PRINTF
         dta c'Use: which command ...',EOL,0
@@ -70,7 +73,12 @@ bi1     ldy #0
         lda (ptr),y
         beq bi_no
 bi2     lda (ptr),y
-        cmp nm,y
+        pha
+        lda nm,y
+        jsr upper
+        sta bitmp
+        pla
+        cmp bitmp
         bne bi3
         iny
         cmp #EOL
@@ -90,6 +98,12 @@ bi3     lda (ptr),y            ; the next entry
         bne bi1
 bi_no   sec
         rts
+upper   cmp #'a'
+        bcc upret
+        cmp #'z'+1
+        bcs upret
+        and #$DF
+upret   rts
 
 * addext: .COM after nm when its name has no extension; nmdir set when
 * nm has a device or directory
@@ -106,7 +120,7 @@ ae1     lda nm,x
         tay
 ae2     cmp #':'
         beq ae2s
-        cmp #'>'
+        cmp #'/'
         beq ae2s
         cmp #BSLASH
         bne ae1
@@ -163,11 +177,11 @@ se5     sty pidx
         lda spec-1,x
         cmp #':'
         beq se6
-        cmp #'>'
+        cmp #'/'
         beq se6
         cmp #BSLASH
         beq se6
-        lda #'>'
+        lda #'/'
         sta spec,x
         inx
 se6     jsr try
@@ -211,7 +225,8 @@ a_btab  dta a(btab)
 a_spec  dta a(spec)
 a_pname dta a(pname)
 pname   dta c'PATH',EOL
-dotcom  dta c'.COM',EOL
+dotcom  dta c'.com',EOL
+bitmp   dta 0
 nmdir   dta 0
 nlen    dta 0
 pidx    dta 0
@@ -219,14 +234,14 @@ nm      :68 dta 0
 spec    :100 dta 0
 pbuf    :130 dta 0
 * the command processor's built-in commands (eos/cp.asm cmdtab)
-btab    dta c'TYPE',EOL,c'RUNEXT',EOL,c'CLS',EOL,c'ECHO',EOL,c'SET',EOL
+btab    dta c'TYPE',EOL,c'CAT',EOL,c'RUNEXT',EOL,c'CLS',EOL,c'CLEAR',EOL,c'ECHO',EOL,c'SET',EOL
         dta c'PATH',EOL,c'ERROR',EOL,c'CD',EOL,c'CHDIR',EOL,c'CWD',EOL
         dta c'MD',EOL,c'MKDIR',EOL,c'CREDIR',EOL,c'RD',EOL,c'RMDIR',EOL
-        dta c'DELDIR',EOL,c'RENDIR',EOL,c'REN',EOL,c'RENAME',EOL,c'DEL',EOL
+        dta c'DELDIR',EOL,c'RENDIR',EOL,c'REN',EOL,c'RENAME',EOL,c'DEL',EOL,c'RM',EOL
         dta c'DELETE',EOL,c'ERASE',EOL,c'ATR',EOL,c'ATTRIB',EOL,c'VERIFY',EOL
         dta c'REPORT',EOL,c'SETERRNO',EOL,c'SWAP',EOL,c'PROMPT',EOL,c'LOAD',EOL
         dta c'BOOT',EOL,c'CLR',EOL,c'COLD',EOL,c'BASIC',EOL,c'PAUSE',EOL
-        dta c'MORE',EOL,c'VER',EOL,c'FI',EOL,c'COPY',EOL,0
+        dta c'MORE',EOL,c'VER',EOL,c'FI',EOL,c'COPY',EOL,c'CP',EOL,0
 
         blk update address
         blk update symbols

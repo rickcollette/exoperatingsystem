@@ -5,9 +5,9 @@
 * read-only and live in the banks from BK_CARD on, CARDLEN bytes in each
 * (the bank's tail follows), packed by tools/mkcarfs.py:
 *   bank BK_CARD, offset 0: 'EOSC', the number of files (word), then 24
-*   bytes per file: an SDFS directory entry (status, the first byte's
-*   offset in its bank as the "map", length, name 8+3, date, time) and the
-*   bank of the first byte.
+*   bytes per file: status, offset, length, a length plus 16 exact name bytes,
+*   and the bank of the first byte. The size remains 24 bytes, but no native
+*   code or storage uses an 8.3 record.
 * A file's bytes run on from bank to bank. k_bcopy (kernel) copies them
 * out, because this bank and the file's are both at $A000.
 
@@ -194,27 +194,50 @@ co1     lda cr_ent,x
 co2     rts
 eosc    dta c'EOSC'
 
-* match: cr_ent against the pattern at cr_pat (? any character): C=0 yes
-match   ldx #10
-mt1     lda cr_pat,x
+* match: exact length-tagged CAR name against the NUL glob in cr_spat.
+match   ldx #0
+        ldy #0
+        lda #$FF
+        sta cr_t               ; no star retry point
+mt1     lda cr_spat,x
+        beq mt_end
+        cmp #'*'
+        beq mt_star
+        cpy cr_ent+6
+        bcs mt_retry
         cmp #'?'
-        beq mt2
-        cmp cr_ent+6,x
-        bne mt_no
-mt2     dex
-        bpl mt1
+        beq mt_take
+        cmp cr_ent+7,y
+        bne mt_retry
+mt_take inx
+        iny
+        bne mt1
+mt_star inx
+        stx cr_t
+        sty cr_t+1
+        jmp mt1
+mt_retry lda cr_t
+        cmp #$FF
+        beq mt_no
+        ldy cr_t+1
+        cpy cr_ent+6
+        bcs mt_no
+        iny
+        sty cr_t+1
+        ldx cr_t
+        jmp mt1
+mt_end  cpy cr_ent+6
+        bne mt_retry
         clc
         rts
 mt_no   sec
         rts
 
-* path: only the main directory (an empty path, or > or backslash alone)
+* path: only the main directory (an empty path, or / alone)
 * C=1, A = 150 for another
 ca_path  lda path
         beq pt_ok
-        cmp #'>'
-        beq pt1
-        cmp #BSLASH
+        cmp #'/'
         bne pt_no
 pt1     lda path+1
         beq pt_ok
@@ -235,11 +258,8 @@ ca_open  lda mode               ; ($14 as $04: the file's entry in dentry,
 co_r    jsr ca_path
         bcs co_ret
         jsr count
-        ldx #10
-co3     lda name,x
-        sta cr_pat,x
-        dex
-        bpl co3
+        jsr setpat
+        bcs co_nf
         lda #0
         sta cr_i
         sta cr_i+1
@@ -274,11 +294,7 @@ co5     jsr newslot
         sta cr_pos0,x
         sta cr_pos1,x
         sta cr_pos2,x
-        ldy #22                ; the entry, as SDX leaves it in dentry
-co6     lda cr_ent,y
-        sta dentry,y
-        dey
-        bpl co6
+        jsr ent_native
         lda #E_OK
         rts
 
@@ -505,43 +521,41 @@ cf0     lda mainnm,x
         jsr newslot
         bcs cf_ret
         stx cr_x
-        ldy #10                ; the pattern (blank: all)
-        lda #0
-        sta cr_t
-cf1     lda name,y
-        sta cr_pat,y
-        cmp #' '
-        beq cf2
-        inc cr_t
-cf2     dey
-        bpl cf1
-        lda cr_t
-        bne cf4
-        ldy #10
-        lda #'?'
-cf3     sta cr_pat,y
-        dey
-        bpl cf3
+        jsr setpat             ; preserve the exact native glob
+        bcs cf_ret
 cf4     lda #0                 ; the next file to look at
+        ldx cr_x
         sta cr_pos0,x
         sta cr_pos1,x
         lda #$FF               ; a search, not a file
         sta cr_len2,x
-        ldy #10
-cf5     lda cr_pat,y
-        sta cr_spat,y
-        dey
-        bpl cf5
         jmp nx_scan
 cf_ret  rts
+
+* setpat: exact native name/glob to the one bounded search buffer. A blank
+* pattern means all entries. C=1 only when it exceeds CAR's 16-byte limit.
+setpat  ldx #0
+sp0     lda name,x
+        beq sp_end
+        cpx #16
+        bcs sp_bad
+        sta cr_spat,x
+        inx
+        bne sp0
+sp_end  cpx #0
+        bne sp_term
+        lda #'*'
+        sta cr_spat
+        inx
+sp_term lda #0
+        sta cr_spat,x
+        clc
+        rts
+sp_bad  sec
+        rts
 ca_next  jsr slot
         bcs cf_ret
         stx cr_x
-        ldy #10
-cn1     lda cr_spat,y
-        sta cr_pat,y
-        dey
-        bpl cn1
 nx_scan jsr count
         ldx cr_x
         lda cr_pos0,x
@@ -560,14 +574,23 @@ nx2     jsr match
         sta cr_pos0,x
         lda cr_i+1
         sta cr_pos1,x
-        ldy #22
-nx3     lda cr_ent,y
-        sta dentry,y
-        dey
-        bpl nx3
+        jsr ent_native
         lda #E_OK
         rts
 nx_eof  lda #E_EOF
+        rts
+
+* ent_native: expose the compact CAR record as an EOSFS-shaped record.
+ent_native ldx #43
+        lda #0
+cv0     sta dentry,x
+        dex
+        bpl cv0
+        ldx #22
+cv1     lda cr_ent,x
+        sta dentry,x
+        dex
+        bpl cv1
         rts
 
 * ---- 16 chdir, 17 cwd, 19 check -------------------------------------------------

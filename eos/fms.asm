@@ -1,6 +1,6 @@
 * EOS (Extendable Operating System): bank 2, the DSK: kernel device
 *
-* SpartaDOS file system (SDFS 2.0 / 2.1) on SIO disks D1: to D15:. Written for
+* EOSFS v2 on SIO disks D1: to D15:. Written for
 * ROM: no self-modifying code, all state in the RAM described in fmsdata.icl.
 * Kernel interface: function code in Y, page 7 parameters, status in A.
 
@@ -29,6 +29,7 @@ E_RDONLY equ 135
 E_EXISTS equ 151
 E_FULL  equ 162
 E_WILD  equ 163
+E_BADNAME equ 165
 E_NOTEMPTY equ 167
 
 * directory entry status bits
@@ -42,16 +43,16 @@ ST_LINK equ $40
 
         org CARTLO
         jmp dsk_entry          ; $A000 kernel device entry
-        jmp getsec             ; $A003 for the DOS 2 bank (7)
+        jmp getsec             ; $A003 for the EOSFS helper bank
         jmp new_fcb            ; $A006
         jmp find_fcb           ; $A009
         jmp flush_drv          ; $A00C
         jmp newsec             ; $A00F
-        jmp free_sec           ; $A012 for the DOS 2 bank (EOSFS)
+        jmp free_sec           ; $A012 for the EOSFS helper bank
         jmp blk_ctl            ; $A015 jblock_io: Y=2 flush, else drop (DUNIT)
-        jmp alloc              ; $A018 for the DOS 2 bank (EOSFS index)
+        jmp alloc              ; $A018 for the EOSFS helper bank
         jmp route              ; $A01B for dev.asm fw_wrap
-        jmp ns_c               ; $A01E for the DOS 2 bank: newsec, C=1 not zeroed
+        jmp ns_c               ; $A01E helper: newsec, C=1 not zeroed
 
 * ---- kernel function dispatch ----------------------------------------------
 * the cache lies under the OS ROM: it is off while the driver runs
@@ -64,31 +65,9 @@ dsk_entry cpy #22
         jsr farcall            ; route, inside the byte window's settling
         dta b(BK_DEV),a(CARTLO+$2D) ; and setting (dev.asm fw_wrap)
         jmp k_romon            ; keeps A and the flags
-* route: calls for a drive with an Atari DOS 2 disk go to bank 7 (B9)
-route   sty rt_y
-        cpy #8                 ; file functions: the file's drive
-        beq de1
-        bcs ro_dev
-        jsr find_fcb
-        bcs ro_sd
-        bcc ro_fs
-ro_dev  cpy #21                ; EOS's own function 21: SDFS only
-        beq de1
-        jsr setdrv             ; the others: the device's drive
-        bcs ro_sd
-        jsr mount
-        bcs ro_sd
-ro_fs   ldx fs_drv
-        lda dv_fs,x
-        beq ro_sd
-        cmp #3                 ; EOSFS: the SDFS code (fmsx.icl)
-        beq ro_sd
-        ldy rt_y
-        jsr farcall
-        dta b(BK_DOS2),a(CARTLO)
-        rts
-ro_sd   ldy rt_y
-de1     lda ftab_hi,y
+* route: the resident DSK: driver is EOSFS-only. Foreign filesystems are
+* accessed by transient Toolkit programs, not dispatched through the kernel.
+route   lda ftab_hi,y
         pha
         lda ftab_lo,y
         pha
@@ -178,7 +157,7 @@ fo_read
         lda #0
         sta fc_flg,x
         jsr fcb_rewind
-fo_ent  ldx #22                ; the entry of the opened file, as on SDX
+fo_ent  ldx #EOS_DIRENT_SIZE-1 ; the entry of the opened file, as on SDX
 fo_e1   lda fs_ent,x           ; (SYMLINK.SYS looks at its status)
         sta dentry,x
         dex
@@ -187,7 +166,7 @@ fo_e1   lda fs_ent,x           ; (SYMLINK.SYS looks at its status)
         and #$08               ; SDX; written: the date it will get (FCB)
         bne fo_e3
         ldx #5
-fo_e2   lda fs_ent+17,x
+fo_e2   lda fs_ent+38,x
         sta date,x
         dex
         bpl fo_e2
@@ -226,12 +205,13 @@ fo_d0   jsr new_fcb
         lda #0
         sta fc_scan,x
         jsr pat_adr
-        ldy #10
-        lda #'?'
-fo_d1   sta (zp_t),y
-        dey
-        bpl fo_d1
-        ldx #22
+        ldy #0
+        lda #'*'
+        sta (zp_t),y
+        iny
+        lda #0
+        sta (zp_t),y
+        ldx #EOS_DIRENT_SIZE-1
 fo_d2   lda fs_ent,x
         sta dentry,x
         dex
@@ -247,34 +227,36 @@ f_first jsr setdrv
         bcs ff_ret
         jsr open_dir
         bcs ff_ret
-        ldx #10                ; the directory's own name (FDOPEN shows it)
-ff_dn   lda fs_ent+6,x
-        sta dir_name,x
-        dex
-        bpl ff_dn
+        ldy #0                 ; the directory's own name (FDOPEN shows it)
+ff_dn   cpy fs_ent+6
+        bcs ff_de
+        lda fs_ent+7,y
+        sta dir_name,y
+        iny
+        bne ff_dn
+ff_de   lda #0
+        sta dir_name,y
         ldx fs_fcb
         lda scan
         sta fc_scan,x
         lda #FL_DIR|FL_SRCH
         sta fc_flg,x
-        jsr pat_adr            ; the pattern; a blank name matches all, as
-        ldy #10                ; on SDX (LS.COM without a parameter)
-        lda #'?'
-ff0     sta (zp_t),y
-        dey
-        bpl ff0
-        ldy #10
-ff1     lda name,y
-        cmp #' '
+        jsr pat_adr            ; a blank name matches all, as on SDX
+        ldy #0
+        lda name
         bne ff2
-        dey
-        bpl ff1
-        bmi ff3
-ff2     ldy #10
-ff2a    lda name,y
+        lda #'*'
         sta (zp_t),y
-        dey
-        bpl ff2a
+        iny
+        lda #0
+        sta (zp_t),y
+        beq ff3
+ff2     lda name,y
+        sta (zp_t),y
+        beq ff3
+        iny
+        cpy #EOS_NAME_SIZE
+        bcc ff2
 ff3     jsr f_next
         cmp #E_EOF             ; nothing found: the directory stays open
         beq ff_ret             ; (the caller closes it, as on SDX)
@@ -295,7 +277,7 @@ f_next  jsr find_fcb
         lda fc_scan,x
         sta fs_scn
         jsr pat_adr
-        ldy #10
+        ldy #EOS_NAME_SIZE-1
 fn0     lda (zp_t),y
         sta fs_pat,y
         dey
@@ -304,7 +286,7 @@ fn1     jsr dir_next
         bcs fn_ret
         jsr match
         bcs fn1
-        ldx #22
+        ldx #EOS_DIRENT_SIZE-1
 fn2     lda fs_ent,x
         sta dentry,x
         dex
@@ -425,9 +407,9 @@ f_cwd   jsr setdrv
         sta fs_dmap
         lda dv_cwdhi,x
         sta fs_dmap+1
-        lda #BSLASH
+        lda #'/'
 cwd_bld sta fs_csep            ; fs_dmap's path with separator A to path
-        lda #64
+        lda #128
         sta fs_cwp
 kc1     lda #NFCB
         sta fs_fcb
@@ -438,28 +420,13 @@ kc1     lda #NFCB
         beq kc_done
         ldx #0                 ; NAME.EXT of this directory to fs_cname
         ldy #0
-kc2     lda fs_ent+6,y
-        cmp #' '
-        beq kc3
-        sta fs_cname,x
-        inx
-kc3     iny
-        cpy #8
-        bcc kc2
-        lda fs_ent+14
-        cmp #' '
-        beq kc5
-        lda #'.'
-        sta fs_cname,x
-        inx
-kc4     lda fs_ent+6,y
-        cmp #' '
-        beq kc5
+kc2     cpy fs_ent+6
+        bcs kc5
+        lda fs_ent+7,y
         sta fs_cname,x
         inx
         iny
-        cpy #11
-        bcc kc4
+        bne kc2
 kc5     txa
         sta fs_cwn
         lda fs_cwp
@@ -488,7 +455,7 @@ kc7     lda fs_cname,x
         jmp kc1
 kc_done ldx fs_cwp             ; move it to the start
         ldy #0
-kc8     cpx #64
+kc8     cpx #128
         bcs kc9
         lda path,x
         sta path,y
@@ -510,7 +477,7 @@ f_lpath lda op_drv
         sta fs_dmap
         lda op_dmap+1
         sta fs_dmap+1
-        lda #'>'
+        lda #'/'
         jsr cwd_bld
         bmi lp_ret
         ldy #0                 ; a > at its end
@@ -518,9 +485,9 @@ lp1     lda path,y
         beq lp2
         iny
         bne lp1
-lp2     cpy #63
+lp2     cpy #127
         bcs lp_ret
-        lda #'>'
+        lda #'/'
         sta path,y
         lda #0
         sta path+1,y
@@ -530,7 +497,7 @@ kc_long lda #E_PATHLEN
         rts
 
 * ---- 19 kd_check: the disk's information to path, as GETDFREE returns it ----
-* +0 file system ($2x SpartaDOS 2.x), +1 sector size code, +2 total sectors,
+* +0 EOSFS revision ($47/$48), +1 sector size code, +2 total sectors,
 * +4 free sectors, +6 volume name, +$0E sequence number, +$0F random id
 f_check jsr setdrv
         bcs ck_ret
@@ -617,8 +584,8 @@ mt_s1   lda #1                 ; sector 1 from the disk, not the cache
         sta fs_sec
         lda #0
         sta fs_sec+1
-        jsr farcall            ; (dos2 bank xd_drop)
-        dta b(BK_DOS2),a(CARTLO+$2D)
+        jsr farcall            ; EOSFS helper-bank xd_drop
+        dta b(BK_EOSX),a(CARTLO+$2D)
         ldx fs_drv
         lda dv_szhi,x          ; (the size it had: changed, nothing kept)
         sta fs_osz
@@ -640,19 +607,12 @@ mt_s1   lda #1                 ; sector 1 from the disk, not the cache
         bcs mn_fail
 mn_hdr  ldy #32
         lda (zp_p),y
-        cmp #$20
+        cmp #$47               ; EOSFS v2, clean
         beq mn_ok
-        cmp #$21
+        cmp #$48               ; EOSFS v2, interrupted write
         beq mn_ok
-        cmp #$45               ; EOSFS
-        beq mn_ok
-        cmp #$46               ; EOSFS left with changes not all written
-        beq mn_ok
-        txa                    ; not SDFS: no sequence number, nothing kept
-        jsr drop_but           ; but sector 1
-        jsr farcall            ; Atari DOS 2? (dos2 bank)
-        dta b(BK_DOS2),a(CARTLO+9)
-        bcc mn_ret
+        txa                    ; EOSFS-only resident driver
+        jsr drop_but           ; keep no foreign filesystem state
         ldx fs_drv
         lda #0
         sta dv_szlo,x
@@ -668,8 +628,8 @@ mn_fail pha                    ; (not mounted: dropped next time)
         pla
         sec
         rts
-mn_ok   jsr farcall            ; the header (dos2 bank mn_rest: the file
-        dta b(BK_DOS2),a(CARTLO+$1E) ; system, sizes, an EOSFS dirty flag's
+mn_ok   jsr farcall            ; helper-bank mn_rest: the file
+        dta b(BK_EOSX),a(CARTLO+$1E) ; system, sizes, an EOSFS dirty flag's
                                      ; check) and another disk? C=1
         bcc mn_same
         jsr drop_drv           ; another disk: nothing kept
@@ -928,10 +888,10 @@ bounce  jsr farcall
 
 * the cache is in the RAM under the OS ROM, as SDX keeps its data there
 bf_lo   dta l(BF_DATA,BF_DATA+SECMAX,BF_DATA+2*SECMAX,BF_DATA+3*SECMAX)
-        dta l(BF_DAT2,BF_DAT2+SECMAX,BF_DAT2+2*SECMAX,BF_DAT2+3*SECMAX)
+        dta l(BF_DAT2,BF_DAT2+SECMAX,BF_DAT2+2*SECMAX)
 bf_hi   dta h(BF_DATA,BF_DATA+SECMAX,BF_DATA+2*SECMAX,BF_DATA+3*SECMAX)
-        dta h(BF_DAT2,BF_DAT2+SECMAX,BF_DAT2+2*SECMAX,BF_DAT2+3*SECMAX)
-        ert NBUF<>8
+        dta h(BF_DAT2,BF_DAT2+SECMAX,BF_DAT2+2*SECMAX)
+        ert NBUF<>7
 
 * ===========================================================================
 * files
@@ -993,14 +953,13 @@ fcb_rewind lda #0
         sta fc_cbhi,x
         rts
 
-* pat_adr: zp_t = name pattern of FCB fs_fcb
+* pat_adr: zp_t = the 32-byte name pattern of FCB fs_fcb
 pat_adr lda fs_fcb
         asl @
-        sta zp_t
         asl @
         asl @
-        adc zp_t
-        adc fs_fcb             ; 11 * FCB
+        asl @
+        asl @                  ; 32 * FCB
         adc #<fc_pat
         sta zp_t
         lda #>fc_pat
@@ -1037,184 +996,8 @@ lc_7    lda fs_off             ; 128: index = pos >> 7
         lda fs_off
         and #$7F
         sta fs_off
-lc_map  jsr is_x               ; EOSFS: extents
-        bne lc_sd
+lc_map  jsr is_x
         jmp locate_x
-lc_sd   lda fc_cmlo,x
-        ora fc_cmhi,x
-        bne lc_back
-        lda fc_maplo,x
-        sta fc_cmlo,x
-        lda fc_maphi,x
-        sta fc_cmhi,x
-        lda #0
-        sta fc_cblo,x
-        sta fc_cbhi,x
-        lda fc_cmlo,x
-        ora fc_cmhi,x
-        bne lc_back
-        lda fs_alloc           ; no map yet: writing makes the first one
-        bne lc_nm1
-        jmp lc_none
-lc_nm1  jsr alloc
-        bcs lc_r1
-        lda al_s
-        sta fs_sec
-        lda al_s+1
-        sta fs_sec+1
-        jsr newsec
-        bcs lc_r1
-        ldx fs_fcb
-        lda al_s
-        sta fc_maplo,x
-        sta fc_cmlo,x
-        lda al_s+1
-        sta fc_maphi,x
-        sta fc_cmhi,x
-        lda fc_flg,x
-        ora #FL_EDIRTY
-        sta fc_flg,x
-        jmp lc_back
-lc_r1   rts
-* walk back while the index lies before the current map
-lc_back ldx fs_fcb
-        lda fs_idx
-        cmp fc_cblo,x
-        lda fs_idx+1
-        sbc fc_cbhi,x
-        bcs lc_fwd
-        jsr rd_map
-        bcc lc_b1
-        rts
-lc_b1   ldy #2
-        lda (zp_p),y
-        sta fc_cmlo,x
-        iny
-        lda (zp_p),y
-        sta fc_cmhi,x
-        ldy fs_drv
-        sec
-        lda fc_cblo,x
-        sbc dv_ments,y
-        sta fc_cblo,x
-        lda fc_cbhi,x
-        sbc #0
-        sta fc_cbhi,x
-        jmp lc_back
-* and forward while it lies past it
-lc_fwd  ldy fs_drv
-        sec
-        lda fs_idx
-        sbc fc_cblo,x
-        sta fs_rel
-        lda fs_idx+1
-        sbc fc_cbhi,x
-        bne lc_next
-        lda fs_rel
-        cmp dv_ments,y
-        jcc lc_ent
-lc_next jsr rd_map
-        jcs lc_ret
-        ldy #0
-        lda (zp_p),y
-        sta fs_t
-        iny
-        lda (zp_p),y
-        sta fs_t+1
-        ora fs_t
-        bne lc_nx2
-        lda fs_alloc           ; the last map: writing links a new one
-        bne lc_nx1
-        jmp lc_none
-lc_nx1  jsr alloc
-        jcs lc_r1
-        lda al_s
-        sta fs_sec
-        lda al_s+1
-        sta fs_sec+1
-        jsr newsec             ; its back link
-        jcs lc_r1
-        ldx fs_fcb
-        ldy #2
-        lda fc_cmlo,x
-        sta (zp_p),y
-        iny
-        lda fc_cmhi,x
-        sta (zp_p),y
-        jsr rd_map             ; the forward link in the current one
-        jcs lc_r1
-        ldy #0
-        lda al_s
-        sta (zp_p),y
-        sta fs_t
-        iny
-        lda al_s+1
-        sta (zp_p),y
-        sta fs_t+1
-        ldy fs_buf
-        lda #$FF
-        sta bf_dirty,y
-lc_nx2  lda fs_t
-        sta fc_cmlo,x
-        lda fs_t+1
-        sta fc_cmhi,x
-        ldy fs_drv
-        clc
-        lda fc_cblo,x
-        adc dv_ments,y
-        sta fc_cblo,x
-        lda fc_cbhi,x
-        adc #0
-        sta fc_cbhi,x
-        jmp lc_fwd
-lc_ent  jsr rd_map
-        bcs lc_ret
-        jsr lc_eptr
-        ldy #4
-        lda (zp_t),y
-        sta fs_sec
-        iny
-        lda (zp_t),y
-        sta fs_sec+1
-        ora fs_sec
-        bne lc_ok
-        lda fs_alloc           ; no data sector there: writing takes one
-        beq lc_ok
-        jsr alloc
-        bcs lc_ret
-        jsr rd_map
-        bcs lc_ret
-        jsr lc_eptr
-        ldy #4
-        lda al_s
-        sta (zp_t),y
-        sta fs_sec
-        iny
-        lda al_s+1
-        sta (zp_t),y
-        sta fs_sec+1
-        ldy fs_buf
-        lda #$FF
-        sta bf_dirty,y
-        sta fs_new
-lc_ok   clc
-lc_ret  rts
-
-* lc_eptr: zp_t = map buffer + 2 * fs_rel (the entry is at (zp_t),4)
-lc_eptr lda fs_rel
-        asl @
-        sta zp_t
-        lda #0
-        rol @
-        sta zp_t+1
-        clc
-        lda zp_t
-        adc zp_p
-        sta zp_t
-        lda zp_t+1
-        adc zp_p+1
-        sta zp_t+1
-        rts
 lc_none lda #0
         sta fs_sec
         sta fs_sec+1
@@ -1446,11 +1229,6 @@ open_dir ldx fs_fcb
         jsr fcb_rewind
         jsr dir_read
         bcs od_ret
-        ldx #2                 ; EOSFS: the name index (header +20..22)
-od1     lda fs_ent+20,x
-        sta ix_m,x
-        dex
-        bpl od1
         ldx fs_fcb
         lda fs_ent+3
         sta fc_len0,x
@@ -1460,12 +1238,12 @@ od1     lda fs_ent+20,x
         sta fc_len2,x
 od_ret  rts
 
-* dir_read: the next 23 bytes of the directory in FCB fs_fcb to fs_ent
+* dir_read: the next fixed-size v2 directory record to fs_ent
 dir_read lda #<fs_ent
         sta zp_q
         lda #>fs_ent
         sta zp_q+1
-        lda #23
+        lda #EOS_DIRENT_SIZE
         sta fs_cnt
         lda #0
         sta fs_cnt+1
@@ -1491,49 +1269,53 @@ scan_name lda #NFCB
         sta fs_fcb
         jsr open_dir
         bcs sn_ret
-        ldx #10
+        ldx #EOS_NAME_SIZE-1
 sn0     lda name,x
         sta fs_pat,x
         dex
         bpl sn0
-        jsr ix_scan            ; through the directory's index
-        bvc sn_ret
 sn1     jsr dir_next
         bcs sn_ret
         jsr match
         bcs sn1
 sn_ret  rts
 
-* ix_scan: EOSFS: the entry matching fs_pat and fs_scn through the
-* directory's index (open_dir done): C=0 found, C=1 none (A = E_EOF);
-* V=1 no index (or wildcards): scan as before
-ix_scan jsr farcall
-        dta b(BK_DOS2),a(CARTLO+$0C)
-xs1     bvs xs_ret
-        bcs xs_ret
-        jsr dir_read
-        bcs xs_ret
-        lda fs_ent
-        and #ST_USED|ST_DEL
-        cmp #ST_USED
-        bne xs2
-        jsr match
-        bcc xs_ret
-xs2     jsr farcall            ; a shared hash: on
-        dta b(BK_DOS2),a(CARTLO+$0F)
-        jmp xs1
-xs_ret  rts
-
-* match: does fs_ent match the pattern fs_pat ('?' matches any character)
-* and the search attributes fs_scn? C=0 yes
-match   ldy #10
-mt1     lda fs_pat,y
+* match: does fs_ent match the NUL-ended glob fs_pat? '?' matches one byte
+* and '*' matches zero or more bytes. Matching is exact-case and bounded by
+* the entry's stored name length. C=0 yes, after checking attributes.
+match   ldx #0                 ; pattern offset
+        ldy #0                 ; entry-name offset
+        lda #$FF
+        sta fs_keep            ; no '*' backtrack point yet
+mt1     lda fs_pat,x
+        beq mt_end
+        cmp #'*'
+        beq mt_star
+        cpy fs_ent+6
+        bcs mt_retry
         cmp #'?'
-        beq mt2
-        cmp fs_ent+6,y
-        bne mt_no
-mt2     dey
-        bpl mt1
+        beq mt_take
+        cmp fs_ent+7,y
+        bne mt_retry
+mt_take inx
+        iny
+        bne mt1
+mt_star inx                    ; remember the pattern after '*' and current
+        stx fs_keep            ; name position; retry grows the '*' match
+        sty fs_lim
+        jmp mt1
+mt_retry lda fs_keep
+        cmp #$FF
+        beq mt_no
+        ldy fs_lim
+        cpy fs_ent+6
+        bcs mt_no
+        iny
+        sty fs_lim
+        ldx fs_keep
+        jmp mt1
+mt_end cpy fs_ent+6
+        bne mt_retry
         lda fs_ent             ; attributes as P H A D in bits 0-3
         and #ST_PROT|ST_HID|ST_ARC
         sta fs_t
@@ -1561,21 +1343,15 @@ mt_no   sec
         rts
 
 * name_dir: when name is not blank, fs_dmap becomes its subdirectory
-name_dir ldx #10
+name_dir ldx #EOS_NAME_SIZE-1
 nd1     lda name,x
         sta fs_cname,x
-        cmp #' '
-        bne nd2
         dex
         bpl nd1
+        lda fs_cname
+        bne find_dir
         clc
         rts
-nd2     dex
-        bpl nd3
-        bmi find_dir
-nd3     lda name,x
-        sta fs_cname,x
-        jmp nd2
 
 * find_dir: fs_dmap becomes its subdirectory fs_cname; C=1, A = status.
 * Also fs_pmap = the directory it was in, fs_epos = its entry there.
@@ -1587,38 +1363,22 @@ find_dir lda fs_dmap
         sta fs_fcb
         jsr open_dir
         bcs fdr_ret
-        ldx #10                ; EOSFS: through the index (the name as the
-fdx1    lda fs_cname,x         ; pattern, directories only)
-        sta fs_pat,x
-        dex
-        bpl fdx1
-        lda fs_scn
-        pha
-        lda #$08
-        sta fs_scn
-        jsr ix_scan
-        sta ix_v               ; (its status)
-        php
-        tsx
-        lda $0102,x
-        sta fs_scn
-        plp
-        pla                    ; (C and V kept)
-        lda ix_v
-        bvs fdr1
-        bcs fdr_nf
-        jmp fdr3
 fdr1    jsr dir_next
         bcs fdr_nf
         lda fs_ent
         and #ST_DIR
         beq fdr1
-        ldx #10
-fdr2    lda fs_ent+6,x
-        cmp fs_cname,x
+        ldy #0
+fdr2    lda fs_cname,y
+        beq fdr2e
+        cpy fs_ent+6
+        bcs fdr1
+        cmp fs_ent+7,y
         bne fdr1
-        dex
-        bpl fdr2
+        iny
+        bne fdr2
+fdr2e   cpy fs_ent+6
+        bne fdr1
 fdr3    jsr ent_pos
         lda fs_ent+1
         sta fs_dmap
@@ -1648,10 +1408,10 @@ parent  lda #NFCB
 pa_ret  rts
 
 * resolve: mount drive fs_drv, then walk path (page 7) from the current
-* directory, or from the main one after a leading > or backslash. Components are
-* separated by > or backslash; < and .. go up, . stays. Out: fs_dmap.
+* directory, or from the main one after a leading slash. Components are
+* separated by slash; .. goes up and . stays. Out: fs_dmap.
 resolve jsr mount
-        bcs rs_ret
+        jcs rs_ret
         ldx fs_drv
         lda dv_cwdlo,x
         sta fs_dmap
@@ -1659,48 +1419,49 @@ resolve jsr mount
         sta fs_dmap+1
         ldy #0
         lda path
-        cmp #'>'
+        cmp #'/'
         beq rs_root
-        cmp #BSLASH
         bne rs_loop
 rs_root lda dv_mainlo,x
         sta fs_dmap
         lda dv_mainhi,x
         sta fs_dmap+1
         iny
-rs_loop sty fs_py
-        lda path,y
+rs_loop lda path,y
         beq rs_ok
-        cmp #'>'
+        cmp #'/'
         beq rs_sep
-        cmp #BSLASH
-        beq rs_sep
-        cmp #'<'
-        beq rs_up1
         jsr getcomp
-        sty fs_py
+        bcs rs_ret
+        pha                    ; getcomp's kind while normalizing one slash
+        lda path,y
+        cmp #'/'
+        bne rs_comp
+        iny
+rs_comp pla
         cmp #1
-        beq rs_next
+        beq rs_loop
         cmp #2
         beq rs_up
+        tya
+        pha
         jsr find_dir
-        bcs rs_ret
-rs_next ldy fs_py
+        bcs rs_callerr
+        pla
+        tay
         jmp rs_loop
-rs_up1  inc fs_py              ; BW-DOS's <: none above the main directory
-        ldx fs_drv             ; (its PWD goes up until that fails)
-        lda fs_dmap
-        cmp dv_mainlo,x
-        bne rs_up
-        lda fs_dmap+1
-        cmp dv_mainhi,x
-        bne rs_up
-        lda #E_PATH
+rs_up   tya
+        pha
+        jsr parent
+        bcs rs_callerr
+        pla
+        tay
+        jmp rs_loop
+rs_callerr sta fs_t
+        pla
+        lda fs_t
         sec
         rts
-rs_up   jsr parent
-        bcs rs_ret
-        jmp rs_next
 rs_sep  iny
         jmp rs_loop
 rs_ok   clc
@@ -1708,8 +1469,8 @@ rs_ret  rts
 
 * getcomp: the path component at path+Y in internal form to fs_cname
 * out: Y past it; A = 0 a name, 1 ".", 2 ".."
-getcomp ldx #10
-        lda #' '
+getcomp ldx #EOS_NAME_MAX
+        lda #0
 gc0     sta fs_cname,x
         dex
         bpl gc0
@@ -1721,6 +1482,7 @@ gc0     sta fs_cname,x
         bne gc_dd
         iny
         lda #1
+        clc
         rts
 gc_dd   cmp #'.'
         bne gc_name
@@ -1730,36 +1492,31 @@ gc_dd   cmp #'.'
         iny
         iny
         lda #2
+        clc
         rts
 gc_name ldx #0
-        lda #8
-        sta fs_lim
 gc1     lda path,y
         jsr is_sep
         beq gc_end
         iny
-        cmp #'.'
-        beq gc_ext
-        cpx fs_lim
-        bcs gc1
+        cpx #EOS_NAME_MAX
+        bcs gc_long
         sta fs_cname,x
         inx
         bne gc1
-gc_ext  ldx #8
-        lda #11
-        sta fs_lim
-        bne gc1
 gc_end  lda #0
+        sta fs_cname,x
+        clc
+        rts
+gc_long lda #E_PATHLEN
+        sec
         rts
 
-* is_sep: Z=1 for the end of a path component (0, >, backslash, <)
+* is_sep: Z=1 for the end of a path component (NUL or slash)
 is_sep  cmp #0
         beq is_ret
-        cmp #'>'
+        cmp #'/'
         beq is_ret
-        cmp #BSLASH
-        beq is_ret
-        cmp #'<'
 is_ret  rts
 
         icl 'fmsw.icl'

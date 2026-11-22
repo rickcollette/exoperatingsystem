@@ -13,9 +13,9 @@
 ;
 ; ARC archives: list; CTRL: verbose
 ; list; SHIFT: extract here.
-^ARC,CAR:ARC.COM,V %
-!ARC,CAR:ARC.COM,X %
-ARC,CAR:ARC.COM,L %
+^arc,CAR:arc.com,V %
+!arc,CAR:arc.com,X %
+arc,CAR:arc.com,L %
 ;
 ; Text files: view with LESS.
-TXT:DOC:MAN,CAR:LESS.COM
+txt:doc:man,CAR:less.com

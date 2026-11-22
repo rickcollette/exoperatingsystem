@@ -8,6 +8,7 @@
 ; kilobytes, rounded) and the numbers of directories and files, and the
 ; sum of both. The sizes of directories are those of their entries.
 U_SLASH  smb 'U_SLASH'
+U_ARGV   smb 'U_ARGV'
 U_GETATR smb 'U_GETATR'
 U_FSPEC  smb 'U_FSPEC'
 U_GEFINA smb 'U_GEFINA'
@@ -22,7 +23,6 @@ COMTAB   smb 'COMTAB'
 FILE_P   smb 'FILE_P'
 
 COMFNAM  equ $21               ; (COMTAB+: the parameter)
-name     equ $0762
 mode     equ $0778
 scan     equ $0779
 dentry   equ $0789             ; status, node, size, name
@@ -31,15 +31,16 @@ RMARGN   equ $53
 MEMTOP   equ $02E5
 MEMLO    equ $02E7
 EOL      equ $9B
-BSLASH   equ $5C
-ESZ      equ 15                ; a list entry: status, size, name
+ESZ      equ 36                ; status, 24-bit size, name length and 31 bytes
 MAXLV    equ 16
 
 cur      equ $80               ; the entry in hand
 top      equ $82               ; the end of the lists
 
         blk reloc main
-start   lda a_opts
+start   lda #$FF
+        jsr U_ARGV
+        lda a_opts
         ldx a_opts+1
         ldy #2
         jsr U_SLASH
@@ -51,7 +52,7 @@ s0      sta dbytes,x
         sta depth
         jsr U_GETATR           ; (all entries unless attributes are given)
         bne s1
-        ldx #3                 ; no name: *.*
+        ldx #1                 ; no name: *
 s0a     lda all,x
         sta COMTAB+COMFNAM,x
         dex
@@ -62,14 +63,7 @@ s0a     lda all,x
         sta FILE_P+1
         jmp s1a
 s1      jsr U_FSPEC
-s1a     lda scan
-        sta scan0
-        jsr U_GEFINA           ; the name to match and the path to show
-        ldx #10
-s2      lda name,x
-        sta pat,x
-        dex
-        bpl s2
+s1a     jsr U_GEFINA           ; resolve the path to show
         lda a_disp
         ldx a_disp+1
         ldy #0
@@ -84,11 +78,8 @@ s3      lda COMTAB+COMFNAM,x
         inx
         cmp #':'
         beq s4
-        cmp #'>'
+        cmp #'/'
         beq s4
-        cmp #'<'
-        beq s4
-        cmp #BSLASH
         bne s3
 s4      txa
         tay
@@ -178,16 +169,13 @@ lv0     lda all,y
         sta spec,x
         inx
         iny
-        cpy #4
+        cpy #2
         bcc lv0
         lda a_spec
         sta FILE_P
         lda a_spec+1
         sta FILE_P+1
-        lda #0                 ; attributes only for the first directory
-        ldx depth
-        bne lv1
-        lda scan0
+        lda #0                 ; walk every entry; filtering is transient-side
 lv1     sta scan
         lda top
         sta base
@@ -215,13 +203,20 @@ lv2m    jsr FCLOSE
 lv3     ldy #0
         lda dentry
         sta (top),y
-        ldx #3                 ; the size, then the name
+        ldx #3                 ; size and name length
 lv4     iny
         lda dentry,x
         sta (top),y
         inx
-        cpx #17
+        cpx #7
         bcc lv4
+        ldx #0                 ; exact name bytes
+lv4n    iny
+        lda dentry+7,x
+        sta (top),y
+        inx
+        cpx #31
+        bcc lv4n
         clc
         lda top
         adc #ESZ
@@ -264,15 +259,7 @@ entry   ldy #0
         lda (cur),y
         and #$20
         bne en_dir
-        ldy #14                ; a file: when it matches
-en1     lda pat-4,y
-        cmp #'?'
-        beq en2
-        cmp (cur),y
-        bne en_ret
-en2     dey
-        cpy #4
-        bcs en1
+en_count
         ldx #fbytes-dbytes
         jsr addsz
         inc nfiles
@@ -296,7 +283,7 @@ en4     lda depth
         bcs en_ret
         ldx displ              ; one level down: NAME> after both paths
         jsr addnm
-        lda #'>'
+        lda #'/'
         sta disp,x
         inx
         cpx #120
@@ -312,7 +299,7 @@ en4     lda depth
         dta a(disp)
 en5     ldx specl
         jsr addnm2
-        lda #'>'
+        lda #'/'
         sta spec,x
         inx
         lda #EOL               ; its size: the one its own header gives
@@ -398,7 +385,7 @@ as1     lda (cur),y
         sta dbytes,x
         rts
 
-* addnm: the entry's name as NAME.EXT to disp+X; addnm2: to spec+X;
+* addnm: the entry's exact name to disp+X; addnm2: to spec+X;
 * X = its end
 addnm   lda a_disp
         ldy a_disp+1
@@ -408,25 +395,18 @@ addnm2  lda a_spec
 an0     sta an_st+1
         sty an_st+2
         ldy #4
-an1     lda (cur),y
-        cmp #' '
-        beq an2
-        jsr an_st
-an2     iny
-        cpy #12
-        bcc an1
         lda (cur),y
-        cmp #' '
-        beq an4
-        lda #'.'
+        sta namelen
+        clc
+        adc #5
+        sta nameend
+        ldy #5
+an1     cpy nameend
+        bcs an4
+        lda (cur),y
         jsr an_st
-an3     lda (cur),y
-        cmp #' '
-        beq an3a
-        jsr an_st
-an3a    iny
-        cpy #15
-        bcc an3
+        iny
+        bne an1
 an4     rts
 an_st   sta $FFFF,x            ; (the address set above)
         inx
@@ -438,12 +418,11 @@ a_disp  dta a(disp)
 a_spec  dta a(spec)
 a_end   dta a(pend)
 opt_q   dta b(0),c'Q'
-all     dta c'*.*',b(EOL)
+all     dta c'*',b(EOL)
 units   dta a(u_b,u_bytes)
 u_b     dta c' B (',0
 u_bytes dta c' bytes (',0
 unit    dta a(0)
-scan0   dta 0
 depth   dta 0
 specl   dta 0
 displ   dta 0
@@ -451,7 +430,8 @@ nd      dta 0
 nd2     dta 0
 cnt     dta a(0)
 base    dta a(0)
-pat     :11 dta 0
+namelen dta 0
+nameend dta 0
 dbytes  dta 0,0,0,0
 fbytes  dta 0,0,0,0
 tbytes  dta 0,0,0,0

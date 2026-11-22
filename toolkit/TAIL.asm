@@ -5,6 +5,8 @@
 ; of the program to MEMTOP; when it is full only the last count lines stay
 ; (when they alone fill it, the lines in its first half go).
 U_GETPAR smb 'U_GETPAR'
+U_ARGV   smb 'U_ARGV'
+TOLOWER  smb 'TOLOWER'
 FOPEN    smb 'FOPEN'
 FGETC    smb 'FGETC'
 FCLOSE   smb 'FCLOSE'
@@ -183,7 +185,7 @@ is1     rts
 
 unsw    equ *                  ; (no switches but -n)
 UNSWN   equ 0
-unval   dta c'N'
+unval   dta c'n'
 k       dta a(0)
 
         icl 'UNIX.icl'

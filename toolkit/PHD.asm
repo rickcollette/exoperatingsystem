@@ -13,7 +13,7 @@ U_GEFINA smb 'U_GEFINA'
 CHDIR    smb 'CHDIR'
 
 device   equ $0761
-path     equ $07A0             ; (GETCWD: the path, $00 ended)
+path     equ $0640             ; (GETCWD: the path, $00 ended)
 EOL      equ $9B
 
         blk reloc main
@@ -46,9 +46,9 @@ unit    ora #$40
         lda pcur+1
         sta FILE_P+1
         jsr GETCWD
-        lda path               ; the main directory: >
+        lda path               ; the main directory: /
         bne cwd
-        lda #'>'
+        lda #'/'
         sta path
         lda #0
         sta path+1

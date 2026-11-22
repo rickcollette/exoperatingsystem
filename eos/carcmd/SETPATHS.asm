@@ -35,7 +35,7 @@ start   jsr U_GETPAR
 s0      lda COMTAB+$20,x       ; its last character (X = its length)
         cmp #':'
         beq s_dir
-        cmp #'>'
+        cmp #'/'
         beq s_dir
         cmp #'<'
         beq s_dir

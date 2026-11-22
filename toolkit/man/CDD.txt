@@ -8,5 +8,5 @@ also becomes the current drive.
 Without a parameter nothing happens.
 
 Examples:
- CDD D2:>GAMES
+ CDD D2:/GAMES
  CDD C:

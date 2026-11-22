@@ -75,7 +75,7 @@ e2      lda spec,x
         inx
         cmp #':'
         beq e3
-        cmp #'>'
+        cmp #'/'
         beq e3
         cmp #'<'
         beq e3

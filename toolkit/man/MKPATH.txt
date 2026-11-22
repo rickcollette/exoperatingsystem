@@ -4,8 +4,8 @@ Syntax:
  MKPATH [/FV] [d:][path]
 
 Makes each directory along the path
-that is not there yet. MKPATH A>B>C
-makes A, A>B and A>B>C; A>..>B makes
+that is not there yet. MKPATH A/B/C
+makes A, A/B and A/B/C; A/../B makes
 A and B side by side.
 
 /F  go on past directories that are
@@ -15,4 +15,4 @@ A and B side by side.
     made
 
 Example:
- MKPATH /V D2:>SRC>LIB>OLD
+ mkpath /V D2:/SRC/LIB/OLD

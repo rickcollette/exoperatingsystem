@@ -10,8 +10,8 @@ Makes the given directory the current one on that drive (the current drive if no
 When the disk is changed, the current directory goes back to MAIN.
 
 Examples:
- CD >GAMES>ARCADE
+ cd /GAMES/ARCADE
  CD ..
- CD D2:>
+ CD D2:/
 
 See also: MKDIR, RMDIR, PWD, PATH
