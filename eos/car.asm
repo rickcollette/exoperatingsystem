@@ -517,6 +517,8 @@ cf0     lda mainnm,x
         sta dir_name,x
         dex
         bpl cf0
+        lda #0                 ; dir_name is native and NUL ended
+        sta dir_name+11
         jsr count
         jsr newslot
         bcs cf_ret

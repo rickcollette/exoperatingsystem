@@ -831,6 +831,30 @@ def fdir_files():
 FDIR_MODES = ['0', '1', '2', '8', '$40', '$7F', '$80', '$81', '$88', '$C0', '$FF']
 
 
+def t_dir_native():
+    """DIR decodes the EOSFS length/name/timestamp fields, not legacy 8.3 offsets."""
+    files = {
+        'phd.com': b'x' * 368,
+        'stat.com': b'x' * 1223,
+        'long name with spaces.com': b'x' * 17,
+        'man/X.TXT': b'x',
+    }
+    got = our_lines('dir-native', files, ['DIR'])
+    if got is None:
+        return False, 'no result from EOS'
+    want = [
+        'Directory: main',
+        'phd.com     368  1-01-25 12:00',
+        'stat.com    1223  1-01-25 12:00',
+        'long name with spaces.com      17  1-0',
+        'man  <DIR>   1-01-25 12:00',
+    ]
+    missing = [line for line in want if line not in got]
+    if missing:
+        return False, 'missing %r in %r' % (missing, got)
+    return True, '%d native directory lines' % len(got)
+
+
 def t_dir6():
     """D: open mode 6 from BASIC: Atari DOS 2's listing, the lines as SDX
     shows them (measured 2026-11-03; SDX's own run cannot end its batch:
@@ -2043,6 +2067,7 @@ TESTS = {
     'fdir-sd': lambda: multi('fdir-sd', fdir_files(), [['FDT 0 F.OUT D1:*.*'], ['FDT $80 F.OUT D1:*.*'],
                                                         ['FDT $80 F.OUT DIRX.EXT>*.*']],
                              disk=True, geo=(1440, 128)),
+    'dir-native': t_dir_native,
     'dir6': t_dir6,
     'siodrv': t_siodrv,
     'uexpand': t_uexpand,
@@ -2233,7 +2258,7 @@ EOSFS_ACTIVE = [
     'fsw', 'fsw-dd', 'fsw-512', 'fsw-hd', 'pipe-cleanup', 'builddir',
     'argv', 'argv-long', 'argv-line-max', 'xcomli-max', 'pipe-long',
     'conditionals', 'shell-vars', 'legacy-long', 'redir-posix',
-    'spaced-names', 'builtin-argv', 'sparse-gap', 'core-unix', 'tar-native',
+    'spaced-names', 'dir-native', 'builtin-argv', 'sparse-gap', 'core-unix', 'tar-native',
     'prompt', 'history-default', 'mem-bytes',
     'toolkit-disk',
     'vim-interactive',

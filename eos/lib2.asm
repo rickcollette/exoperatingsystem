@@ -322,11 +322,12 @@ h1      lda fd_vol,x
         jsr text0
         ldx #0
 h2      lda dir_name,x
+        beq h3
         jsr put
         inx
-        cpx #8
+        cpx #EOS_NAME_MAX
         bcc h2
-        lda #EOL
+h3      lda #EOL
         jsr put
         lda #EOL
         jsr put
@@ -391,7 +392,27 @@ en2c    lda #' '
         dta b($2C)
 en2d    lda #' '
         jsr put
-en3     ldx #0                 ; the name
+* Native EOSFS entries carry a length byte followed by as many as 31 exact
+* name bytes.  Other handlers (notably CAR:) still expose the old padded 8.3
+* record, whose byte 6 is the first name character.  Keep that compatibility
+* path, but never interpret an EOSFS length byte or its name tail as 8.3/date
+* fields.
+en3     lda dentry+6
+        cmp #1
+        bcc en_oldname
+        cmp #EOS_NAME_SIZE
+        bcs en_oldname
+        tax
+        ldy #0
+en_native lda dentry+7,y
+        jsr put_y
+        iny
+        dex
+        bne en_native
+        lda #' '
+        jsr put
+        jmp en_attr
+en_oldname ldx #0              ; legacy padded 8.3 name
 en4     lda dentry+6,x
         jsr put
         inx
@@ -413,7 +434,7 @@ en6     lda dentry+6,x
         inx
         cpx #11
         bcc en6
-        bit fd_mode            ; attributes
+en_attr bit fd_mode            ; attributes
         bvc en8
         lda #' '
         jsr put
@@ -476,31 +497,44 @@ en10a   lda dentry+3,x
         sta fd_v+3
         lda #' '
         jsr num
-en11    lda dentry+17          ; no date (Atari DOS 2): none shown, as SDX
+en11    ldy #0                 ; legacy date offset
+        lda dentry+6
+        cmp #1
+        bcc en11a
+        cmp #EOS_NAME_SIZE
+        bcs en11a
+        ldy #21                ; native EOSFS date is at 38, not 17
+en11a   sty fd_v+3
+        lda dentry+17,y        ; no date (Atari DOS 2): none shown, as SDX
         jeq en_eol
         lda #' '               ; date d-mm-yy
         jsr put
-        lda dentry+17
+        ldy fd_v+3
+        lda dentry+17,y
         ldx #' '
         jsr num2
         lda #'-'
         jsr put
-        lda dentry+18
+        ldy fd_v+3
+        lda dentry+18,y
         ldx #'0'
         jsr num2
         lda #'-'
         jsr put
-        lda dentry+19
+        ldy fd_v+3
+        lda dentry+19,y
         ldx #'0'
         jsr num2
         lda #' '               ; time h:mm[:ss]
         jsr put
-        lda dentry+20
+        ldy fd_v+3
+        lda dentry+20,y
         ldx #' '
         jsr num2
         lda #':'
         jsr put
-        lda dentry+21
+        ldy fd_v+3
+        lda dentry+21,y
         ldx #'0'
         jsr num2
         lda fd_mode
@@ -508,7 +542,8 @@ en11    lda dentry+17          ; no date (Atari DOS 2): none shown, as SDX
         bne en_eol
         lda #':'
         jsr put
-        lda dentry+22
+        ldy fd_v+3
+        lda dentry+22,y
         ldx #'0'
         jsr num2
 en_eol  lda #EOL
